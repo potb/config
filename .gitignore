@@ -1,0 +1,17 @@
+### JetBrains template
+# User-specific stuff
+.idea
+
+# File-based project format
+*.iml
+*.ipr
+*.iws
+
+# IntelliJ
+out/
+
+### Nix template
+# Ignore build outputs from performing a nix-build or `nix build` command
+result
+result-*
+
