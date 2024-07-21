@@ -46,6 +46,11 @@
       url = "github:nix-community/lanzaboote/v0.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -69,7 +74,7 @@
         modules = [
           inputs.stylix.nixosModules.stylix
           inputs.catppuccin.nixosModules.catppuccin
-          inputs.lanzaboote.nixosModules.lanzaboote
+          inputs.disko.nixosModules.disko
           ./nixos/configuration.nix
         ];
       };
