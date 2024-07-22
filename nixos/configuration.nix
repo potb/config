@@ -158,9 +158,6 @@
 
   # Program settings
   programs.zsh.enable = true;
-  programs.gamemode.enable = true;
-  programs.steam.enable = true;
-  programs.steam.gamescopeSession.enable = true;
   programs.nix-ld.enable = true;
 
   # Services
@@ -221,27 +218,9 @@
 
   # System packages
   environment.systemPackages = with pkgs; [
-    protonup
-    webcord
-
-    wineWowPackages.stable
-    winetricks
-    bottles
-
-    gnome.gnome-boxes
-
+    discord
     sbctl
-
-    quickemu
   ];
-
-  # Environment variables
-  environment.sessionVariables = {
-    STEAM_EXTRA_COMPAT_TOOLS_PATHS = "\${HOME}/.steam/root/compatibilitytools.d";
-  };
-
-  # Paths to link
-  environment.pathsToLink = ["/libexec"];
 
   # Stylix settings
   stylix = let
