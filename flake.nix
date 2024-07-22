@@ -74,6 +74,7 @@
         modules = [
           inputs.stylix.nixosModules.stylix
           inputs.catppuccin.nixosModules.catppuccin
+          inputs.lanzaboote.nixosModules.lanzaboote
           inputs.disko.nixosModules.disko
           ./nixos/configuration.nix
         ];
