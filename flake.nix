@@ -86,10 +86,10 @@
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
         extraSpecialArgs = {inherit inputs outputs;};
         modules = [
-          ./home-manager/home.nix
           inputs.nixvim.homeManagerModules.nixvim
           inputs.catppuccin.homeManagerModules.catppuccin
           inputs.vscode-server.homeModules.default
+          ./home-manager/home.nix
         ];
       };
 
@@ -97,8 +97,8 @@
         pkgs = nixpkgs.legacyPackages.aarch64-darwin;
         extraSpecialArgs = {inherit inputs outputs;};
         modules = [
-          ./home-manager/home.nix
           inputs.nixvim.homeManagerModules.nixvim
+          ./home-manager/home.nix
         ];
       };
     };

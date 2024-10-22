@@ -51,9 +51,9 @@
   boot.binfmt.emulatedSystems = ["aarch64-linux"];
 
   # Hardware settings
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
-    driSupport32Bit = true;
+    enable32Bit = true;
   };
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
@@ -118,6 +118,12 @@
     shell = pkgs.zsh;
   };
 
+  services.displayManager = {
+    autoLogin.enable = true;
+    autoLogin.user = "potb";
+    defaultSession = "none+i3";
+  };
+
   # X server settings
   services.xserver.enable = true;
   services.xserver.excludePackages = [pkgs.xterm];
@@ -133,13 +139,9 @@
     };
 
     displayManager = {
-      defaultSession = "none+i3";
-
       lightdm = {
         enable = true;
         greeter.enable = false;
-        autoLogin.enable = true;
-        autoLogin.user = "potb";
       };
     };
 
@@ -147,7 +149,7 @@
       layout = "qwerty-fr";
 
       extraLayouts."qwerty-fr" = let
-        qwerty-fr = pkgs.callPackage ./qwerty-fr.nix {};
+        qwerty-fr = pkgs.qwerty-fr;
       in {
         description = qwerty-fr.meta.description;
         languages = ["eng"];
@@ -218,11 +220,7 @@
 
   # System packages
   environment.systemPackages = with pkgs; [
-    (poetry.override {python3 = python311Full;})
-    python311Full
-    quickemu
     discord
-    sbctl
   ];
 
   # Stylix settings

@@ -41,12 +41,7 @@
         httpie
         sd
         spotify
-        steampipe
-        step-cli
-        terraform
-        tokei
         ssm-session-manager-plugin
-        yq
         pulumi-bin
         nh
         jetbrains.webstorm
@@ -229,9 +224,9 @@
       };
 
       colorschemes.catppuccin.enable = true;
-      colorschemes.catppuccin.flavour = "latte";
+      colorschemes.catppuccin.settings.flavour = "latte";
 
-      options = {
+      opts = {
         number = true;
         relativenumber = true;
         expandtab = true;
@@ -320,9 +315,6 @@
         unredir-if-possible = false;
         backend = "xrender";
         vsync = true;
-
-        corner-radius = 15.0;
-        round-border = 15.0;
       };
     };
   };
