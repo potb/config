@@ -38,10 +38,6 @@
       url = "github:catppuccin/nix";
     };
 
-    vscode-server = {
-      url = "github:nix-community/nixos-vscode-server";
-    };
-
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v0.4.1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -86,10 +82,9 @@
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
         extraSpecialArgs = {inherit inputs outputs;};
         modules = [
-          ./home-manager/home.nix
           inputs.nixvim.homeManagerModules.nixvim
           inputs.catppuccin.homeManagerModules.catppuccin
-          inputs.vscode-server.homeModules.default
+          ./home-manager/home.nix
         ];
       };
 
@@ -97,8 +92,8 @@
         pkgs = nixpkgs.legacyPackages.aarch64-darwin;
         extraSpecialArgs = {inherit inputs outputs;};
         modules = [
-          ./home-manager/home.nix
           inputs.nixvim.homeManagerModules.nixvim
+          ./home-manager/home.nix
         ];
       };
     };

@@ -51,9 +51,9 @@
   boot.binfmt.emulatedSystems = ["aarch64-linux"];
 
   # Hardware settings
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
-    driSupport32Bit = true;
+    enable32Bit = true;
   };
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
@@ -62,7 +62,6 @@
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;
   services.udisks2.enable = true;
-  services.fwupd.enable = true;
 
   # Time and localization settings
   time.timeZone = "Europe/Paris";
@@ -87,12 +86,6 @@
 
   # Virtualization settings
   virtualisation.docker.enable = true;
-  virtualisation.libvirtd.enable = true;
-  virtualisation.libvirtd.qemu = {
-    package = pkgs.qemu_kvm;
-    runAsRoot = true;
-  };
-  virtualisation.spiceUSBRedirection.enable = true;
 
   # Sound settings
   hardware.pulseaudio.enable = false;
@@ -114,8 +107,14 @@
   users.users.potb = {
     isNormalUser = true;
     description = "Peïo Thibault";
-    extraGroups = ["networkmanager" "wheel" "docker" "libvirtd"];
+    extraGroups = ["networkmanager" "wheel" "docker"];
     shell = pkgs.zsh;
+  };
+
+  services.displayManager = {
+    autoLogin.enable = true;
+    autoLogin.user = "potb";
+    defaultSession = "none+i3";
   };
 
   # X server settings
@@ -133,13 +132,9 @@
     };
 
     displayManager = {
-      defaultSession = "none+i3";
-
       lightdm = {
         enable = true;
         greeter.enable = false;
-        autoLogin.enable = true;
-        autoLogin.user = "potb";
       };
     };
 
@@ -147,7 +142,7 @@
       layout = "qwerty-fr";
 
       extraLayouts."qwerty-fr" = let
-        qwerty-fr = pkgs.callPackage ./qwerty-fr.nix {};
+        qwerty-fr = pkgs.qwerty-fr;
       in {
         description = qwerty-fr.meta.description;
         languages = ["eng"];
@@ -162,6 +157,19 @@
 
   # Services
   services.gnome.gnome-keyring.enable = true;
+
+  services.ollama = {
+    enable = true;
+    acceleration = "rocm";
+    rocmOverrideGfx = "11.0.0";
+  };
+
+  open-webui = {
+    enable = true;
+    environment = {
+      OLLAMA_API_BASE_URL = "http://localhost:11434";
+    };
+  };
 
   systemd.services.update-apod-wallpaper = {
     description = "Update APOD Wallpaper";
@@ -218,11 +226,7 @@
 
   # System packages
   environment.systemPackages = with pkgs; [
-    (poetry.override {python3 = python311Full;})
-    python311Full
-    quickemu
     discord
-    sbctl
   ];
 
   # Stylix settings
