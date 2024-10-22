@@ -41,17 +41,10 @@
         httpie
         sd
         spotify
-        steampipe
-        step-cli
-        terraform
-        tokei
         ssm-session-manager-plugin
-        yq
         pulumi-bin
         nh
         jetbrains.webstorm
-        jetbrains.pycharm-professional
-        jetbrains.gateway
       ]
       ++ (
         if stdenv.isDarwin
@@ -102,29 +95,6 @@
   programs = {
     home-manager.enable = true;
 
-    vscode = {
-      enable = true;
-      enableExtensionUpdateCheck = false;
-      enableUpdateCheck = false;
-      mutableExtensionsDir = true;
-
-      package = pkgs.vscode.fhs;
-
-      extensions = with pkgs.vscode-extensions; [
-        ms-vscode-remote.remote-ssh
-        ms-python.python
-        catppuccin.catppuccin-vsc-icons
-        catppuccin.catppuccin-vsc
-        github.copilot
-        github.copilot-chat
-      ];
-
-      userSettings = {
-        "workbench.colorTheme" = "Catppuccin Latte";
-        "workbench.iconTheme" = "catppuccin-latte";
-      };
-    };
-
     zsh = {
       enable = true;
       enableCompletion = true;
@@ -132,7 +102,7 @@
       syntaxHighlighting.enable = true;
 
       initExtra = ''
-        eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --corepack-enabled --resolve-engines)"
+        eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
       '';
 
       oh-my-zsh = {
@@ -223,15 +193,15 @@
           servers = {
             nixd.enable = true;
             pyright.enable = true;
-            tsserver.enable = true;
+            ts_ls.enable = true;
           };
         };
       };
 
       colorschemes.catppuccin.enable = true;
-      colorschemes.catppuccin.flavour = "latte";
+      colorschemes.catppuccin.settings.flavour = "latte";
 
-      options = {
+      opts = {
         number = true;
         relativenumber = true;
         expandtab = true;
@@ -287,10 +257,10 @@
 
     kitty = {
       enable = true;
-      theme = "Catppuccin-Latte";
+      themeFile = "Catppuccin-Latte";
       font = {
         name = "FiraCode Nerd Font Mono Medium";
-        package = pkgs.nerdfonts.override {fonts = ["FiraCode"];};
+        package = pkgs.nerd-fonts.fira-code;
       };
 
       settings = {
@@ -300,10 +270,6 @@
   };
 
   services = {
-    vscode-server = {
-      enable = true;
-    };
-
     picom = {
       enable = true;
 
@@ -320,9 +286,6 @@
         unredir-if-possible = false;
         backend = "xrender";
         vsync = true;
-
-        corner-radius = 15.0;
-        round-border = 15.0;
       };
     };
   };
