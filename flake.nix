@@ -47,6 +47,10 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hyprland = {
+      url = "github:hyprwm/Hyprland";
+    };
   };
 
   outputs = {
@@ -64,37 +68,43 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    nixosConfigurations = {
+    # TODO: Use pipes when alejandro supports it
+    nixosConfigurations = let
+      nixosModules = map (name: import (./nixos/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./nixos/modules)
+        )
+      );
+    in {
       charon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
-        modules = [
-          inputs.stylix.nixosModules.stylix
-          inputs.catppuccin.nixosModules.catppuccin
-          inputs.lanzaboote.nixosModules.lanzaboote
-          inputs.disko.nixosModules.disko
-          ./nixos/configuration.nix
-        ];
+        modules = nixosModules ++ [./nixos/configuration.nix];
       };
     };
 
-    homeConfigurations = {
-      "potb@charon" = home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs;};
-        modules = [
-          inputs.nixvim.homeManagerModules.nixvim
-          inputs.catppuccin.homeManagerModules.catppuccin
-          ./home-manager/home.nix
-        ];
+    homeConfigurations = let
+      mkHomeConfig = {
+        system,
+        extraModules ? [],
+      }:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.${system};
+          extraSpecialArgs = {inherit inputs outputs;};
+          modules = with inputs;
+            [
+              nixvim.homeManagerModules.nixvim
+              ./home-manager/home.nix
+            ]
+            ++ extraModules;
+        };
+    in {
+      "potb@charon" = mkHomeConfig {
+        system = "x86_64-linux";
+        extraModules = with inputs; [catppuccin.homeManagerModules.catppuccin];
       };
 
-      "potb@nyx" = home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
-        extraSpecialArgs = {inherit inputs outputs;};
-        modules = [
-          inputs.nixvim.homeManagerModules.nixvim
-          ./home-manager/home.nix
-        ];
+      "potb@nyx" = mkHomeConfig {
+        system = "aarch64-darwin";
       };
     };
   };
