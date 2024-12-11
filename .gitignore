@@ -15,3 +15,5 @@ out/
 result
 result-*
 
+### MacOS template
+.DS_Store
