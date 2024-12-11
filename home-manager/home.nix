@@ -15,44 +15,53 @@
     flavor = "latte";
   };
 
-  home = {
-    username = "potb";
-    homeDirectory =
+  home = let
+    homePath =
       if pkgs.stdenv.isDarwin
       then "/Users/potb"
       else "/home/potb";
-    packages = with pkgs;
-      [
-        awscli2
-        google-cloud-sdk
-        fnm
-        act
-        dog
-        duf
-        du-dust
-        docker-buildx
-        docker-compose
-        lazydocker
-        dog
-        doppler
-        fd
-        ffmpeg
-        glow
-        httpie
-        sd
-        spotify
-        ssm-session-manager-plugin
-        pulumi-bin
-        nh
-        jetbrains.webstorm
-      ]
-      ++ (
-        if stdenv.isDarwin
-        then [raycast colima]
-        else [google-chrome]
-      );
+  in {
+    username = "potb";
+    homeDirectory = homePath;
+    packages =
+      (with pkgs;
+        [
+          awscli2
+          google-cloud-sdk
+          fnm
+          act
+          dog
+          duf
+          du-dust
+          docker-buildx
+          docker-compose
+          lazydocker
+          dog
+          doppler
+          fd
+          ffmpeg
+          glow
+          httpie
+          sd
+          spotify
+          ssm-session-manager-plugin
+          pulumi-bin
+          jetbrains.webstorm
+          bun
+          google-chrome
+        ]
+        ++ (
+          if stdenv.isDarwin
+          then [raycast colima]
+          else []
+        ))
+      ++ [inputs.nh.packages.${pkgs.system}.nh];
 
-    stateVersion = "24.05";
+    sessionVariables = {
+      NH_FLAKE = "${homePath}/projects/potb/config";
+    };
+
+    stateVersion = "25.05";
   };
 
   xsession.windowManager = {
@@ -270,23 +279,26 @@
   };
 
   services = {
-    picom = {
-      enable = true;
+    picom =
+      if pkgs.stdenv.isDarwin
+      then {}
+      else {
+        enable = true;
 
-      backend = "glx";
+        backend = "glx";
 
-      fade = true;
-      fadeDelta = 2;
+        fade = true;
+        fadeDelta = 2;
 
-      settings = {
-        xrender-sync-fence = true;
-        mark-ovredir-focused = false;
-        use-ewmh-active-win = true;
+        settings = {
+          xrender-sync-fence = true;
+          mark-ovredir-focused = false;
+          use-ewmh-active-win = true;
 
-        unredir-if-possible = false;
-        backend = "xrender";
-        vsync = true;
+          unredir-if-possible = false;
+          backend = "xrender";
+          vsync = true;
+        };
       };
-    };
   };
 }

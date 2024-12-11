@@ -1,10 +1,4 @@
-{
-  inputs,
-  config,
-  pkgs,
-  lib,
-  ...
-}: {
+{pkgs, ...}: {
   # Hardware settings
   hardware.graphics = {
     enable = true;

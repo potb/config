@@ -51,6 +51,19 @@
     hyprland = {
       url = "github:hyprwm/Hyprland";
     };
+
+    mac-app-util = {
+      url = "github:hraban/mac-app-util";
+    };
+
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nh = {
+      url = "github:viperML/nh";
+    };
   };
 
   outputs = {
@@ -68,7 +81,7 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    # TODO: Use pipes when alejandro supports it
+    # TODO: Use pipes when alejandra supports it
     nixosConfigurations = let
       nixosModules = map (name: import (./nixos/modules + "/${name}")) (
         builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
@@ -93,6 +106,7 @@
           modules = with inputs;
             [
               nixvim.homeManagerModules.nixvim
+              catppuccin.homeManagerModules.catppuccin
               ./home-manager/home.nix
             ]
             ++ extraModules;
@@ -100,12 +114,33 @@
     in {
       "potb@charon" = mkHomeConfig {
         system = "x86_64-linux";
-        extraModules = with inputs; [catppuccin.homeManagerModules.catppuccin];
       };
 
       "potb@nyx" = mkHomeConfig {
         system = "aarch64-darwin";
+        extraModules = with inputs; [mac-app-util.homeManagerModules.default];
       };
+    };
+
+    darwinConfigurations.nyx = inputs.nix-darwin.lib.darwinSystem {
+      specialArgs = {inherit inputs outputs;};
+      modules = [
+        ({
+          pkgs,
+          lib,
+          ...
+        }: {
+          system.stateVersion = 5;
+
+          services.nix-daemon.enable = true;
+          nix.package = lib.mkForce pkgs.nixVersions.latest;
+
+          programs.zsh.enable = true;
+          environment.shells = [ pkgs.zsh ];
+        })
+        ./nixos/modules/nix.nix
+      ];
+      system = "aarch64-darwin";
     };
   };
 }
