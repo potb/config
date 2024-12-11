@@ -1,10 +1,4 @@
-{
-  inputs,
-  config,
-  pkgs,
-  lib,
-  ...
-}: {
+{pkgs, lib, ...}: {
   # Hardware settings
   hardware.graphics = {
     enable = true;
@@ -14,9 +8,15 @@
   hardware.bluetooth.powerOnBoot = true;
   hardware.keyboard.zsa.enable = true;
 
+  nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  fileSystems."/".fsType = "ext4";
+  fileSystems."/".device = "/dev/null";
+
+
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;
   services.udisks2.enable = true;
+  services.pcscd.enable = true;
 
   # User settings
   users.users.potb = {

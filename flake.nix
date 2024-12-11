@@ -11,10 +11,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixvim = {
-      url = "github:nix-community/nixvim";
-    };
-
     catppuccin-delta = {
       url = "github:catppuccin/delta";
       flake = false;
@@ -38,18 +34,8 @@
       url = "github:catppuccin/nix";
     };
 
-    lanzaboote = {
-      url = "github:nix-community/lanzaboote/v0.4.1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    disko = {
-      url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hyprland = {
-      url = "github:hyprwm/Hyprland";
+    nh = {
+      url = "github:viperML/nh";
     };
   };
 
@@ -62,13 +48,12 @@
     inherit (self) outputs;
     systems = [
       "x86_64-linux"
-      "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    # TODO: Use pipes when alejandro supports it
+    # TODO: Use pipes when alejandra supports it
     nixosConfigurations = let
       nixosModules = map (name: import (./nixos/modules + "/${name}")) (
         builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
@@ -89,23 +74,21 @@
       }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
-          extraSpecialArgs = {inherit inputs outputs;};
+          extraSpecialArgs = {inherit inputs outputs system;};
           modules = with inputs;
             [
               nixvim.homeManagerModules.nixvim
+              catppuccin.homeManagerModules.catppuccin
               ./home-manager/home.nix
+              ./home-manager/modules/home.nix
             ]
             ++ extraModules;
         };
-    in {
-      "potb@charon" = mkHomeConfig {
-        system = "x86_64-linux";
-        extraModules = with inputs; [catppuccin.homeManagerModules.catppuccin];
+    in
+      {
+        "potb@charon" = mkHomeConfig {
+          system = "x86_64-linux";
+        };
       };
-
-      "potb@nyx" = mkHomeConfig {
-        system = "aarch64-darwin";
-      };
-    };
   };
 }
