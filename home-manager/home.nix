@@ -26,6 +26,8 @@
           httpie
           spotify
           google-chrome
+          cloudflared
+          zed-editor
         ]
         )
       ++ [inputs.nh.packages.${pkgs.system}.nh];

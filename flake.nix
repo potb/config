@@ -50,6 +50,10 @@
     nh = {
       url = "github:viperML/nh";
     };
+
+    nixpkgs-master = {
+      url = "github:NixOS/nixpkgs/master";
+    };
   };
 
   outputs = {
