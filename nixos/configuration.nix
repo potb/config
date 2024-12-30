@@ -11,6 +11,7 @@
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;
   services.udisks2.enable = true;
+  services.pcscd.enable = true;
 
   # User settings
   users.users.potb = {

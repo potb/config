@@ -64,6 +64,10 @@
     nh = {
       url = "github:viperML/nh";
     };
+
+    nixpkgs-master = {
+      url = "github:NixOS/nixpkgs/master";
+    };
   };
 
   outputs = {
@@ -102,25 +106,39 @@
       }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
-          extraSpecialArgs = {inherit inputs outputs;};
+          extraSpecialArgs = {inherit inputs outputs system;};
           modules = with inputs;
             [
               nixvim.homeManagerModules.nixvim
               catppuccin.homeManagerModules.catppuccin
               ./home-manager/home.nix
+              ./home-manager/modules/home.nix
+              ./home-manager/modules/nixvim.nix
             ]
             ++ extraModules;
         };
-    in {
-      "potb@charon" = mkHomeConfig {
-        system = "x86_64-linux";
-      };
+    in
+      {
+        "potb@charon" = mkHomeConfig {
+          system = "x86_64-linux";
+        };
 
-      "potb@nyx" = mkHomeConfig {
-        system = "aarch64-darwin";
-        extraModules = with inputs; [mac-app-util.homeManagerModules.default];
+        "potb@nyx" = mkHomeConfig {
+          system = "aarch64-darwin";
+          extraModules = with inputs; [mac-app-util.homeManagerModules.default];
+        };
+      }
+      // {
+        "neovim" = home-manager.lib.homeManagerConfiguration {
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+          extraSpecialArgs = {inherit inputs outputs;};
+          modules = with inputs; [
+            nixvim.homeManagerModules.nixvim
+            ./home-manager/modules/home.nix
+            ./home-manager/modules/nixvim.nix
+          ];
+        };
       };
-    };
 
     darwinConfigurations.nyx = inputs.nix-darwin.lib.darwinSystem {
       specialArgs = {inherit inputs outputs;};
@@ -132,11 +150,10 @@
         }: {
           system.stateVersion = 5;
 
-          services.nix-daemon.enable = true;
           nix.package = lib.mkForce pkgs.nixVersions.latest;
 
           programs.zsh.enable = true;
-          environment.shells = [ pkgs.zsh ];
+          environment.shells = [pkgs.zsh];
         })
         ./nixos/modules/nix.nix
       ];
