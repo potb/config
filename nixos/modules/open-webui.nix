@@ -11,5 +11,6 @@ in {
   services.open-webui = {
     enable = true;
     environment.OLLAMA_API_BASE_URL = "http://localhost:${toString port}";
+    environment.WEBUI_AUTH = "False";
   };
 }
