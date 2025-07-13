@@ -4,10 +4,7 @@
   programs.home-manager.enable = true;
 
   home = let
-    homePath =
-      if pkgs.stdenv.isDarwin
-      then "/Users/potb"
-      else "/home/potb";
+    homePath = "/home/potb";
   in {
     username = "potb";
     homeDirectory = homePath;

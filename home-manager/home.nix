@@ -12,56 +12,22 @@
   };
 
   home = let
-    homePath =
-      if pkgs.stdenv.isDarwin
-      then "/Users/potb"
-      else "/home/potb";
-    nixpkgs-master = inputs.nixpkgs-master.legacyPackages.${system};
+    homePath = "/home/potb";
   in {
     packages =
       (with pkgs;
         [
           fnm
           act
-          dogdns
           duf
           du-dust
-          docker
-          docker-buildx
-          docker-compose
           fd
           glow
           httpie
           spotify
-          (pulumi-bin.overrideAttrs (old: {
-            version = "${old.version}-trimmed";
-
-            srcs = let
-              plugins = [
-                "pulumi-resource-random"
-                "pulumi-resource-tls"
-                "pulumi-resource-aws"
-              ];
-
-              isPulumiSDK = plugin:
-                builtins.match ".*get.pulumi.com/releases/sdk/.*" plugin.url != null;
-
-              isWantedPlugin = plugin:
-                lib.any (p: builtins.match ".*${p}.*" plugin.url != null) plugins
-                || isPulumiSDK plugin;
-            in
-              lib.filter isWantedPlugin old.srcs;
-          }))
-          nixpkgs-master.bun
           google-chrome
-          cloudflared
-          zed-editor
         ]
-        ++ (
-          if stdenv.isDarwin
-          then [raycast colima]
-          else []
-        ))
+        )
       ++ [inputs.nh.packages.${pkgs.system}.nh];
 
     sessionVariables = {
