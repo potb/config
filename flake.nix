@@ -113,7 +113,7 @@
               catppuccin.homeManagerModules.catppuccin
               ./home-manager/home.nix
               ./home-manager/modules/home.nix
-              ./home-manager/modules/nixvim.nix
+              ./home-manager/modules/text-editor.nix
             ]
             ++ extraModules;
         };
@@ -135,7 +135,7 @@
           modules = with inputs; [
             nixvim.homeManagerModules.nixvim
             ./home-manager/modules/home.nix
-            ./home-manager/modules/nixvim.nix
+            ./home-manager/modules/text-editor.nix
           ];
         };
       };
