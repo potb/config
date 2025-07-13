@@ -15,8 +15,8 @@
     homePath = "/home/potb";
   in {
     packages =
-      (with pkgs;
-        [
+      (
+        with pkgs; [
           fnm
           act
           duf
@@ -27,7 +27,7 @@
           spotify
           google-chrome
         ]
-        )
+      )
       ++ [inputs.nh.packages.${pkgs.system}.nh];
 
     sessionVariables = {
