@@ -77,21 +77,21 @@
       initExtraFirst = "source /etc/zsh/zshrc";
 
       initExtraFirst = ''
-        source /etc/zsh/zshrc
-        source '/usr/share/zsh-antidote/antidote.zsh'
+               source /etc/zsh/zshrc
+               source '/usr/share/zsh-antidote/antidote.zsh'
 
-        zstyle ':omz:plugins:eza' 'dirs-first' yes
-        zstyle ':omz:plugins:eza' 'git-status' yes
-        zstyle ':omz:plugins:eza' 'header' yes
-        zstyle ':omz:plugins:eza' 'icons' yes
-        
-	export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
-        
-	antidote load
-        
-	eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
+               zstyle ':omz:plugins:eza' 'dirs-first' yes
+               zstyle ':omz:plugins:eza' 'git-status' yes
+               zstyle ':omz:plugins:eza' 'header' yes
+               zstyle ':omz:plugins:eza' 'icons' yes
 
-        unalias l
+        export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
+
+        antidote load
+
+        eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
+
+               unalias l
       '';
 
       oh-my-zsh = {
@@ -179,9 +179,9 @@
 
     alacritty = {
       enable = true;
-      
+
       settings = {
-              font = {
+        font = {
           normal = {
             family = "FiraCode Nerd Font Mono";
             style = "Regular";
@@ -196,8 +196,8 @@
           };
           size = 12.0;
         };
-        env = { TERM = "xterm-256color"; };
-        general = { live_config_reload = true; };
+        env = {TERM = "xterm-256color";};
+        general = {live_config_reload = true;};
       };
     };
   };
