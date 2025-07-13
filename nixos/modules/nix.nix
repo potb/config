@@ -25,7 +25,7 @@
     registry = lib.mapAttrs (_: flake: {inherit flake;}) flakeInputs;
     nixPath = lib.mapAttrsToList (n: _: "${n}=flake:${n}") flakeInputs;
 
-    gc = lib.mkIf (!pkgs.stdenv.isDarwin) {
+    gc = {
       automatic = true;
       dates = "daily";
       options = "--delete-older-than 7d";

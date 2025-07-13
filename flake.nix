@@ -37,23 +37,6 @@
     nh = {
       url = "github:viperML/nh";
     };
-
-    mac-app-util = {
-      url = "github:hraban/mac-app-util";
-    };
-
-    nix-darwin = {
-      url = "github:LnL7/nix-darwin";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nh = {
-      url = "github:viperML/nh";
-    };
-
-    nixpkgs-master = {
-      url = "github:NixOS/nixpkgs/master";
-    };
   };
 
   outputs = {
