@@ -84,11 +84,10 @@
             ]
             ++ extraModules;
         };
-    in
-      {
-        "potb@charon" = mkHomeConfig {
-          system = "x86_64-linux";
-        };
+    in {
+      "potb@charon" = mkHomeConfig {
+        system = "x86_64-linux";
       };
+    };
   };
 }
