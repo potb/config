@@ -3,56 +3,76 @@
 
   disko.devices = {
     disk = {
-      one = {
+      nvme0n1 = {
         type = "disk";
         device = "/dev/nvme0n1";
         content = {
           type = "gpt";
           partitions = {
             boot = {
-              size = "4G";
+              size = "1G";
               type = "EF00";
               content = {
                 type = "filesystem";
                 format = "vfat";
                 mountpoint = "/boot";
-                mountOptions = ["defaults"];
               };
             };
-            windows = {
-              size = "912G";
-              type = "0700";
+            lvm = {
+              size = "100%";
               content = {
-                type = "filesystem";
-                format = "ntfs";
-                extraArgs = ["--fast"];
+                type = "lvm_pv";
+                vg = "vg0";
               };
             };
-            install = {
-              size = "8G";
-              type = "0700";
-              content = {
-                type = "filesystem";
-                format = "ntfs";
-                extraArgs = ["--fast"];
+          };
+        };
+      };
+    };
+
+    lvm_vg = {
+      vg0 = {
+        type = "lvm_vg";
+        lvs = {
+          root = {
+            size = "20%FREE";
+            content = {
+              type = "btrfs";
+              subvolumes = {
+                "@root" = {
+                  mountpoint = "/";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+                "@root-blank" = {
+                  readonly = true;
+                };
               };
             };
-            linux = {
-              size = "912G";
-              type = "8300";
-              content = {
-                type = "filesystem";
-                format = "ext4";
-                mountpoint = "/";
-                mountOptions = ["defaults"];
-              };
+          };
+          nix = {
+            size = "25%FREE";
+            content = {
+              type = "filesystem";
+              format = "ext4";
+              mountpoint = "/nix";
+              neededForBoot = true;
             };
-            swap = {
-              size = "24G";
-              type = "8200";
-              content = {
-                type = "swap";
-              };
+          };
+          home = {
+            size = "50%FREE";
+            content = {
+              type = "filesystem";
+              format = "ext4";
+              mountpoint = "/home";
+            };
+          };
+          swap = {
+            size = "64G";
+            content = {
+              type = "swap";
             };
           };
         };
