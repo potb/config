@@ -77,7 +77,6 @@
           extraSpecialArgs = {inherit inputs outputs system;};
           modules = with inputs;
             [
-              nixvim.homeManagerModules.nixvim
               catppuccin.homeManagerModules.catppuccin
               ./home-manager/home.nix
               ./home-manager/modules/home.nix
