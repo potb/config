@@ -43,27 +43,37 @@
     zdharma-continuum/fast-syntax-highlighting kind:defer
   '';
 
-  home = let
-    homePath = "/home/potb";
-  in {
-    packages =
-      (
-        with pkgs; [
-          fnm
-          act
-          duf
-          du-dust
-          fd
-          glow
-          httpie
-          spotify
-          google-chrome
-        ]
-      )
-      ++ [inputs.nh.packages.${pkgs.system}.nh];
-
-    sessionVariables = {
-      NH_FLAKE = "${homePath}/projects/potb/config";
+  xsession.windowManager = {
+    i3 = let
+      mod = "Mod4";
+    in {
+      enable = true;
+      package = pkgs.i3-gaps;
+      config = {
+        modifier = mod;
+        gaps = {
+          inner = 10;
+          outer = 5;
+        };
+        fonts = {
+          names = ["monospace"];
+          size = 9.0;
+        };
+        bars = [
+          {
+            position = "bottom";
+            fonts = {
+              names = ["monospace"];
+              size = 10.0;
+            };
+            hiddenState = "hide";
+            statusCommand = "${pkgs.i3status}/bin/i3status";
+          }
+        ];
+      };
+      extraConfig = ''
+        for_window [class=".*"] border pixel 4
+      '';
     };
   };
 
@@ -74,11 +84,9 @@
       autosuggestion.enable = true;
       syntaxHighlighting.enable = true;
 
-      initExtraFirst = "source /etc/zsh/zshrc";
-
       initExtraFirst = ''
                source /etc/zsh/zshrc
-               source '/usr/share/zsh-antidote/antidote.zsh'
+               # source '/usr/share/zsh-antidote/antidote.zsh'
 
                zstyle ':omz:plugins:eza' 'dirs-first' yes
                zstyle ':omz:plugins:eza' 'git-status' yes
@@ -87,7 +95,7 @@
 
         export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
 
-        antidote load
+        # antidote load
 
         eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
 
