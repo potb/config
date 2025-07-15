@@ -77,7 +77,7 @@
           extraSpecialArgs = {inherit inputs outputs system;};
           modules = with inputs;
             [
-              catppuccin.homeManagerModules.catppuccin
+              catppuccin.homeModules.catppuccin
               ./home-manager/home.nix
               ./home-manager/modules/home.nix
             ]

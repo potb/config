@@ -11,44 +11,13 @@
     flavor = "latte";
   };
 
-  home.file.".zsh_plugins.txt".text = ''
-    mattmc3/ez-compinit
-    zsh-users/zsh-completions kind:fpath path:src
-    getantidote/use-omz
-    ohmyzsh/ohmyzsh path:lib
-    ohmyzsh/ohmyzsh path:plugins/archlinux
-    ohmyzsh/ohmyzsh path:plugins/aws kind:defer
-    ohmyzsh/ohmyzsh path:plugins/bun kind:defer
-    ohmyzsh/ohmyzsh path:plugins/colored-man-pages kind:defer
-    ohmyzsh/ohmyzsh path:plugins/common-aliases
-    ohmyzsh/ohmyzsh path:plugins/docker
-    ohmyzsh/ohmyzsh path:plugins/docker-compose
-    ohmyzsh/ohmyzsh path:plugins/extract
-    ohmyzsh/ohmyzsh path:plugins/eza
-    ohmyzsh/ohmyzsh path:plugins/fancy-ctrl-z
-    ohmyzsh/ohmyzsh path:plugins/git
-    ohmyzsh/ohmyzsh path:plugins/git-commit kind:defer
-    ohmyzsh/ohmyzsh path:plugins/gpg-agent
-    ohmyzsh/ohmyzsh path:plugins/heroku kind:defer
-    ohmyzsh/ohmyzsh path:plugins/magic-enter
-    ohmyzsh/ohmyzsh path:plugins/node kind:defer
-    ohmyzsh/ohmyzsh path:plugins/ssh kind:defer
-    ohmyzsh/ohmyzsh path:plugins/ssh-agent
-    ohmyzsh/ohmyzsh path:plugins/sudo
-    ohmyzsh/ohmyzsh path:plugins/starship
-    ohmyzsh/ohmyzsh path:plugins/systemd
-    ohmyzsh/ohmyzsh path:plugins/transfer kind:defer
-    ohmyzsh/ohmyzsh path:plugins/zoxide
-    zsh-users/zsh-autosuggestions
-    zdharma-continuum/fast-syntax-highlighting kind:defer
-  '';
-
   xsession.windowManager = {
     i3 = let
       mod = "Mod4";
     in {
       enable = true;
       package = pkgs.i3-gaps;
+
       config = {
         modifier = mod;
         gaps = {
@@ -70,7 +39,69 @@
             statusCommand = "${pkgs.i3status}/bin/i3status";
           }
         ];
+
+        keybindings = {
+          "${mod}+Return" = "exec alacritty";
+          "${mod}+p" = "exec rofi -show drun";
+          "${mod}+w" = "exec google-chrome-stable";
+          "${mod}+e" = "exec alacritty -e yazi";
+          "Print" = "exec --no-startup-id sh -c 'maim -s | xclip -selection clipboard -t image/png'";
+
+          "${mod}+Shift+Escape" = "exit";
+          "${mod}+BackSpace" = "kill";
+          "${mod}+f" = "fullscreen toggle";
+          "${mod}+Shift+space" = "floating toggle";
+          "${mod}+space" = "floating toggle";
+          "${mod}+Shift+r" = "reload";
+
+          "${mod}+h" = "split h";
+          "${mod}+v" = "split v";
+
+          "${mod}+Left" = "focus left";
+          "${mod}+Down" = "focus down";
+          "${mod}+Up" = "focus up";
+          "${mod}+Right" = "focus right";
+
+          "${mod}+Shift+Left" = "move left";
+          "${mod}+Shift+Down" = "move down";
+          "${mod}+Shift+Up" = "move up";
+          "${mod}+Shift+Right" = "move right";
+
+          "${mod}+1" = "workspace \"1\"";
+          "${mod}+2" = "workspace \"2\"";
+          "${mod}+3" = "workspace \"3\"";
+          "${mod}+4" = "workspace \"4\"";
+          "${mod}+5" = "workspace \"5\"";
+          "${mod}+6" = "workspace \"6\"";
+          "${mod}+7" = "workspace \"7\"";
+          "${mod}+8" = "workspace \"8\"";
+          "${mod}+9" = "workspace \"9\"";
+          "${mod}+0" = "workspace \"10\"";
+
+          "${mod}+Shift+1" = "move container to workspace \"1\"";
+          "${mod}+Shift+2" = "move container to workspace \"2\"";
+          "${mod}+Shift+3" = "move container to workspace \"3\"";
+          "${mod}+Shift+4" = "move container to workspace \"4\"";
+          "${mod}+Shift+5" = "move container to workspace \"5\"";
+          "${mod}+Shift+6" = "move container to workspace \"6\"";
+          "${mod}+Shift+7" = "move container to workspace \"7\"";
+          "${mod}+Shift+8" = "move container to workspace \"8\"";
+          "${mod}+Shift+9" = "move container to workspace \"9\"";
+          "${mod}+Shift+0" = "move container to workspace \"10\"";
+
+          "${mod}+Ctrl+1" = "move container to workspace \"1\"; workspace \"1\"";
+          "${mod}+Ctrl+2" = "move container to workspace \"2\"; workspace \"2\"";
+          "${mod}+Ctrl+3" = "move container to workspace \"3\"; workspace \"3\"";
+          "${mod}+Ctrl+4" = "move container to workspace \"4\"; workspace \"4\"";
+          "${mod}+Ctrl+5" = "move container to workspace \"5\"; workspace \"5\"";
+          "${mod}+Ctrl+6" = "move container to workspace \"6\"; workspace \"6\"";
+          "${mod}+Ctrl+7" = "move container to workspace \"7\"; workspace \"7\"";
+          "${mod}+Ctrl+8" = "move container to workspace \"8\"; workspace \"8\"";
+          "${mod}+Ctrl+9" = "move container to workspace \"9\"; workspace \"9\"";
+          "${mod}+Ctrl+0" = "move container to workspace \"10\"; workspace \"10\"";
+        };
       };
+
       extraConfig = ''
         for_window [class=".*"] border pixel 4
       '';
@@ -80,39 +111,49 @@
   programs = {
     zsh = {
       enable = true;
-      enableCompletion = true;
-      autosuggestion.enable = true;
-      syntaxHighlighting.enable = true;
+
+      antidote.enable = true;
+      antidote.plugins = [
+        "mattmc3/ez-compinit"
+        "zsh-users/zsh-completions kind:fpath path:src"
+        "getantidote/use-omz"
+        "ohmyzsh/ohmyzsh path:lib"
+        "ohmyzsh/ohmyzsh path:plugins/archlinux"
+        "ohmyzsh/ohmyzsh path:plugins/aws"
+        "ohmyzsh/ohmyzsh path:plugins/colored-man-pages"
+        "ohmyzsh/ohmyzsh path:plugins/common-aliases"
+        "ohmyzsh/ohmyzsh path:plugins/docker"
+        "ohmyzsh/ohmyzsh path:plugins/docker-compose"
+        "ohmyzsh/ohmyzsh path:plugins/extract"
+        "ohmyzsh/ohmyzsh path:plugins/eza"
+        "ohmyzsh/ohmyzsh path:plugins/fancy-ctrl-z"
+        "ohmyzsh/ohmyzsh path:plugins/git"
+        "ohmyzsh/ohmyzsh path:plugins/gpg-agent"
+        "ohmyzsh/ohmyzsh path:plugins/magic-enter"
+        "ohmyzsh/ohmyzsh path:plugins/node"
+        "ohmyzsh/ohmyzsh path:plugins/ssh"
+        "ohmyzsh/ohmyzsh path:plugins/ssh-agent"
+        "ohmyzsh/ohmyzsh path:plugins/sudo"
+        "ohmyzsh/ohmyzsh path:plugins/starship"
+        "ohmyzsh/ohmyzsh path:plugins/systemd"
+        "ohmyzsh/ohmyzsh path:plugins/transfer"
+        "ohmyzsh/ohmyzsh path:plugins/zoxide"
+        "zsh-users/zsh-autosuggestions"
+        "zdharma-continuum/fast-syntax-highlighting"
+      ];
 
       initExtraFirst = ''
-               source /etc/zsh/zshrc
-               # source '/usr/share/zsh-antidote/antidote.zsh'
-
-               zstyle ':omz:plugins:eza' 'dirs-first' yes
-               zstyle ':omz:plugins:eza' 'git-status' yes
-               zstyle ':omz:plugins:eza' 'header' yes
-               zstyle ':omz:plugins:eza' 'icons' yes
+        zstyle ':omz:plugins:eza' 'dirs-first' yes
+        zstyle ':omz:plugins:eza' 'git-status' yes
+        zstyle ':omz:plugins:eza' 'header' yes
+        zstyle ':omz:plugins:eza' 'icons' yes
 
         export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
 
-        # antidote load
-
         eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
 
-               unalias l
+        unalias l
       '';
-
-      oh-my-zsh = {
-        enable = true;
-        plugins = [
-          "git"
-          "gitfast"
-          "common-aliases"
-          "docker"
-          "docker-compose"
-          "ssh-agent"
-        ];
-      };
 
       shellAliases = {
         cd = "z";
@@ -204,9 +245,36 @@
           };
           size = 12.0;
         };
-        env = {TERM = "xterm-256color";};
         general = {live_config_reload = true;};
       };
+    };
+
+    yazi = {
+      enable = true;
+    };
+
+    rofi = {
+      enable = true;
+    };
+  };
+
+  services = {
+    picom = {
+      enable = true;
+      backend = "glx";
+      vSync = true;
+      shadow = true;
+      fade = true;
+      inactiveOpacity = 0.9;
+      fadeDelta = 5;
+
+      settings = {
+        unredir-if-possible = false;
+      };
+    };
+
+    dunst = {
+      enable = true;
     };
   };
 }
