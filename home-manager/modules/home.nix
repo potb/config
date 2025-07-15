@@ -26,6 +26,13 @@
         google-chrome
         nh
         neovim
+        bottles
+        nerd-fonts.fira-code
+        jetbrains.webstorm
+        slack
+        discord
+        maim
+        xclip
       ]
     );
 
