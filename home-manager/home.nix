@@ -11,6 +11,21 @@
     flavor = "latte";
   };
 
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = let
+      vlc = "${pkgs.vlc}/share/applications/vlc.desktop";
+      chrome = "${pkgs.google-chrome}/share/applications/google-chrome.desktop";
+    in {
+      "audio/*" = [vlc];
+      "video/*" = [vlc];
+
+      "x-scheme-handler/http" = [chrome];
+      "x-scheme-handler/https" = [chrome];
+      "text/html" = [chrome];
+    };
+  };
+
   xsession.windowManager = {
     i3 = let
       mod = "Mod4";
@@ -256,6 +271,20 @@
     rofi = {
       enable = true;
     };
+
+    neovim = {
+      enable = true;
+      defaultEditor = true;
+      viAlias = true;
+      vimAlias = true;
+
+      plugins = with pkgs.vimPlugins; [
+        nvim-lspconfig
+        nvim-treesitter.withAllGrammars
+        plenary-nvim
+        mini-nvim
+      ];
+    };
   };
 
   services = {
@@ -275,6 +304,9 @@
 
     dunst = {
       enable = true;
+      settings = {
+        global.font = "Inter 10";
+      };
     };
   };
 }
