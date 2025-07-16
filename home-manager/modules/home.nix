@@ -25,7 +25,6 @@
         spotify
         google-chrome
         nh
-        neovim
         bottles
         nerd-fonts.fira-code
         jetbrains.webstorm
@@ -33,6 +32,8 @@
         discord
         maim
         xclip
+        vlc
+        audacity
       ]
     );
 
