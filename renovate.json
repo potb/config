@@ -9,5 +9,5 @@
   "automergeStrategy": "squash",
   "automergeSchedule": ["before 3am"],
   "platformAutomerge": true,
-  "schedule": ["0 0 * * *"]
+  "schedule": ["* 0 * * *"]
 }
