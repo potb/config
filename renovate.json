@@ -7,8 +7,7 @@
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
-  "automergeComment": "bors: r+",
-  "automergeSchedule": ["before 3am on Monday"],
+  "automergeSchedule": ["before 3am"],
   "platformAutomerge": true,
   "schedule": ["0 0 * * *"]
 }
