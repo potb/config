@@ -27,7 +27,7 @@
         nh
         bottles
         nerd-fonts.fira-code
-        jetbrains.webstorm
+        inputs."nixpkgs-webstorm".legacyPackages.${pkgs.system}.jetbrains.webstorm
         slack
         discord
         maim
