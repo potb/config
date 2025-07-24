@@ -37,6 +37,10 @@
     nh = {
       url = "github:viperML/nh";
     };
+
+    nixpkgs-webstorm = {
+      url = "github:NixOS/nixpkgs/pull/419026/head";
+    };
   };
 
   outputs = {
