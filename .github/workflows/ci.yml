@@ -22,7 +22,7 @@ jobs:
       - name: Nix flake check
         run: nix flake check -L
       - name: Format Nix code
-        run: nix fmt
+        run: nix fmt .
       - name: Commit formatted changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
