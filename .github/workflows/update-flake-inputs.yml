@@ -1,0 +1,54 @@
+name: Update flake inputs
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+
+      - uses: cli/gh-action@v2
+
+      - name: Update inputs and open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+          inputs=$(nix eval --json --impure --expr '(builtins.getFlake (toString ./. )).inputs' | jq -r 'keys[]')
+
+          for input in $inputs; do
+            branch="update-${input}"
+            git checkout -B "$branch" "origin/$default_branch"
+
+            nix flake update "$input"
+
+            if ! git diff --quiet; then
+              git commit -am "flake: update $input"
+              git push -u origin "$branch"
+            else
+              continue
+            fi
+
+            pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
+            if [ -z "$pr" ]; then
+              pr=$(gh pr create --base "$default_branch" --head "$branch" \
+                --title "flake: update $input" --body "Automated update" \
+                --label "automerge" --json number -q '.number')
+            fi
+
+            gh pr merge "$pr" --auto --squash --delete-branch
+          done
+
