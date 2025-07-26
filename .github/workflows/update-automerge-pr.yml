@@ -1,0 +1,42 @@
+name: Update one automerge PR branch
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-one-automerge-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get one automerge PR
+        id: pr
+        run: |
+          prs=$(gh api graphql -f query='
+            {
+              repository(owner: "potb", name: "config") {
+                pullRequests(first: 100, states: OPEN) {
+                  nodes {
+                    number
+                    autoMergeRequest {
+                      enabledAt
+                    }
+                  }
+                }
+              }
+            }' | jq -r '.data.repository.pullRequests.nodes[] | select(.autoMergeRequest != null) | .number')
+
+          pr=$(echo "$prs" | head -n 1)
+          [ -z "$pr" ] && echo "No PR found" && exit 0
+
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
+
+      - name: Update PR branch
+        if: steps.pr.outputs.number
+        run: |
+          gh api -X PUT /repos/potb/config/pulls/${{ steps.pr.outputs.number }}/update-branch
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
+
