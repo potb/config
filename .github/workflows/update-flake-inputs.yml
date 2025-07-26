@@ -24,6 +24,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
           inputs=$(nix eval --json --impure --expr '(builtins.getFlake (toString ./. )).inputs' | jq -r 'keys[]')
 
@@ -36,20 +37,20 @@ jobs:
 
             nix flake update "$input"
 
-            if ! git diff --quiet; then
-              git commit -am "flake: update $input"
-              git push -u origin "$branch"
-            else
+            if git diff --quiet; then
               continue
             fi
 
+            git commit -am "flake: update $input"
+            git push -u origin "$branch"
+
             pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
             if [ -z "$pr" ]; then
-              pr=$(gh pr create --base "$default_branch" --head "$branch" \
+              gh pr create --base "$default_branch" --head "$branch" \
                 --title "flake: update $input" --body "Automated update" \
-                --label "automerge" --json number -q '.number')
+                --label "automerge"
+              pr=$(gh pr list --head "$branch" --json number -q '.[0].number')
             fi
 
             gh pr merge "$pr" --auto --squash --delete-branch
           done
-
