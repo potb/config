@@ -25,7 +25,7 @@ jobs:
         with:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
-          pushFilter: '(WebStorm|webstorm)'
+          pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
       - run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
       - run: nix build .#homeConfigurations."potb@charon".activationPackage
       - run: nix fmt .
