@@ -1,6 +1,11 @@
 {
   description = "Your new nix config";
 
+  nixConfig = {
+    extra-substituters = ["https://potb.cachix.org"];
+    extra-trusted-public-keys = ["potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="];
+  };
+
   inputs = {
     nixpkgs = {
       url = "github:NixOS/nixpkgs/nixos-unstable";
