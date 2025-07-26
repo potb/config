@@ -27,6 +27,9 @@ jobs:
           default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
           inputs=$(nix eval --json --impure --expr '(builtins.getFlake (toString ./. )).inputs' | jq -r 'keys[]')
 
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           for input in $inputs; do
             branch="update-${input}"
             git checkout -B "$branch" "origin/$default_branch"
