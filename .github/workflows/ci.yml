@@ -7,6 +7,10 @@ permissions:
 on:
   pull_request:
 
+concurrency:
+  group: ${{ startsWith(github.event.pull_request.title, 'flake:') && 'flake-prs' || format('pr-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: ${{ startsWith(github.event.pull_request.title, 'flake:') }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
