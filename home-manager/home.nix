@@ -11,18 +11,29 @@
     flavor = "latte";
   };
 
-  xdg.mimeApps = {
+  xdg = {
     enable = true;
-    defaultApplications = let
-      vlc = "${pkgs.vlc}/share/applications/vlc.desktop";
-      chrome = "${pkgs.google-chrome}/share/applications/google-chrome.desktop";
-    in {
-      "audio/*" = [vlc];
-      "video/*" = [vlc];
 
-      "x-scheme-handler/http" = [chrome];
-      "x-scheme-handler/https" = [chrome];
-      "text/html" = [chrome];
+    mimeApps = {
+      enable = true;
+      defaultApplications = let
+        vlc = "vlc.desktop";
+        chrome = "google-chrome.desktop";
+      in {
+        "audio/*" = [vlc];
+        "video/*" = [vlc];
+
+        "x-scheme-handler/http" = [chrome];
+        "x-scheme-handler/https" = [chrome];
+        "text/html" = [chrome];
+      };
+    };
+
+    portal = {
+      enable = true;
+      extraPortals = [pkgs.xdg-desktop-portal-gtk];
+      xdgOpenUsePortal = true;
+      config.common.default = "*";
     };
   };
 

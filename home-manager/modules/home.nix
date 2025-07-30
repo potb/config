@@ -39,6 +39,8 @@
 
     sessionVariables = {
       NH_FLAKE = "${homePath}/projects/potb/config";
+      EDITOR = "nvim";
+      BROWSER = "google-chrome-stable";
     };
 
     stateVersion = "25.05";
