@@ -104,11 +104,11 @@
     "catppuccin-delta": {
       "flake": false,
       "locked": {
-        "lastModified": 1750550815,
-        "narHash": "sha256-A1UknH+3/zwxjzQ6y4SvPar3dGwEaIpboFU6iMd++k4=",
+        "lastModified": 1754930883,
+        "narHash": "sha256-HHD0hszHIxf/tyQgS5KtdAN5m0EM9oI54cA2Ij1keOI=",
         "owner": "catppuccin",
         "repo": "delta",
-        "rev": "313b3ac74c44c0f5264b974bf8bc0cec0e3382f9",
+        "rev": "7b06b1f174c03f53ff68da1ae1666ca3ef7683ad",
         "type": "github"
       },
       "original": {
