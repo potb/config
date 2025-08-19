@@ -26,13 +26,14 @@ jobs:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+            experimental-features = nix-command flakes pipe-operators
       - uses: cachix/cachix-action@v16
         with:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
       - run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
-      - run: nix build .#homeConfigurations."potb@charon".activationPackage
+      - run: nix build .#darwinConfigurations.nyx.config.system.build.toplevel
       - run: nix fmt .
       - run: |
           if [ -n "$(git status --porcelain)" ]; then

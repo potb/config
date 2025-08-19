@@ -41,7 +41,12 @@ in {
         xclip
       ]
       ++ lib.optionals pkgs.stdenv.isDarwin [
-        # Mac-specific packages can be added here
+        # Mac-specific packages (using nixpkgs instead of homebrew)
+        spotify
+        google-chrome
+        slack
+        discord
+        jetbrains.webstorm
       ]
     );
 
