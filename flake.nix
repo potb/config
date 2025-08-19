@@ -4,6 +4,7 @@
   nixConfig = {
     extra-substituters = ["https://potb.cachix.org"];
     extra-trusted-public-keys = ["potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="];
+    extra-experimental-features = ["pipe-operators"];
   };
 
   inputs = {
@@ -65,11 +66,10 @@
     
     # Helper function to find all .nix modules in a directory
     findModules = dir:
-      map (name: import (dir + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir dir)
-        )
-      );
+      builtins.readDir dir
+      |> builtins.attrNames
+      |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
+      |> map (name: import (dir + "/${name}"));
     
     # Helper function to get home-manager modules (common + platform-specific)
     getHomeManagerModules = platform:
@@ -81,7 +81,6 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    # TODO: Use pipes when alejandra supports it
     nixosConfigurations = let
       nixosModules = findModules ./nixos/modules;
     in {
