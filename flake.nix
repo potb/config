@@ -62,16 +62,28 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+    
+    # Helper function to find all .nix modules in a directory
+    findModules = dir:
+      map (name: import (dir + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir dir)
+        )
+      );
+    
+    # Helper function to get home-manager modules (common + platform-specific)
+    getHomeManagerModules = platform:
+      let
+        commonModules = findModules ./home-manager/modules/common;
+        platformModules = findModules (./home-manager/modules + "/${platform}");
+      in
+        commonModules ++ platformModules;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
     # TODO: Use pipes when alejandra supports it
     nixosConfigurations = let
-      nixosModules = map (name: import (./nixos/modules + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir ./nixos/modules)
-        )
-      );
+      nixosModules = findModules ./nixos/modules;
     in {
       charon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
@@ -85,10 +97,7 @@
             home-manager.users.potb = {
               imports = with inputs; [
                 catppuccin.homeModules.catppuccin
-                ./home-manager/modules/common/home.nix
-                ./home-manager/modules/common/programs.nix
-                ./home-manager/modules/linux/desktop.nix
-              ];
+              ] ++ (getHomeManagerModules "linux");
             };
           }
         ];
@@ -96,11 +105,7 @@
     };
 
     darwinConfigurations = let
-      darwinModules = map (name: import (./darwin/modules + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir ./darwin/modules)
-        )
-      );
+      darwinModules = findModules ./darwin/modules;
     in {
       nyx = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs outputs;};
@@ -114,10 +119,7 @@
             home-manager.users.potb = {
               imports = with inputs; [
                 catppuccin.homeModules.catppuccin
-                ./home-manager/modules/common/home.nix
-                ./home-manager/modules/common/programs.nix
-                ./home-manager/modules/mac/desktop.nix
-              ];
+              ] ++ (getHomeManagerModules "mac");
             };
           }
         ];
@@ -127,7 +129,7 @@
     homeConfigurations = let
       mkHomeConfig = {
         system,
-        extraModules ? [],
+        platform,
       }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = nixpkgs.legacyPackages.${system};
@@ -135,24 +137,18 @@
           modules = with inputs;
             [
               catppuccin.homeModules.catppuccin
-              ./home-manager/modules/common/home.nix
-              ./home-manager/modules/common/programs.nix
             ]
-            ++ extraModules;
+            ++ (getHomeManagerModules platform);
         };
     in {
       "potb@charon" = mkHomeConfig {
         system = "x86_64-linux";
-        extraModules = [
-          ./home-manager/modules/linux/desktop.nix
-        ];
+        platform = "linux";
       };
 
       "potb@nyx" = mkHomeConfig {
         system = "aarch64-darwin";
-        extraModules = [
-          ./home-manager/modules/mac/desktop.nix
-        ];
+        platform = "mac";
       };
     };
   };
