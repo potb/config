@@ -42,17 +42,24 @@
     nh = {
       url = "github:viperML/nh";
     };
+
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
     home-manager,
+    nix-darwin,
     ...
   } @ inputs: let
     inherit (self) outputs;
     systems = [
       "x86_64-linux"
+      "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
@@ -72,6 +79,35 @@
       };
     };
 
+    darwinConfigurations = let
+      darwinModules = map (name: import (./darwin/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./darwin/modules)
+        )
+      );
+    in {
+      nyx = nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs outputs;};
+        modules = darwinModules ++ [
+          ./darwin/configuration.nix
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = {inherit inputs outputs;};
+            home-manager.users.potb = {
+              imports = with inputs; [
+                catppuccin.homeModules.catppuccin
+                ./home-manager/modules/common/home.nix
+                ./home-manager/modules/common/programs.nix
+                ./home-manager/modules/mac/desktop.nix
+              ];
+            };
+          }
+        ];
+      };
+    };
+
     homeConfigurations = let
       mkHomeConfig = {
         system,
@@ -83,14 +119,24 @@
           modules = with inputs;
             [
               catppuccin.homeModules.catppuccin
-              ./home-manager/home.nix
-              ./home-manager/modules/home.nix
+              ./home-manager/modules/common/home.nix
+              ./home-manager/modules/common/programs.nix
             ]
             ++ extraModules;
         };
     in {
       "potb@charon" = mkHomeConfig {
         system = "x86_64-linux";
+        extraModules = [
+          ./home-manager/modules/linux/desktop.nix
+        ];
+      };
+
+      "potb@nyx" = mkHomeConfig {
+        system = "aarch64-darwin";
+        extraModules = [
+          ./home-manager/modules/mac/desktop.nix
+        ];
       };
     };
   };
