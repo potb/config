@@ -17,3 +17,6 @@ result-*
 
 ### MacOS template
 .DS_Store
+
+# Backup files
+*.backup

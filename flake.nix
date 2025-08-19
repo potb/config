@@ -75,7 +75,23 @@
     in {
       charon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
-        modules = nixosModules ++ [./nixos/configuration.nix];
+        modules = nixosModules ++ [
+          ./nixos/configuration.nix
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = {inherit inputs outputs;};
+            home-manager.users.potb = {
+              imports = with inputs; [
+                catppuccin.homeModules.catppuccin
+                ./home-manager/modules/common/home.nix
+                ./home-manager/modules/common/programs.nix
+                ./home-manager/modules/linux/desktop.nix
+              ];
+            };
+          }
+        ];
       };
     };
 
