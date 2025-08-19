@@ -127,28 +127,34 @@
     };
 
     homeConfigurations = let
-      mkHomeConfig = {
-        system,
-        platform,
-      }:
-        home-manager.lib.homeManagerConfiguration {
-          pkgs = nixpkgs.legacyPackages.${system};
-          extraSpecialArgs = {inherit inputs outputs system;};
-          modules = with inputs;
-            [
-              catppuccin.homeModules.catppuccin
-            ]
-            ++ (getHomeManagerModules platform);
-        };
+      # Helper function to infer platform from system string
+      inferPlatform = system:
+        if builtins.match ".*linux.*" system != null
+        then "linux"
+        else if builtins.match ".*darwin.*" system != null
+        then "mac"
+        else throw "Unknown platform for system: ${system}";
+      
+      mkHomeConfig = {system}:
+        let
+          platform = inferPlatform system;
+        in
+          home-manager.lib.homeManagerConfiguration {
+            pkgs = nixpkgs.legacyPackages.${system};
+            extraSpecialArgs = {inherit inputs outputs system;};
+            modules = with inputs;
+              [
+                catppuccin.homeModules.catppuccin
+              ]
+              ++ (getHomeManagerModules platform);
+          };
     in {
       "potb@charon" = mkHomeConfig {
         system = "x86_64-linux";
-        platform = "linux";
       };
 
       "potb@nyx" = mkHomeConfig {
         system = "aarch64-darwin";
-        platform = "mac";
       };
     };
   };
