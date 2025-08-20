@@ -11,7 +11,6 @@
       # Add some macOS-specific shell plugins
       antidote.plugins = [
         "ohmyzsh/ohmyzsh path:plugins/macos"
-        "ohmyzsh/ohmyzsh path:plugins/brew"
       ];
     };
   };
