@@ -11,7 +11,6 @@
   catppuccin = {
     enable = true;
     flavor = "latte";
-    kvantum.enable = false;
   };
 
   stylix = with pkgs; let
