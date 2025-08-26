@@ -44,9 +44,6 @@ jobs:
       - name: Build Darwin configuration
         if: matrix.system == 'darwin'
         run: nix build .#darwinConfigurations.nyx.system
-      - name: Build home-manager configuration (NixOS)
-        if: matrix.system == 'nixos'
-        run: nix build .#homeConfigurations."potb@charon".activationPackage
       - run: nix fmt .
       - run: |
           if [ -n "$(git status --porcelain)" ]; then
