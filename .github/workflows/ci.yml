@@ -6,6 +6,10 @@ permissions:
 
 on:
   pull_request:
+  workflow_run:
+    workflows: ["Format"]
+    types:
+      - completed
 
 concurrency:
   group: ${{ startsWith(github.event.pull_request.title, 'flake:') && 'flake-prs' || format('pr-{0}', github.event.pull_request.number) }}
@@ -13,8 +17,16 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: nixos
+          - os: macos-latest
+            system: darwin
     steps:
       - uses: actions/checkout@v5
         with:
@@ -31,14 +43,10 @@ jobs:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
-      - run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
-      - run: nix build .#homeConfigurations."potb@charon".activationPackage
-      - run: nix fmt .
-      - run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "Apply nix fmt"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
+      - name: Build NixOS configuration
+        if: matrix.system == 'nixos'
+        run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
+      - name: Build Darwin configuration
+        if: matrix.system == 'darwin'
+        run: nix build .#darwinConfigurations.nyx.system
 

@@ -20,8 +20,6 @@
         jetbrains.webstorm
         slack
         discord
-        maim
-        xclip
         vlc
         audacity
       ]
