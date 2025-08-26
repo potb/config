@@ -60,7 +60,7 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
-    
+
     # Helper function to get home-manager modules for a platform
     getHomeManagerModules = platform: let
       allModules = map (name: import (./home-manager/modules + "/${name}")) (
@@ -69,22 +69,26 @@
         )
       );
       # Filter modules based on platform
-      platformModules = 
-        if platform == "linux" then [
+      platformModules =
+        if platform == "linux"
+        then [
           ./home-manager/modules/core.nix
           ./home-manager/modules/linux.nix
         ]
-        else if platform == "darwin" then [
+        else if platform == "darwin"
+        then [
           ./home-manager/modules/core.nix
           ./home-manager/modules/darwin.nix
         ]
         else [
           ./home-manager/modules/core.nix
         ];
-    in [
-      ./home-manager/home.nix
-      ./home-manager/modules/home.nix
-    ] ++ platformModules;
+    in
+      [
+        ./home-manager/home.nix
+        ./home-manager/modules/home.nix
+      ]
+      ++ platformModules;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
