@@ -16,6 +16,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     catppuccin-delta = {
       url = "github:catppuccin/delta";
       flake = false;
@@ -46,11 +51,14 @@
     self,
     nixpkgs,
     home-manager,
+    nix-darwin,
     ...
   } @ inputs: let
     inherit (self) outputs;
     systems = [
       "x86_64-linux"
+      "aarch64-darwin"
+      "x86_64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
@@ -89,6 +97,32 @@
               };
             }
           ];
+      };
+    };
+
+    darwinConfigurations = {
+      macbook = nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs outputs;};
+        modules = [
+          ./darwin/configuration.nix
+          inputs.home-manager.darwinModules.home-manager
+
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.sharedModules = [];
+            home-manager.extraSpecialArgs = {
+              inherit inputs;
+            };
+
+            home-manager.users.potb = {
+              imports = [
+                ./home-manager/home.nix
+                ./home-manager/modules/home.nix
+              ];
+            };
+          }
+        ];
       };
     };
   };
