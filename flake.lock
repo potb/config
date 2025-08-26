@@ -225,6 +225,26 @@
         "type": "github"
       }
     },
+    "nix-darwin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1755825449,
+        "narHash": "sha256-XkiN4NM9Xdy59h69Pc+Vg4PxkSm9EWl6u7k6D5FZ5cM=",
+        "owner": "LnL7",
+        "repo": "nix-darwin",
+        "rev": "8df64f819698c1fee0c2969696f54a843b2231e8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "LnL7",
+        "repo": "nix-darwin",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1755615617,
@@ -273,6 +293,7 @@
         "catppuccin-zsh-syntax-highlighting": "catppuccin-zsh-syntax-highlighting",
         "home-manager": "home-manager",
         "nh": "nh",
+        "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs",
         "stylix": "stylix"
       }

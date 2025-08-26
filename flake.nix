@@ -16,6 +16,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     catppuccin-delta = {
       url = "github:catppuccin/delta";
       flake = false;
@@ -46,13 +51,44 @@
     self,
     nixpkgs,
     home-manager,
+    nix-darwin,
     ...
   } @ inputs: let
     inherit (self) outputs;
     systems = [
       "x86_64-linux"
+      "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+
+    # Helper function to get home-manager modules for a platform
+    getHomeManagerModules = platform: let
+      allModules = map (name: import (./home-manager/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./home-manager/modules)
+        )
+      );
+      # Filter modules based on platform
+      platformModules =
+        if platform == "linux"
+        then [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/linux.nix
+        ]
+        else if platform == "darwin"
+        then [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/darwin.nix
+        ]
+        else [
+          ./home-manager/modules/core.nix
+        ];
+    in
+      [
+        ./home-manager/home.nix
+        ./home-manager/modules/home.nix
+      ]
+      ++ platformModules;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
@@ -82,10 +118,40 @@
               };
 
               home-manager.users.potb = {
-                imports = [
-                  ./home-manager/home.nix
-                  ./home-manager/modules/home.nix
-                ];
+                imports = getHomeManagerModules "linux";
+                home.homeDirectory = nixpkgs.lib.mkForce "/home/potb";
+              };
+            }
+          ];
+      };
+    };
+
+    darwinConfigurations = let
+      darwinModules = map (name: import (./darwin/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./darwin/modules)
+        )
+      );
+    in {
+      nyx = nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs outputs;};
+        modules =
+          darwinModules
+          ++ [
+            ./darwin/configuration.nix
+            inputs.home-manager.darwinModules.home-manager
+
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.sharedModules = [];
+              home-manager.extraSpecialArgs = {
+                inherit inputs;
+              };
+
+              home-manager.users.potb = {
+                imports = getHomeManagerModules "darwin";
+                home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
               };
             }
           ];
