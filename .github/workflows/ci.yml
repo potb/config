@@ -11,14 +11,14 @@ on:
       - completed
 
 concurrency:
-  group: ${{ startsWith(github.event.pull_request.title, 'flake:') && 'flake-prs' || format('pr-{0}', github.event.pull_request.number) }}
-  cancel-in-progress: ${{ startsWith(github.event.pull_request.title, 'flake:') }}
+  group: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.pull_requests[0].number && format('pr-{0}', github.event.workflow_run.pull_requests[0].number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ startsWith(github.event.workflow_run.head_branch || '', 'flake/') }}
 
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     strategy:
       matrix:
         include:
@@ -27,25 +27,31 @@ jobs:
           - os: macos-latest
             system: darwin
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout PR HEAD
+        uses: actions/checkout@v5
         with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
+
       - uses: nixbuild/nix-quick-install-action@v32
         with:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+
       - uses: cachix/cachix-action@v16
         with:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
+
       - name: Build NixOS configuration
         if: matrix.system == 'nixos'
         run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
+
       - name: Build Darwin configuration
         if: matrix.system == 'darwin'
         run: nix build .#darwinConfigurations.nyx.system
-
