@@ -13,8 +13,15 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: nixos
+          - os: macos-latest
+            system: darwin
     steps:
       - uses: actions/checkout@v5
         with:
@@ -31,8 +38,15 @@ jobs:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
-      - run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
-      - run: nix build .#homeConfigurations."potb@charon".activationPackage
+      - name: Build NixOS configuration
+        if: matrix.system == 'nixos'
+        run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
+      - name: Build Darwin configuration
+        if: matrix.system == 'darwin'
+        run: nix build .#darwinConfigurations.nyx.system
+      - name: Build home-manager configuration (NixOS)
+        if: matrix.system == 'nixos'
+        run: nix build .#homeConfigurations."potb@charon".activationPackage
       - run: nix fmt .
       - run: |
           if [ -n "$(git status --porcelain)" ]; then
