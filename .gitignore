@@ -14,6 +14,9 @@ out/
 # Ignore build outputs from performing a nix-build or `nix build` command
 result
 result-*
+*.qcow2
 
 ### MacOS template
 .DS_Store
+
+
