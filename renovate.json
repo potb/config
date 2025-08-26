@@ -4,7 +4,7 @@
   "nix": {
     "enabled": true
   },
-  "lockFileMaintenance": { "enabled": true }
+  "lockFileMaintenance": { "enabled": true },
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
