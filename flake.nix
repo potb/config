@@ -60,6 +60,31 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+    
+    # Helper function to get home-manager modules for a platform
+    getHomeManagerModules = platform: let
+      allModules = map (name: import (./home-manager/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./home-manager/modules)
+        )
+      );
+      # Filter modules based on platform
+      platformModules = 
+        if platform == "linux" then [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/linux.nix
+        ]
+        else if platform == "darwin" then [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/darwin.nix
+        ]
+        else [
+          ./home-manager/modules/core.nix
+        ];
+    in [
+      ./home-manager/home.nix
+      ./home-manager/modules/home.nix
+    ] ++ platformModules;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
@@ -89,12 +114,7 @@
               };
 
               home-manager.users.potb = {
-                imports = [
-                  ./home-manager/home.nix
-                  ./home-manager/modules/home.nix
-                  ./home-manager/modules/core.nix
-                  ./home-manager/modules/linux.nix
-                ];
+                imports = getHomeManagerModules "linux";
               };
             }
           ];
@@ -117,12 +137,7 @@
             };
 
             home-manager.users.potb = {
-              imports = [
-                ./home-manager/home.nix
-                ./home-manager/modules/home.nix
-                ./home-manager/modules/core.nix
-                ./home-manager/modules/darwin.nix
-              ];
+              imports = getHomeManagerModules "darwin";
             };
           }
         ];
