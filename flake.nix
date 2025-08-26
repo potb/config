@@ -92,6 +92,8 @@
                 imports = [
                   ./home-manager/home.nix
                   ./home-manager/modules/home.nix
+                  ./home-manager/modules/core.nix
+                  ./home-manager/modules/linux.nix
                 ];
               };
             }
@@ -118,6 +120,8 @@
               imports = [
                 ./home-manager/home.nix
                 ./home-manager/modules/home.nix
+                ./home-manager/modules/core.nix
+                ./home-manager/modules/darwin.nix
               ];
             };
           }
