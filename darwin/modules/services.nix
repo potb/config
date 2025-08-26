@@ -4,6 +4,7 @@
   ...
 }: {
   services.rosetta.enable = true;
+  services.linux-builder.enable = true;
 
   system.activationScripts.applications.text = let
     apps = pkgs.buildEnv {
