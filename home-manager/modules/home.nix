@@ -20,7 +20,6 @@
         jetbrains.webstorm
         slack
         discord
-        vlc
         audacity
       ]
     );

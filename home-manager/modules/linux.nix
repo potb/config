@@ -157,6 +157,7 @@
 
   home.packages = with pkgs; [
     maim
+    vlc
     xclip
   ];
 }
