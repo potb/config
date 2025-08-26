@@ -21,6 +21,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # catppuccin = {
+    #   url = "github:catppuccin/nix";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
+
     catppuccin-delta = {
       url = "github:catppuccin/delta";
       flake = false;
