@@ -58,7 +58,6 @@
     systems = [
       "x86_64-linux"
       "aarch64-darwin"
-      "x86_64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
@@ -101,7 +100,7 @@
     };
 
     darwinConfigurations = {
-      macbook = nix-darwin.lib.darwinSystem {
+      nyx = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs outputs;};
         modules = [
           ./darwin/configuration.nix
