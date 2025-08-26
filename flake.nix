@@ -115,6 +115,7 @@
 
               home-manager.users.potb = {
                 imports = getHomeManagerModules "linux";
+                home.homeDirectory = "/home/potb";
               };
             }
           ];
@@ -138,6 +139,7 @@
 
             home-manager.users.potb = {
               imports = getHomeManagerModules "darwin";
+              home.homeDirectory = "/Users/potb";
             };
           }
         ];
