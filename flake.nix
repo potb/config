@@ -126,27 +126,35 @@
       };
     };
 
-    darwinConfigurations = {
+    darwinConfigurations = let
+      darwinModules = map (name: import (./darwin/modules + "/${name}")) (
+        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
+          builtins.attrNames (builtins.readDir ./darwin/modules)
+        )
+      );
+    in {
       nyx = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs outputs;};
-        modules = [
-          ./darwin/configuration.nix
-          inputs.home-manager.darwinModules.home-manager
+        modules =
+          darwinModules
+          ++ [
+            ./darwin/configuration.nix
+            inputs.home-manager.darwinModules.home-manager
 
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.sharedModules = [];
-            home-manager.extraSpecialArgs = {
-              inherit inputs;
-            };
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.sharedModules = [];
+              home-manager.extraSpecialArgs = {
+                inherit inputs;
+              };
 
-            home-manager.users.potb = {
-              imports = getHomeManagerModules "darwin";
-              home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
-            };
-          }
-        ];
+              home-manager.users.potb = {
+                imports = getHomeManagerModules "darwin";
+                home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
+              };
+            }
+          ];
       };
     };
   };
