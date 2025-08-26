@@ -3,16 +3,7 @@
   inputs,
   ...
 }: {
-  nixpkgs.config.allowUnfree = true;
-
-  programs.home-manager.enable = true;
-
-  home = let
-    homePath = "/home/potb";
-  in {
-    username = "potb";
-    homeDirectory = homePath;
-
+  home = {
     packages = (
       with pkgs; [
         fnm
@@ -25,7 +16,6 @@
         spotify
         google-chrome
         nh
-        bottles
         nerd-fonts.fira-code
         jetbrains.webstorm
         slack
@@ -38,7 +28,7 @@
     );
 
     sessionVariables = {
-      NH_FLAKE = "${homePath}/projects/potb/config";
+      NH_FLAKE = "/home/potb/projects/potb/config";
       EDITOR = "nvim";
       BROWSER = "google-chrome-stable";
     };
