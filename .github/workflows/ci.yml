@@ -1,26 +1,65 @@
-name: CI
+name: PR
 
 permissions:
   contents: write
   actions: write
+  pull-requests: write
 
 on:
   pull_request:
 
 concurrency:
-  group: ${{ startsWith(github.event.pull_request.title, 'flake:') && 'flake-prs' || format('pr-{0}', github.event.pull_request.number) }}
-  cancel-in-progress: ${{ startsWith(github.event.pull_request.title, 'flake:') }}
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  format:
+    name: Format
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.changed.outputs.changed }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+      - uses: nixbuild/nix-quick-install-action@v32
+        with:
+          nix_conf: |
+            keep-env-derivations = true
+            keep-outputs = true
+      - run: nix fmt .
+      - id: changed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Apply nix fmt"
+          git push origin HEAD:${{ github.head_ref }}
+
+  build:
+    name: build
+    needs: format
+    if: needs.format.outputs.changed == 'false'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: nixos
+          - os: macos-latest
+            system: darwin
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: nixbuild/nix-quick-install-action@v32
         with:
           nix_conf: |
@@ -31,14 +70,10 @@ jobs:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
-      - run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
-      - run: nix build .#homeConfigurations."potb@charon".activationPackage
-      - run: nix fmt .
-      - run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "Apply nix fmt"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
+      - name: Build NixOS configuration
+        if: matrix.system == 'nixos'
+        run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
+      - name: Build Darwin configuration
+        if: matrix.system == 'darwin'
+        run: nix build .#darwinConfigurations.nyx.system
 
