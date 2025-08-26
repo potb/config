@@ -33,14 +33,12 @@
 
     stylix = {
       url = "github:danth/stylix";
-    };
-
-    catppuccin = {
-      url = "github:catppuccin/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nh = {
       url = "github:viperML/nh";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -68,29 +66,29 @@
     in {
       charon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
-        modules = nixosModules ++ [./nixos/configuration.nix];
-      };
-    };
+        modules =
+          nixosModules
+          ++ [
+            ./nixos/configuration.nix
+            inputs.home-manager.nixosModules.home-manager
 
-    homeConfigurations = let
-      mkHomeConfig = {
-        system,
-        extraModules ? [],
-      }:
-        home-manager.lib.homeManagerConfiguration {
-          pkgs = nixpkgs.legacyPackages.${system};
-          extraSpecialArgs = {inherit inputs outputs system;};
-          modules = with inputs;
-            [
-              catppuccin.homeModules.catppuccin
-              ./home-manager/home.nix
-              ./home-manager/modules/home.nix
-            ]
-            ++ extraModules;
-        };
-    in {
-      "potb@charon" = mkHomeConfig {
-        system = "x86_64-linux";
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.sharedModules = [];
+              home-manager.extraSpecialArgs = {
+                inherit inputs;
+                system = "x86_64-linux";
+              };
+
+              home-manager.users.potb = {
+                imports = [
+                  ./home-manager/home.nix
+                  ./home-manager/modules/home.nix
+                ];
+              };
+            }
+          ];
       };
     };
   };
