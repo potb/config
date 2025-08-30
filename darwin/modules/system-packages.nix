@@ -6,7 +6,6 @@
     slack
     discord
     spotify
-    vlc
     audacity
     jetbrains.webstorm
     zed-editor

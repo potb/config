@@ -3,8 +3,8 @@
   pkgs,
   ...
 }: {
-  services.rosetta.enable = true;
-  services.linux-builder.enable = true;
+ # services.rosetta.enable = true;
+  nix.linux-builder.enable = true;
 
   system.activationScripts.applications.text = let
     apps = pkgs.buildEnv {

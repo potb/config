@@ -144,9 +144,9 @@
         modules =
           darwinModules
           ++ [
-            ./darwin/configuration.nix
             inputs.home-manager.darwinModules.home-manager
             inputs.nix-rosetta-builder.darwinModules.default
+            ./darwin/configuration.nix
 
             {
               home-manager.useGlobalPkgs = true;
