@@ -1,6 +1,7 @@
 {
   pkgs,
   inputs,
+  lib,
   ...
 }: {
   home = {
@@ -13,21 +14,25 @@
         fd
         glow
         httpie
-        spotify
-        google-chrome
         nh
-        nerd-fonts.fira-code
-        jetbrains.webstorm
-        slack
-        discord
-        audacity
+        eza
+        bat
+        ripgrep
+        zoxide
+        gh
+        jq
+        yazi
+        colima
+        lima
+        docker-client
+        docker-compose
       ]
     );
 
     sessionVariables = {
-      NH_FLAKE = "/home/potb/projects/potb/config";
+      NH_FLAKE = "/Users/potb/projects/potb/config";
       EDITOR = "nvim";
-      BROWSER = "google-chrome-stable";
+      BROWSER = "google-chrome";
     };
 
     stateVersion = "25.05";
