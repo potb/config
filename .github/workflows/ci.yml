@@ -46,7 +46,6 @@ jobs:
   build:
     name: build
     needs: format
-    if: needs.format.outputs.changed == 'false'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
