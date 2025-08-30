@@ -145,7 +145,7 @@
           darwinModules
           ++ [
             inputs.home-manager.darwinModules.home-manager
-            inputs.nix-rosetta-builder.darwinModules.default
+            # inputs.nix-rosetta-builder.darwinModules.default
             ./darwin/configuration.nix
 
             {
