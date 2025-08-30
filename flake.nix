@@ -45,11 +45,6 @@
       url = "github:viperML/nh";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    nix-rosetta-builder = {
-      url = "github:cpick/nix-rosetta-builder";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = {
@@ -57,7 +52,6 @@
     nixpkgs,
     home-manager,
     nix-darwin,
-    nix-rosetta-builder,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -145,7 +139,6 @@
           darwinModules
           ++ [
             inputs.home-manager.darwinModules.home-manager
-            # inputs.nix-rosetta-builder.darwinModules.default
             ./darwin/configuration.nix
 
             {
