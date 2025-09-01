@@ -1,7 +1,4 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   stylix = with pkgs; let
     theme = "${base16-schemes}/share/themes/catppuccin-latte.yaml";
   in {
