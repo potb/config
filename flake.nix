@@ -117,6 +117,8 @@
                 system = "x86_64-linux";
               };
 
+              home-manager.backupFileExtension = "backup";
+
               home-manager.users.potb = {
                 imports = getHomeManagerModules "linux";
                 home.homeDirectory = nixpkgs.lib.mkForce "/home/potb";
@@ -138,8 +140,8 @@
         modules =
           darwinModules
           ++ [
-            inputs.home-manager.darwinModules.home-manager
             ./darwin/configuration.nix
+            inputs.home-manager.darwinModules.home-manager
 
             {
               home-manager.useGlobalPkgs = true;
