@@ -47,8 +47,6 @@
         export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
 
         eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
-
-        unalias l
       '';
 
       shellAliases = {
