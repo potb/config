@@ -26,6 +26,7 @@
         lima
         docker-client
         docker-compose
+        claude-code
       ]
     );
 
