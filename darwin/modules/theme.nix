@@ -3,7 +3,7 @@
   ...
 }: {
   imports = with inputs; [
-    stylix.nixosModules.stylix
+    stylix.darwinModules.stylix
     ../../shared/modules/theme.nix
   ];
 }
