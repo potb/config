@@ -133,6 +133,10 @@
     rofi = {
       enable = true;
     };
+
+    yazi = {
+      enable = true;
+    };
   };
 
   services = {
@@ -163,5 +167,7 @@
     maim
     vlc
     xclip
+    yazi
+    zed-editor
   ];
 }

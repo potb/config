@@ -120,10 +120,6 @@
       enable = true;
     };
 
-    yazi = {
-      enable = true;
-    };
-
     neovim = {
       enable = true;
       defaultEditor = true;
