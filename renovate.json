@@ -1,23 +1,28 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+    "extends": [
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    ":semanticCommitScope(deps)"
   ],
-  "nix": {
-    "enabled": true
-  },
+  "timezone": "Europe/Paris",
+  "enabledManagers": ["nix"],
+  "nix": { "enabled": true },
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "schedule": ["0 0 * * *"],
+    "automerge": true
   },
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "platformAutomerge": true,
-  "automergeSchedule": [
-    "before 3am every day"
-  ],
-  "schedule": [
-    "before 3am"
-  ],
-  "timezone": "Europe/Paris"
+  "packageRules": [
+    {
+      "description": "Disable all non-lockfile updates for Nix",
+      "matchManagers": ["nix"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin", "digest", "rollback", "replacement"],
+      "enabled": false
+    }
+  ]
 }
