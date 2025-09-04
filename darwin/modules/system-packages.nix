@@ -10,5 +10,6 @@
     jetbrains.webstorm
     zed-editor
     bitwarden
+    raycast
   ];
 }

@@ -4,6 +4,8 @@
   inputs,
   ...
 }: {
+  stylix.targets.xresources.enable = false;
+
   # macOS-specific configurations
   home.packages = with pkgs; [
     # Add macOS-specific packages here as needed
