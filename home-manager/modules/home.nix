@@ -21,7 +21,6 @@
         zoxide
         gh
         jq
-        yazi
         colima
         lima
         docker-client
