@@ -159,6 +159,7 @@
   };
 
   home.packages = with pkgs; [
+    audacity
     maim
     vlc
     xclip
