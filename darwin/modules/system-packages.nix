@@ -5,9 +5,7 @@
     google-chrome
     slack
     discord
-    spotify
     jetbrains.webstorm
-    zed-editor
     bitwarden
     raycast
   ];
