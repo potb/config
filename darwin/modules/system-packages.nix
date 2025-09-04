@@ -6,7 +6,6 @@
     slack
     discord
     spotify
-    audacity
     jetbrains.webstorm
     zed-editor
     bitwarden
