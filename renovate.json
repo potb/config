@@ -1,5 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    ":semanticCommitScope(deps)"
+  ],
   "timezone": "Europe/Paris",
   "enabledManagers": ["nix"],
   "nix": { "enabled": true },
