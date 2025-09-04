@@ -10,7 +10,7 @@
   "nix": { "enabled": true },
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["0 0 * * *"],
+    "schedule": ["after 12am"],
     "automerge": true
   },
   "automerge": true,
