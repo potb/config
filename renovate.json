@@ -8,7 +8,8 @@
   "automerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
-  "automergeSchedule": ["before 3am"],
   "platformAutomerge": true,
-  "schedule": ["* 0 * * *"]
+  "automergeSchedule": ["before 3am every day"],
+  "schedule": ["before 3am every day"],
+  "timezone": "Europe/Paris"
 }
