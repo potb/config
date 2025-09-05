@@ -8,7 +8,13 @@
 
   # macOS-specific configurations
   home.packages = with pkgs; [
-    # Add macOS-specific packages here as needed
+    python3
+    google-chrome
+    slack
+    discord
+    jetbrains.webstorm
+    bitwarden
+    raycast
   ];
 
   # macOS-specific session variables
