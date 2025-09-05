@@ -14,7 +14,7 @@
     
     # Applications
     python3
-    google-chrome
+    google-chrome-stable
     slack
     discord
     jetbrains.webstorm
@@ -25,6 +25,6 @@
   # macOS-specific session variables
   home.sessionVariables = {
     NH_FLAKE = lib.mkForce "/Users/potb/projects/potb/config";
-    BROWSER = lib.mkForce "google-chrome";
+    BROWSER = lib.mkForce "google-chrome-stable";
   };
 }
