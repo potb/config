@@ -6,8 +6,13 @@
 }: {
   stylix.targets.xresources.enable = false;
 
-  # macOS-specific configurations
+  # Font configuration
+  fonts.fontconfig.enable = true;
   home.packages = with pkgs; [
+    # Font packages
+    nerd-fonts.fira-code
+    
+    # Applications
     python3
     google-chrome
     slack
