@@ -29,6 +29,7 @@
 	stripe-cli
 	git-lfs
 	git-filter-repo
+	ffmpeg
       ]
     );
 
