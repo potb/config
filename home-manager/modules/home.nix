@@ -30,6 +30,7 @@
 	git-lfs
 	git-filter-repo
 	ffmpeg
+	bun
       ]
     );
 
