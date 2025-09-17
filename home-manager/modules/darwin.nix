@@ -11,7 +11,7 @@
   home.packages = with pkgs; [
     # Font packages
     nerd-fonts.fira-code
-    
+
     # Applications
     python3
     google-chrome
