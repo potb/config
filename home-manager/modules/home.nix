@@ -26,11 +26,11 @@
         docker-client
         docker-compose
         claude-code
-	stripe-cli
-	git-lfs
-	git-filter-repo
-	ffmpeg
-	bun
+        stripe-cli
+        git-lfs
+        git-filter-repo
+        ffmpeg
+        bun
       ]
     );
 
