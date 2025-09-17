@@ -18,7 +18,6 @@
     slack
     discord
     jetbrains.webstorm
-    bitwarden
     raycast
   ];
 
