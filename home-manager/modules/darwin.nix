@@ -13,7 +13,6 @@
     nerd-fonts.fira-code
 
     # Applications
-    python3
     google-chrome
     slack
     discord
