@@ -31,6 +31,8 @@
         git-filter-repo
         ffmpeg
         bun
+        uv
+        python3
       ]
     );
 
