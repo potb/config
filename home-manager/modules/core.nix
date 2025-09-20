@@ -157,4 +157,12 @@
       };
     };
   };
+
+  home.packages = with pkgs; [
+    (pkgs.hiPrio clang)
+    gcc
+    gnumake
+    pkg-config
+    binutils
+  ];
 }
