@@ -4,13 +4,14 @@
   ...
 }: {
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.blacklistedKernelModules = ["iTCO_wdt"];
-  boot.kernelParams = ["reboot=efi,force"];
+  boot.blacklistedKernelModules = [];
+  boot.kernelParams = [];
 
   systemd.settings = {
     Manager = {
-      RuntimeWatchdogSec = "0";
-      ShutdownWatchdogSec = "0";
+      RuntimeWatchdogSec = "10s";
+      RebootWatchdogSec = "10min";
+      DefaultTimeoutStopSec = "15s";
     };
   };
 }

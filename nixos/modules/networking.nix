@@ -17,8 +17,10 @@
     wantedBy = ["multi-user.target"];
     serviceConfig = {
       ExecStart = "${pkgs.cloudflared}/bin/cloudflared proxy-dns --address 127.0.0.1 --port 53 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query";
-      Restart = "always";
+      Restart = "on-failure";
       RestartSec = 2;
+      TimeoutStopSec = "5s";
+      KillSignal = "SIGTERM";
     };
   };
 

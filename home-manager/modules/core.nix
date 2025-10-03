@@ -4,6 +4,8 @@
   lib,
   ...
 }: {
+  # Font configuration
+  fonts.fontconfig.enable = true;
   programs = {
     zsh = {
       enable = true;
@@ -164,5 +166,14 @@
     gnumake
     pkg-config
     binutils
+    jetbrains.webstorm
+
+    # Fonts
+    nerd-fonts.fira-code
+
+    # Cross-platform applications
+    google-chrome
+    slack
+    discord
   ];
 }
