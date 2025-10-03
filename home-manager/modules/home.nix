@@ -34,11 +34,11 @@
         uv
         python3
         python3Packages.pip
+	spotify
       ]
     );
 
     sessionVariables = {
-      NH_FLAKE = "/Users/potb/projects/potb/config";
       EDITOR = "nvim";
     };
 
