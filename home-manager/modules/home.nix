@@ -34,7 +34,7 @@
         uv
         python3
         python3Packages.pip
-	spotify
+        spotify
       ]
     );
 
