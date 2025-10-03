@@ -6,17 +6,8 @@
 }: {
   stylix.targets.xresources.enable = false;
 
-  # Font configuration
-  fonts.fontconfig.enable = true;
   home.packages = with pkgs; [
-    # Font packages
-    nerd-fonts.fira-code
-
-    # Applications
-    google-chrome
-    slack
-    discord
-    jetbrains.webstorm
+    # macOS-specific applications
     raycast
   ];
 
