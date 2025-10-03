@@ -3,6 +3,10 @@
   lib,
   ...
 }: {
+  home.sessionVariables = {
+    NH_FLAKE = "/home/potb/projects/potb/config";
+  };
+
   programs.zsh.initContent = lib.mkAfter ''
     unalias l
   '';
