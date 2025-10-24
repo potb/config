@@ -78,17 +78,22 @@
     git = {
       enable = true;
 
-      userName = "Peïo Thibault";
-      userEmail = "peio.thibault@gmail.com";
+      settings = {
+        user = {
+          name = "Peïo Thibault";
+          email = "peio.thibault@gmail.com";
+        };
+      };
 
       includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
+    };
 
-      delta = {
-        enable = true;
+    delta = {
+      enable = true;
+      enableGitIntegration = true;
 
-        options = {
-          features = "catppuccin-latte";
-        };
+      options = {
+        features = "catppuccin-latte";
       };
     };
 
