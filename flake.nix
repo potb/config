@@ -45,6 +45,10 @@
       url = "github:viperML/nh";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixpkgs-cursor-pr = {
+      url = "github:NixOS/nixpkgs/pull/456882/head";
+    };
   };
 
   outputs = {
@@ -60,6 +64,33 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+
+    # Overlay to use cursor from PR #456882 with version assertion
+    cursorPROverlay = final: prev:
+      let
+        prPkgs = import inputs.nixpkgs-cursor-pr {
+          inherit (prev) system;
+          config.allowUnfree = true;
+        };
+        # Get versions, handling potential attribute name variations
+        prVersion = prPkgs.code-cursor-fhs.version or (prPkgs.cursor.version or "0-pr");
+        stableVersion = prev.code-cursor-fhs.version or (prev.cursor.version or "0-stable");
+        versionCompare = builtins.compareVersions prVersion stableVersion;
+      in {
+        code-cursor-fhs =
+          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs unstable version: ${stableVersion}" true;
+          assert versionCompare > 0 || builtins.throw ''
+            ═══════════════════════════════════════════════════════════════════════
+            CURSOR VERSION ASSERTION FAILED
+            ═══════════════════════════════════════════════════════════════════════
+
+            PR version:     ${prVersion}
+            Untable version: ${stableVersion}
+
+            ═══════════════════════════════════════════════════════════════════════
+          '';
+          prPkgs.code-cursor-fhs;
+      };
 
     # Helper function to get home-manager modules for a platform
     getHomeManagerModules = platform: let
@@ -109,6 +140,9 @@
             inputs.home-manager.nixosModules.home-manager
 
             {
+              # Apply cursor PR overlay
+              nixpkgs.overlays = [cursorPROverlay];
+
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
@@ -144,6 +178,9 @@
             inputs.home-manager.darwinModules.home-manager
 
             {
+              # Apply cursor PR overlay
+              nixpkgs.overlays = [cursorPROverlay];
+
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
