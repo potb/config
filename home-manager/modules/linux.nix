@@ -182,6 +182,12 @@
   };
 
   home.packages = with pkgs; [
+    # Linux-only build tools
+    gcc
+    binutils
+
+    # Linux-only applications
+    code-cursor-fhs
     audacity
     maim
     prismlauncher

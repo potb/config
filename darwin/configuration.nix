@@ -1,7 +1,12 @@
-{lib, ...}: {
+{pkgs, lib, ...}: {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
   networking.hostName = "nyx";
+
+  # Fonts (managed at system level on Darwin, not home-manager)
+  fonts.packages = with pkgs; [
+    nerd-fonts.fira-code
+  ];
 
   security.pam.services.sudo_local.touchIdAuth = true;
 
