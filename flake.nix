@@ -69,7 +69,7 @@
     cursorPROverlay = final: prev:
       let
         prPkgs = import inputs.nixpkgs-cursor-pr {
-          inherit (prev) system;
+          system = prev.stdenv.hostPlatform.system;
           config.allowUnfree = true;
         };
         # Get versions, handling potential attribute name variations
@@ -148,7 +148,6 @@
               home-manager.sharedModules = [];
               home-manager.extraSpecialArgs = {
                 inherit inputs;
-                system = "x86_64-linux";
               };
 
               home-manager.backupFileExtension = "backup";
