@@ -164,22 +164,4 @@
       };
     };
   };
-
-  home.packages = with pkgs; [
-    (pkgs.hiPrio clang)
-    gcc
-    gnumake
-    pkg-config
-    binutils
-    jetbrains.webstorm
-
-    # Fonts
-    nerd-fonts.fira-code
-
-    # Cross-platform applications
-    google-chrome
-    slack
-    discord
-    awscli2
-  ];
 }

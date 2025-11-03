@@ -4,6 +4,12 @@
   inputs,
   ...
 }: {
+  # Required for xdg-desktop-portal when using home-manager with useUserPackages
+  environment.pathsToLink = [
+    "/share/xdg-desktop-portal"
+    "/share/applications"
+  ];
+
   services.displayManager = {
     autoLogin.enable = true;
     autoLogin.user = "potb";
@@ -21,7 +27,7 @@
   services.xserver = {
     windowManager.i3 = {
       enable = true;
-      package = pkgs.i3-gaps;
+      package = pkgs.i3;
       extraPackages = with pkgs; [
         dmenu
         i3status
