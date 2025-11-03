@@ -5,6 +5,10 @@
 }: {
   home.sessionVariables = {
     NH_FLAKE = "/home/potb/projects/potb/config";
+    # Override portal dir to fix home-manager bug with useUserPackages
+    NIX_XDG_DESKTOP_PORTAL_DIR = lib.mkForce "/home/potb/.local/state/nix/profiles/home-manager/home-path/share/xdg-desktop-portal/portals";
+    # Help portal discovery for i3
+    XDG_CURRENT_DESKTOP = "i3";
   };
 
   programs.zsh.initContent = lib.mkAfter ''
@@ -30,9 +34,20 @@
 
     portal = {
       enable = true;
-      extraPortals = [pkgs.xdg-desktop-portal-gtk];
+      extraPortals = [
+        (pkgs.xdg-desktop-portal-gtk.overrideAttrs (oldAttrs: {
+          postInstall = ''
+            ${oldAttrs.postInstall or ""}
+            # Patch the portal file to include i3 in UseIn
+            sed -i 's/UseIn=gnome/UseIn=gnome;i3/' $out/share/xdg-desktop-portal/portals/gtk.portal
+          '';
+        }))
+      ];
       xdgOpenUsePortal = true;
-      config.common.default = "*";
+      config = {
+        common.default = ["gtk"];
+        i3.default = ["gtk"];
+      };
     };
   };
 
@@ -41,7 +56,7 @@
       mod = "Mod4";
     in {
       enable = true;
-      package = pkgs.i3-gaps;
+      package = pkgs.i3;
 
       config = {
         modifier = mod;
@@ -169,9 +184,9 @@
   home.packages = with pkgs; [
     audacity
     maim
+    prismlauncher
     vlc
     xclip
     yazi
-    zed-editor
   ];
 }
