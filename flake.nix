@@ -49,6 +49,11 @@
     nixpkgs-cursor-pr = {
       url = "github:NixOS/nixpkgs/pull/456882/head";
     };
+
+    nix-rosetta-builder = {
+      url = "github:cpick/nix-rosetta-builder";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -56,6 +61,7 @@
     nixpkgs,
     home-manager,
     nix-darwin,
+    nix-rosetta-builder,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -64,6 +70,13 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+
+    # Helper to load all .nix modules from a directory
+    loadModulesFromDir = moduleDir:
+      builtins.readDir moduleDir
+      |> builtins.attrNames
+      |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
+      |> map (name: import (moduleDir + "/${name}"));
 
     # Overlay to use cursor from PR #456882 with version assertion
     cursorPROverlay = final: prev:
@@ -95,11 +108,11 @@
 
     # Helper function to get home-manager modules for a platform
     getHomeManagerModules = platform: let
-      allModules = map (name: import (./home-manager/modules + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir ./home-manager/modules)
-        )
-      );
+      allModules =
+        builtins.readDir ./home-manager/modules
+        |> builtins.attrNames
+        |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
+        |> map (name: import (./home-manager/modules + "/${name}"));
       # Filter modules based on platform
       platformModules =
         if platform == "linux"
@@ -124,13 +137,8 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    # TODO: Use pipes when alejandra supports it
     nixosConfigurations = let
-      nixosModules = map (name: import (./nixos/modules + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir ./nixos/modules)
-        )
-      );
+      nixosModules = loadModulesFromDir ./nixos/modules;
     in {
       charon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
@@ -163,11 +171,7 @@
     };
 
     darwinConfigurations = let
-      darwinModules = map (name: import (./darwin/modules + "/${name}")) (
-        builtins.filter (name: builtins.match ".+\\.nix$" name != null) (
-          builtins.attrNames (builtins.readDir ./darwin/modules)
-        )
-      );
+      darwinModules = loadModulesFromDir ./darwin/modules;
     in {
       nyx = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs outputs;};
@@ -176,8 +180,12 @@
           ++ [
             ./darwin/configuration.nix
             inputs.home-manager.darwinModules.home-manager
+            nix-rosetta-builder.darwinModules.default
 
             {
+              nix-rosetta-builder.enable = true;
+              nix-rosetta-builder.onDemand = true;
+
               # Apply cursor PR overlay
               nixpkgs.overlays = [cursorPROverlay];
 
