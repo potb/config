@@ -12,12 +12,12 @@
         name = "FiraCode Nerd Font Mono";
       };
       sansSerif = {
-        package = nerd-fonts.fira-code;
-        name = "FiraCode Nerd Font";
+        package = dejavu_fonts;
+        name = "DejaVu Sans";
       };
       serif = {
-        package = nerd-fonts.fira-code;
-        name = "FiraCode Nerd Font";
+        package = liberation_ttf;
+        name = "Liberation Serif";
       };
       emoji = {
         package = nerd-fonts.symbols-only;
