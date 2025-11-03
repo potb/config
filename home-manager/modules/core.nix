@@ -180,5 +180,6 @@
     google-chrome
     slack
     discord
+    awscli2
   ];
 }
