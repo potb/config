@@ -31,13 +31,10 @@
 
         # Build tools
         (lib.hiPrio clang)
-        gcc
         gnumake
         pkg-config
-        binutils
 
         # Editors & IDEs
-        code-cursor-fhs
         jetbrains.datagrip
 
         # Zed editor wrapped with claude-code for Claude Code integration
@@ -61,9 +58,6 @@
         uv
         python3
         python3Packages.pip
-
-        # Fonts
-        nerd-fonts.fira-code
 
         # Applications
         spotify

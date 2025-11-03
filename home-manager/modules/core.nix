@@ -4,8 +4,18 @@
   lib,
   ...
 }: {
-  # Font configuration
-  fonts.fontconfig.enable = true;
+  # Font configuration (Linux only - macOS uses system font management)
+  fonts.fontconfig.enable = pkgs.stdenv.isLinux;
+
+  # Workaround for home-manager bug #7352 on Darwin
+  # Disable broken Darwin modules that pull in glibc
+  home.file."Library/Fonts/.home-manager-fonts-version" = lib.mkIf pkgs.stdenv.isDarwin {
+    enable = lib.mkForce false;
+  };
+  home.file."Applications/Home Manager Apps" = lib.mkIf pkgs.stdenv.isDarwin {
+    enable = lib.mkForce false;
+  };
+
   programs = {
     zsh = {
       enable = true;

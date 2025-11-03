@@ -77,6 +77,7 @@
         stableVersion = prev.code-cursor-fhs.version or (prev.cursor.version or "0-stable");
         versionCompare = builtins.compareVersions prVersion stableVersion;
       in {
+        # FHS variant for Linux (Darwin uses native nixpkgs code-cursor)
         code-cursor-fhs =
           assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs unstable version: ${stableVersion}" true;
           assert versionCompare > 0 || builtins.throw ''

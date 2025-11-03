@@ -8,6 +8,8 @@
 
   home.packages = with pkgs; [
     # macOS-specific applications
+    # Note: Darwin uses native nixpkgs code-cursor (Linux uses PR overlay code-cursor-fhs)
+    code-cursor
     raycast
   ];
 
