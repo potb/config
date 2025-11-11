@@ -46,10 +46,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixpkgs-cursor-pr = {
-      url = "github:NixOS/nixpkgs/pull/456882/head";
-    };
-
     nix-rosetta-builder = {
       url = "github:cpick/nix-rosetta-builder";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -78,62 +74,28 @@
       |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
       |> map (name: import (moduleDir + "/${name}"));
 
-    # Overlay to use cursor from PR #456882 with version assertion
-    cursorPROverlay = final: prev:
-      let
-        prPkgs = import inputs.nixpkgs-cursor-pr {
-          system = prev.stdenv.hostPlatform.system;
-          config.allowUnfree = true;
-        };
-        # Get versions, handling potential attribute name variations
-        prVersion = prPkgs.code-cursor-fhs.version or (prPkgs.cursor.version or "0-pr");
-        stableVersion = prev.code-cursor-fhs.version or (prev.cursor.version or "0-stable");
-        versionCompare = builtins.compareVersions prVersion stableVersion;
-      in {
-        # FHS variant for Linux (Darwin uses native nixpkgs code-cursor)
-        code-cursor-fhs =
-          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs unstable version: ${stableVersion}" true;
-          assert versionCompare > 0 || builtins.throw ''
-            ═══════════════════════════════════════════════════════════════════════
-            CURSOR VERSION ASSERTION FAILED
-            ═══════════════════════════════════════════════════════════════════════
-
-            PR version:     ${prVersion}
-            Untable version: ${stableVersion}
-
-            ═══════════════════════════════════════════════════════════════════════
-          '';
-          prPkgs.code-cursor-fhs;
-      };
-
-    # Helper function to get home-manager modules for a platform
-    getHomeManagerModules = platform: let
-      allModules =
-        builtins.readDir ./home-manager/modules
+    # Helper to load all overlay files from overlays directory
+    loadOverlays = overlaysDir:
+      if builtins.pathExists overlaysDir
+      then
+        builtins.readDir overlaysDir
         |> builtins.attrNames
         |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
-        |> map (name: import (./home-manager/modules + "/${name}"));
-      # Filter modules based on platform
-      platformModules =
-        if platform == "linux"
-        then [
-          ./home-manager/modules/core.nix
-          ./home-manager/modules/linux.nix
-        ]
-        else if platform == "darwin"
-        then [
-          ./home-manager/modules/core.nix
-          ./home-manager/modules/darwin.nix
-        ]
-        else [
-          ./home-manager/modules/core.nix
-        ];
-    in
-      [
+        |> map (name: import (overlaysDir + "/${name}"))
+      else [];
+
+    # Helper function to get home-manager modules for a platform
+    getHomeManagerModules = platform:
+      {
+        linux = [./home-manager/modules/core.nix ./home-manager/modules/linux.nix];
+        darwin = [./home-manager/modules/core.nix ./home-manager/modules/darwin.nix];
+      }
+      .${platform}
+      or [./home-manager/modules/core.nix]
+      |> (platformModules: [
         ./home-manager/home.nix
         ./home-manager/modules/home.nix
-      ]
-      ++ platformModules;
+      ] ++ platformModules);
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
@@ -149,9 +111,6 @@
             inputs.home-manager.nixosModules.home-manager
 
             {
-              # Apply cursor PR overlay
-              nixpkgs.overlays = [cursorPROverlay];
-
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
@@ -185,9 +144,6 @@
             {
               nix-rosetta-builder.enable = true;
               nix-rosetta-builder.onDemand = true;
-
-              # Apply cursor PR overlay
-              nixpkgs.overlays = [cursorPROverlay];
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
