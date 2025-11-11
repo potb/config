@@ -6,7 +6,7 @@
   ...
 }: {
   nix = let
-    flakeInputs = lib.filterAttrs (_: lib.isType "flake") inputs;
+    flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
   in {
     enable = true;
     settings = {
@@ -36,7 +36,7 @@
 
     optimise.automatic = true;
 
-    registry = lib.mapAttrs (_: flake: {inherit flake;}) flakeInputs;
+    registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
   };
 
   nixpkgs.config.allowUnfree = true;

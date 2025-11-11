@@ -44,13 +44,13 @@
     xkb = {
       layout = "qwerty-fr";
 
-      extraLayouts."qwerty-fr" = let
-        qwerty-fr = pkgs.qwerty-fr;
-      in {
-        description = qwerty-fr.meta.description;
-        languages = ["eng"];
-        symbolsFile = "${qwerty-fr}/share/X11/xkb/symbols/us_qwerty-fr";
-      };
+      extraLayouts."qwerty-fr" =
+        pkgs.qwerty-fr
+        |> (pkg: {
+          description = pkg.meta.description;
+          languages = ["eng"];
+          symbolsFile = "${pkg}/share/X11/xkb/symbols/us_qwerty-fr";
+        });
     };
 
     # Disable screen blanking and DPMS

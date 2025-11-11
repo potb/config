@@ -19,17 +19,19 @@
 
     mimeApps = {
       enable = true;
-      defaultApplications = let
-        vlc = "vlc.desktop";
-        chrome = "google-chrome.desktop";
-      in {
-        "audio/*" = [vlc];
-        "video/*" = [vlc];
+      defaultApplications =
+        {
+          vlc = "vlc.desktop";
+          chrome = "google-chrome.desktop";
+        }
+        |> (apps: {
+          "audio/*" = [apps.vlc];
+          "video/*" = [apps.vlc];
 
-        "x-scheme-handler/http" = [chrome];
-        "x-scheme-handler/https" = [chrome];
-        "text/html" = [chrome];
-      };
+          "x-scheme-handler/http" = [apps.chrome];
+          "x-scheme-handler/https" = [apps.chrome];
+          "text/html" = [apps.chrome];
+        });
     };
 
     portal = {
