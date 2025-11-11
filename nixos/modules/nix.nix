@@ -6,7 +6,7 @@
   ...
 }: {
   nix = let
-    flakeInputs = lib.filterAttrs (_: lib.isType "flake") inputs;
+    flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
   in {
     settings = {
       experimental-features = "nix-command flakes pipe-operators";
@@ -32,8 +32,8 @@
     channel.enable = true;
     optimise.automatic = false;
 
-    registry = lib.mapAttrs (_: flake: {inherit flake;}) flakeInputs;
-    nixPath = lib.mapAttrsToList (n: _: "${n}=flake:${n}") flakeInputs;
+    registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
+    nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
 
     gc = {
       automatic = true;
