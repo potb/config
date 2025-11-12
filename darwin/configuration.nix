@@ -1,4 +1,8 @@
-{pkgs, lib, ...}: {
+{
+  pkgs,
+  lib,
+  ...
+}: {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
   networking.hostName = "nyx";
