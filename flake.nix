@@ -90,12 +90,18 @@
         linux = [./home-manager/modules/core.nix ./home-manager/modules/linux.nix];
         darwin = [./home-manager/modules/core.nix ./home-manager/modules/darwin.nix];
       }
-      .${platform}
-      or [./home-manager/modules/core.nix]
-      |> (platformModules: [
-        ./home-manager/home.nix
-        ./home-manager/modules/home.nix
-      ] ++ platformModules);
+      .${
+        platform
+      }
+      or [
+        ./home-manager/modules/core.nix
+      ]
+      |> (platformModules:
+        [
+          ./home-manager/home.nix
+          ./home-manager/modules/home.nix
+        ]
+        ++ platformModules);
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
