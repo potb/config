@@ -9,6 +9,8 @@
     NIX_XDG_DESKTOP_PORTAL_DIR = lib.mkForce "/home/potb/.local/state/nix/profiles/home-manager/home-path/share/xdg-desktop-portal/portals";
     # Help portal discovery for i3
     XDG_CURRENT_DESKTOP = "i3";
+    # Include Desktop directory in rofi drun search path
+    XDG_DATA_DIRS = "$HOME/Desktop:$XDG_DATA_DIRS";
   };
 
   programs.zsh.initContent = lib.mkAfter ''
