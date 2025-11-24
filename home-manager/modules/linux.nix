@@ -186,9 +186,14 @@
   };
 
   home.packages = with pkgs; [
-    # Linux-only build tools
+    # Build tools for Python packages with C extensions
     gcc
     binutils
+    gnumake
+    autoconf
+    automake
+    libtool
+    pkg-config
 
     # Linux-only applications
     code-cursor-fhs

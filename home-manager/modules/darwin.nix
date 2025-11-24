@@ -12,6 +12,15 @@
     # Note: Darwin uses native nixpkgs code-cursor (Linux uses PR overlay code-cursor-fhs)
     code-cursor
     raycast
+
+    # Build tools for Python packages with C extensions
+    # Use stdenv.cc (properly configured for Darwin) instead of raw gcc
+    stdenv.cc
+    gnumake
+    autoconf
+    automake
+    libtool
+    pkg-config
   ];
 
   # Custom activation to link apps (similar to mac-app-util behavior)
@@ -42,5 +51,9 @@
   home.sessionVariables = {
     NH_FLAKE = lib.mkForce "/Users/potb/projects/potb/config";
     BROWSER = lib.mkForce "google-chrome";
+
+    # Ensure build tools use Nix-provided compilers (stdenv.cc is properly configured for Darwin)
+    CC = "${pkgs.stdenv.cc}/bin/cc";
+    CXX = "${pkgs.stdenv.cc}/bin/c++";
   };
 }

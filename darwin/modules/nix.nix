@@ -22,6 +22,7 @@
         "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
       ];
       flake-registry = "";
+      builders-use-substitutes = true;
     };
 
     gc = {
@@ -37,6 +38,15 @@
     optimise.automatic = true;
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
+
+    # Disable default linux-builder - using nix-rosetta-builder instead
+    # nix-rosetta-builder (configured in flake.nix) handles both:
+    # - aarch64-linux (native ARM64)
+    # - x86_64-linux (via Rosetta 2 acceleration)
+    linux-builder.enable = false;
+
+    # Enable distributed builds
+    distributedBuilds = true;
   };
 
   nixpkgs.config.allowUnfree = true;
