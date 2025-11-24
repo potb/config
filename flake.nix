@@ -37,7 +37,7 @@
     };
 
     stylix = {
-      url = "github:danth/stylix";
+      url = "github:danth/stylix/647bb8dd96a206a1b79c4fd714affc88b409e10b";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -49,6 +49,10 @@
     nix-rosetta-builder = {
       url = "github:cpick/nix-rosetta-builder";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nixpkgs-cursor-pr = {
+      url = "github:NixOS/nixpkgs/pull/464521/head";
     };
   };
 
@@ -66,6 +70,36 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+
+    # Overlay to use cursor from PR #464521 with version assertion
+    cursorPROverlay = final: prev:
+      let
+        prPkgs = import inputs.nixpkgs-cursor-pr {
+          inherit (prev) system;
+          config.allowUnfree = true;
+        };
+        # Get versions for both FHS and non-FHS packages
+        prVersion = prPkgs.code-cursor-fhs.version or (prPkgs.code-cursor.version or "0-pr");
+        stableVersion = prev.code-cursor-fhs.version or (prev.code-cursor.version or "0-stable");
+        versionCompare = builtins.compareVersions prVersion stableVersion;
+      in {
+        code-cursor-fhs =
+          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs unstable version: ${stableVersion}" true;
+          assert versionCompare > 0 || builtins.throw ''
+            ═══════════════════════════════════════════════════════════════════════
+            CURSOR VERSION ASSERTION FAILED
+            ═══════════════════════════════════════════════════════════════════════
+
+            PR version:       ${prVersion}
+            Unstable version: ${stableVersion}
+
+            ═══════════════════════════════════════════════════════════════════════
+          '';
+          prPkgs.code-cursor-fhs;
+
+        # Also override non-FHS version for Darwin
+        code-cursor = prPkgs.code-cursor;
+      };
 
     # Helper to load all .nix modules from a directory
     loadModulesFromDir = moduleDir:
@@ -117,6 +151,9 @@
             inputs.home-manager.nixosModules.home-manager
 
             {
+              # Apply cursor PR overlay
+              nixpkgs.overlays = [cursorPROverlay];
+
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
@@ -148,6 +185,9 @@
             nix-rosetta-builder.darwinModules.default
 
             {
+              # Apply cursor PR overlay
+              nixpkgs.overlays = [cursorPROverlay];
+
               nix-rosetta-builder.enable = true;
               nix-rosetta-builder.onDemand = true;
 
