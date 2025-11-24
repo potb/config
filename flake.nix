@@ -72,27 +72,37 @@
     forAllSystems = nixpkgs.lib.genAttrs systems;
 
     # Overlay to use cursor from PR #464521 with version assertion
+    # Note: We check against the base nixpkgs input directly to avoid
+    # circular dependency issues with prev in the module system
     cursorPROverlay = final: prev:
       let
         prPkgs = import inputs.nixpkgs-cursor-pr {
           inherit (prev) system;
           config.allowUnfree = true;
         };
+        # Get base nixpkgs version by importing the input directly
+        basePkgs = import inputs.nixpkgs {
+          inherit (prev) system;
+          config.allowUnfree = true;
+        };
         # Get versions for both FHS and non-FHS packages
         prVersion = prPkgs.code-cursor-fhs.version or (prPkgs.code-cursor.version or "0-pr");
-        stableVersion = prev.code-cursor-fhs.version or (prev.code-cursor.version or "0-stable");
-        versionCompare = builtins.compareVersions prVersion stableVersion;
+        baseVersion = basePkgs.code-cursor-fhs.version or (basePkgs.code-cursor.version or "0-base");
+        versionCompare = builtins.compareVersions prVersion baseVersion;
       in {
         code-cursor-fhs =
-          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs unstable version: ${stableVersion}" true;
+          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs base version: ${baseVersion}" true;
           assert versionCompare > 0 || builtins.throw ''
             ═══════════════════════════════════════════════════════════════════════
             CURSOR VERSION ASSERTION FAILED
             ═══════════════════════════════════════════════════════════════════════
 
-            PR version:       ${prVersion}
-            Unstable version: ${stableVersion}
+            PR version:  ${prVersion}
+            Base version: ${baseVersion}
 
+            The PR version must be > base version.
+            This usually means the PR has been merged or is outdated.
+            Consider removing the cursor overlay if PR is merged.
             ═══════════════════════════════════════════════════════════════════════
           '';
           prPkgs.code-cursor-fhs;
