@@ -37,17 +37,6 @@
         # Editors & IDEs
         jetbrains.datagrip
 
-        # Zed editor wrapped with claude-code for Claude Code integration
-        (pkgs.symlinkJoin {
-          name = "zed-editor-wrapped";
-          paths = [pkgs.zed-editor];
-          buildInputs = [pkgs.makeWrapper];
-          postBuild = ''
-            wrapProgram $out/bin/zeditor \
-              --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.claude-code]}
-          '';
-        })
-
         # Development tools
         claude-code
         stripe-cli
@@ -59,6 +48,7 @@
         uv
         python3
         python3Packages.pip
+	awscli2
 
         # Applications
         spotify
