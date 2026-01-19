@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   lib,
+  config,
   ...
 }: {
   # Font configuration (Linux only - macOS uses system font management)
@@ -19,6 +20,7 @@
   programs = {
     zsh = {
       enable = true;
+      dotDir = "${config.xdg.configHome}/zsh";
 
       antidote.enable = true;
       antidote.plugins = [
