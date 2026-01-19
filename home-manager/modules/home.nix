@@ -50,6 +50,19 @@
         python3Packages.pip
         awscli2
 
+        # LSP servers
+        nil
+        typescript-language-server
+        python3Packages.python-lsp-server
+
+        # Formatters
+        nixfmt-rfc-style
+        python3Packages.black
+
+        # Notifications
+        claude-notify
+        terminal-notifier
+
         # Applications
         spotify
         google-chrome
