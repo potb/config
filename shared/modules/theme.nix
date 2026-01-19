@@ -8,6 +8,8 @@
     |> (theme:
       with pkgs; {
         enable = true;
+        # Note: Version mismatch warning expected - nixpkgs-unstable (26.05) is ahead of Stylix's release cycle
+        # This is informational and safe. Ref: https://discourse.nixos.org/t/stylix-and-nixpkgs-version-mismatch/64416
         base16Scheme = theme;
 
         # Unified cross-platform fonts (Darwin + Linux compatible)
