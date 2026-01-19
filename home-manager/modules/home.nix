@@ -61,7 +61,6 @@
 
         # Notifications
         claude-notify
-        terminal-notifier
 
         # Applications
         spotify

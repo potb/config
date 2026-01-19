@@ -10,10 +10,9 @@ final: prev: {
       sha256 = "sha256-TcGJkXgBOe8xVPo+2GxvczOakadM4SbWf+DUbTB4kzg=";
     };
 
-    buildInputs = [
-      prev.jq
-      prev.terminal-notifier
-    ];
+    buildInputs =
+      [prev.jq]
+      ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier];
 
     nativeBuildInputs = [
       prev.makeWrapper
@@ -44,7 +43,12 @@ final: prev: {
 
       # Wrap with dependencies
       wrapProgram $out/bin/claude-notify \
-        --prefix PATH : ${prev.lib.makeBinPath [prev.jq prev.terminal-notifier]}
+        --prefix PATH : ${
+        prev.lib.makeBinPath (
+          [prev.jq]
+          ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier]
+        )
+      }
 
       # Install shell completions
       mkdir -p $out/share/bash-completion/completions
