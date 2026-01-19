@@ -118,6 +118,15 @@
           ./home-manager/modules/home.nix
         ]
         ++ platformModules);
+
+    # Load overlays per category
+    sharedOverlays = loadOverlays ./overlays;
+    darwinOverlays = loadOverlays ./darwin/overlays;
+    nixosOverlays = loadOverlays ./nixos/overlays;
+
+    # Combine overlays per system (shared first, then system-specific)
+    darwinAllOverlays = [cursorPROverlay] ++ sharedOverlays ++ darwinOverlays;
+    nixosAllOverlays = [cursorPROverlay] ++ sharedOverlays ++ nixosOverlays;
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
@@ -133,7 +142,7 @@
             inputs.home-manager.nixosModules.home-manager
 
             {
-              nixpkgs.overlays = [cursorPROverlay];
+              nixpkgs.overlays = nixosAllOverlays;
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
@@ -166,7 +175,7 @@
             nix-rosetta-builder.darwinModules.default
 
             {
-              nixpkgs.overlays = [cursorPROverlay];
+              nixpkgs.overlays = darwinAllOverlays;
 
               nix-rosetta-builder.enable = true;
               nix-rosetta-builder.onDemand = true;
