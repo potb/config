@@ -7,7 +7,7 @@
     apps = pkgs.buildEnv {
       name = "applications";
       paths = config.environment.systemPackages;
-      pathsToLink = [ "/Applications" ];
+      pathsToLink = ["/Applications"];
     };
   in ''
     mkdir -p /Applications/Nix\ Apps

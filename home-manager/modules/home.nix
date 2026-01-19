@@ -48,7 +48,7 @@
         uv
         python3
         python3Packages.pip
-	awscli2
+        awscli2
 
         # Applications
         spotify
