@@ -56,7 +56,7 @@
         python3Packages.python-lsp-server
 
         # Formatters
-        nixfmt-rfc-style
+        nixfmt
         python3Packages.black
 
         # Notifications
