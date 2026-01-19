@@ -22,6 +22,9 @@
         zoxide
         gh
         jq
+	tokei
+	bottom
+	htop
 
         # Docker
         colima
