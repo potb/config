@@ -37,7 +37,7 @@
     };
 
     stylix = {
-      url = "github:danth/stylix/647bb8dd96a206a1b79c4fd714affc88b409e10b";
+      url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -51,8 +51,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Cursor PR for version 2.3.29 (not yet merged to unstable)
     nixpkgs-cursor-pr = {
-      url = "github:NixOS/nixpkgs/pull/464521/head";
+      url = "github:NixOS/nixpkgs/pull/478688/head";
     };
   };
 
@@ -71,45 +72,16 @@
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
 
-    # Overlay to use cursor from PR #464521 with version assertion
-    # Note: We check against the base nixpkgs input directly to avoid
-    # circular dependency issues with prev in the module system
-    cursorPROverlay = final: prev:
-      let
-        prPkgs = import inputs.nixpkgs-cursor-pr {
-          inherit (prev) system;
-          config.allowUnfree = true;
-        };
-        # Get base nixpkgs version by importing the input directly
-        basePkgs = import inputs.nixpkgs {
-          inherit (prev) system;
-          config.allowUnfree = true;
-        };
-        # Get versions for both FHS and non-FHS packages
-        prVersion = prPkgs.code-cursor-fhs.version or (prPkgs.code-cursor.version or "0-pr");
-        baseVersion = basePkgs.code-cursor-fhs.version or (basePkgs.code-cursor.version or "0-base");
-        versionCompare = builtins.compareVersions prVersion baseVersion;
-      in {
-        code-cursor-fhs =
-          assert builtins.trace "INFO: Cursor PR version: ${prVersion}, nixpkgs base version: ${baseVersion}" true;
-          assert versionCompare > 0 || builtins.throw ''
-            ═══════════════════════════════════════════════════════════════════════
-            CURSOR VERSION ASSERTION FAILED
-            ═══════════════════════════════════════════════════════════════════════
-
-            PR version:  ${prVersion}
-            Base version: ${baseVersion}
-
-            The PR version must be > base version.
-            This usually means the PR has been merged or is outdated.
-            Consider removing the cursor overlay if PR is merged.
-            ═══════════════════════════════════════════════════════════════════════
-          '';
-          prPkgs.code-cursor-fhs;
-
-        # Also override non-FHS version for Darwin
-        code-cursor = prPkgs.code-cursor;
+    # Overlay to use cursor from PR #478688
+    cursorPROverlay = final: prev: let
+      prPkgs = import inputs.nixpkgs-cursor-pr {
+        system = prev.stdenv.hostPlatform.system;
+        config.allowUnfree = true;
       };
+    in {
+      code-cursor-fhs = prPkgs.code-cursor-fhs;
+      code-cursor = prPkgs.code-cursor;
+    };
 
     # Helper to load all .nix modules from a directory
     loadModulesFromDir = moduleDir:
@@ -161,7 +133,6 @@
             inputs.home-manager.nixosModules.home-manager
 
             {
-              # Apply cursor PR overlay
               nixpkgs.overlays = [cursorPROverlay];
 
               home-manager.useGlobalPkgs = true;
@@ -195,7 +166,6 @@
             nix-rosetta-builder.darwinModules.default
 
             {
-              # Apply cursor PR overlay
               nixpkgs.overlays = [cursorPROverlay];
 
               nix-rosetta-builder.enable = true;
