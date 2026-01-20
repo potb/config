@@ -184,6 +184,67 @@
             echo "Use gwtn for creating new branches with worktrees"
             return 1
           }
+
+          # Clean up worktrees with merged PRs
+          # Only removes worktrees where the branch had a PR that was merged
+          gwtclean() {
+            local dry_run=0
+            [[ "$1" == "--dry-run" || "$1" == "-n" ]] && dry_run=1
+
+            local main_wt=$(git worktree list | head -1 | awk '{print $1}')
+
+            git worktree list | tail -n +2 | while read -r line; do
+              local wt_path=$(echo "$line" | awk '{print $1}')
+              local branch=$(echo "$line" | grep -o '\[.*\]' | tr -d '[]')
+
+              [[ -z "$branch" ]] && continue
+
+              # Check if branch has a merged PR using gh CLI
+              local pr_state=$(gh pr view "$branch" --json state --jq '.state' 2>/dev/null)
+
+              if [[ "$pr_state" == "MERGED" ]]; then
+                if (( dry_run )); then
+                  echo "[dry-run] Would remove: $wt_path ($branch) - PR merged"
+                else
+                  echo "Removing: $wt_path ($branch) - PR merged"
+                  [[ "$PWD" == "$wt_path"* ]] && cd "$main_wt"
+                  git worktree remove "$wt_path"
+                  git branch -d "$branch" 2>/dev/null || git branch -D "$branch"
+                fi
+              elif [[ -z "$pr_state" ]]; then
+                echo "Skipping: $branch - no PR found"
+              else
+                echo "Skipping: $branch - PR state: $pr_state"
+              fi
+            done
+          }
+
+          # Worktree completions
+          _gwt_branches() {
+            local branches
+            branches=(''${(f)"$(git worktree list 2>/dev/null | awk '{print $3}' | tr -d '[]')"})
+            _describe 'branch' branches
+          }
+
+          _gwt_all_branches() {
+            local branches
+            branches=(''${(f)"$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's|remotes/origin/||' | sort -u)"})
+            _describe 'branch' branches
+          }
+
+          _gwtn_complete() {
+            local -a branches
+            if (( CURRENT == 3 )); then
+              # Second argument: complete with existing branches for base
+              branches=(''${(f)"$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's|remotes/origin/||' | sort -u)"})
+              _describe 'base branch' branches
+            fi
+          }
+
+          compdef _gwt_branches gwcd gwtd gwts
+          compdef _gwt_all_branches gwtc
+          compdef _gwtn_complete gwtn
+
         '')
       ];
 
