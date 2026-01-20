@@ -52,16 +52,123 @@
         "zdharma-continuum/fast-syntax-highlighting"
       ];
 
-      initContent = lib.mkBefore ''
-        zstyle ':omz:plugins:eza' 'dirs-first' yes
-        zstyle ':omz:plugins:eza' 'git-status' yes
-        zstyle ':omz:plugins:eza' 'header' yes
-        zstyle ':omz:plugins:eza' 'icons' yes
+      initContent = lib.mkMerge [
+        (lib.mkBefore ''
+          zstyle ':omz:plugins:eza' 'dirs-first' yes
+          zstyle ':omz:plugins:eza' 'git-status' yes
+          zstyle ':omz:plugins:eza' 'header' yes
+          zstyle ':omz:plugins:eza' 'icons' yes
 
-        export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
+          export MAGIC_ENTER_OTHER_COMMAND='ls -lah .'
 
-        eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
-      '';
+          eval "$(${pkgs.fnm}/bin/fnm env --use-on-cd --version-file-strategy=recursive --corepack-enabled --resolve-engines)"
+        '')
+
+        (lib.mkAfter ''
+          # ============================================
+          # Worktree-first workflow
+          # Layout: repo/../worktrees/repo-name/branch-name
+          # ============================================
+
+          # Unalias OMZ git plugin aliases first
+          unalias gco 2>/dev/null || true
+          unalias gcb 2>/dev/null || true
+
+          # Create new branch with worktree
+          gwtn() {
+            local branch="$1"
+            local base="''${2:-$(git_main_branch)}"
+            if [[ -z "$branch" ]]; then
+              echo "Usage: gwtn <branch-name> [base-branch]"
+              return 1
+            fi
+            local repo_root=$(git rev-parse --show-toplevel)
+            local repo_name=$(basename "$repo_root")
+            local wt_dir="$(dirname "$repo_root")/worktrees/''${repo_name}/''${branch}"
+            mkdir -p "$(dirname "$wt_dir")"
+            git worktree add -b "$branch" "$wt_dir" "$base" && cd "$wt_dir"
+          }
+
+          # Add worktree for existing branch (e.g., PR review)
+          gwtc() {
+            local branch="$1"
+            if [[ -z "$branch" ]]; then
+              echo "Usage: gwtc <branch-name>"
+              return 1
+            fi
+            local repo_root=$(git rev-parse --show-toplevel)
+            local repo_name=$(basename "$repo_root")
+            local wt_dir="$(dirname "$repo_root")/worktrees/''${repo_name}/''${branch}"
+            mkdir -p "$(dirname "$wt_dir")"
+            git worktree add "$wt_dir" "$branch" && cd "$wt_dir"
+          }
+
+          # Switch to worktree (fuzzy with fzf if available)
+          gwts() {
+            local target="$1"
+            if [[ -z "$target" ]]; then
+              if command -v fzf &>/dev/null; then
+                target=$(git worktree list | fzf --height 40% | awk '{print $1}')
+              else
+                git worktree list
+                return
+              fi
+            else
+              target=$(git worktree list | grep "$target" | head -1 | awk '{print $1}')
+            fi
+            [[ -n "$target" ]] && cd "$target"
+          }
+
+          # Go to main worktree
+          gwtm() {
+            local main_wt=$(git worktree list | head -1 | awk '{print $1}')
+            [[ -n "$main_wt" ]] && cd "$main_wt"
+          }
+
+          # Remove worktree and optionally delete branch
+          gwtd() {
+            local branch="$1"
+            local delete_branch="''${2:---keep}"
+            if [[ -z "$branch" ]]; then
+              echo "Usage: gwtd <branch-name> [--delete-branch]"
+              return 1
+            fi
+            local wt_path=$(git worktree list | grep "\\[$branch\\]" | awk '{print $1}')
+            if [[ -n "$wt_path" ]]; then
+              # Go to main worktree first if we're in the one being deleted
+              [[ "$PWD" == "$wt_path"* ]] && gwtm
+              git worktree remove "$wt_path"
+              [[ "$delete_branch" == "--delete-branch" ]] && git branch -d "$branch"
+            else
+              echo "Worktree for branch '$branch' not found"
+            fi
+          }
+
+          # Smart gco wrapper: blocks branch switching, allows file restoration
+          # gco branch        -> BLOCKED (use gwtn/gwtc)
+          # gco branch -- file -> ALLOWED (file restoration)
+          gco() {
+            local has_dashdash=0
+            for arg in "$@"; do
+              [[ "$arg" == "--" ]] && has_dashdash=1 && break
+            done
+
+            if (( has_dashdash )); then
+              command git checkout "$@"
+            else
+              echo "Use gwtn (new branch) or gwtc (existing) for worktree-first workflow"
+              echo "For file restoration: gco <branch> -- <file>"
+              return 1
+            fi
+          }
+
+          # Block gcb entirely
+          gcb() {
+            echo "Use gwtn for creating new branches with worktrees"
+            return 1
+          }
+        '')
+      ];
 
       shellAliases = {
         cd = "z";
