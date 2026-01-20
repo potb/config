@@ -40,6 +40,7 @@
 
         # Editors & IDEs
         jetbrains.datagrip
+        opencode
 
         # Development tools
         claude-code
