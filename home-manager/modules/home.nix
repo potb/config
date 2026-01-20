@@ -13,6 +13,7 @@
         duf
         dust
         fd
+        fzf
         glow
         httpie
         nh
@@ -22,9 +23,9 @@
         zoxide
         gh
         jq
-	tokei
-	bottom
-	htop
+        tokei
+        bottom
+        htop
 
         # Docker
         colima
