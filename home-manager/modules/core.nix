@@ -82,9 +82,9 @@
               echo "Usage: gwtn <branch-name> [base-branch]"
               return 1
             fi
-            local repo_root=$(git rev-parse --show-toplevel)
-            local repo_name=$(basename "$repo_root")
-            local wt_dir="$(dirname "$repo_root")/worktrees/''${repo_name}/''${branch}"
+            local main_wt=$(git worktree list | head -1 | awk '{print $1}')
+            local repo_name=$(basename "$main_wt")
+            local wt_dir="$(dirname "$main_wt")/worktrees/''${repo_name}/''${branch}"
             mkdir -p "$(dirname "$wt_dir")"
             git worktree add -b "$branch" "$wt_dir" "$base" && cd "$wt_dir"
           }
@@ -96,9 +96,9 @@
               echo "Usage: gwtc <branch-name>"
               return 1
             fi
-            local repo_root=$(git rev-parse --show-toplevel)
-            local repo_name=$(basename "$repo_root")
-            local wt_dir="$(dirname "$repo_root")/worktrees/''${repo_name}/''${branch}"
+            local main_wt=$(git worktree list | head -1 | awk '{print $1}')
+            local repo_name=$(basename "$main_wt")
+            local wt_dir="$(dirname "$main_wt")/worktrees/''${repo_name}/''${branch}"
             mkdir -p "$(dirname "$wt_dir")"
             git worktree add "$wt_dir" "$branch" && cd "$wt_dir"
           }
