@@ -125,6 +125,23 @@
             [[ -n "$main_wt" ]] && cd "$main_wt"
           }
 
+          # CD to worktree by branch name (direct, no fzf)
+          gwcd() {
+            local branch="$1"
+            if [[ -z "$branch" ]]; then
+              echo "Usage: gwcd <branch-name>"
+              echo "Tip: Use gwts for interactive fzf selection"
+              return 1
+            fi
+            local wt_path=$(git worktree list | grep "\[$branch\]" | awk '{print $1}')
+            if [[ -n "$wt_path" ]]; then
+              cd "$wt_path"
+            else
+              echo "No worktree found for branch: $branch"
+              return 1
+            fi
+          }
+
           # Remove worktree and optionally delete branch
           gwtd() {
             local branch="$1"
