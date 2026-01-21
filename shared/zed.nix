@@ -1,16 +1,14 @@
 # Shared Zed editor configuration
 # Used by both home-manager and flake app output
-{ pkgs }:
-let
-  fonts = import ./fonts.nix { inherit pkgs; };
-in
-{
+{pkgs}: let
+  fonts = import ./fonts.nix {inherit pkgs;};
+in {
   settings = {
     # OpenCode ACP agent server
     agent_servers = {
       OpenCode = {
         command = "${pkgs.opencode}/bin/opencode";
-        args = [ "acp" ];
+        args = ["acp"];
       };
     };
 
@@ -28,6 +26,7 @@ in
       show_project_items = false;
       show_branch_name = false;
       show_user_menu = false;
+      show_menu_button = false;
     };
     tab_bar = {
       show = false;
