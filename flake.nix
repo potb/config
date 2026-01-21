@@ -103,21 +103,28 @@
     # Helper function to get home-manager modules for a platform
     getHomeManagerModules = platform:
       {
-        linux = [./home-manager/modules/core.nix ./home-manager/modules/linux.nix];
-        darwin = [./home-manager/modules/core.nix ./home-manager/modules/darwin.nix];
+        linux = [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/linux.nix
+        ];
+        darwin = [
+          ./home-manager/modules/core.nix
+          ./home-manager/modules/darwin.nix
+        ];
       }
-      .${
+        .${
         platform
-      }
-      or [
+      } or [
         ./home-manager/modules/core.nix
       ]
-      |> (platformModules:
-        [
-          ./home-manager/home.nix
-          ./home-manager/modules/home.nix
-        ]
-        ++ platformModules);
+      |> (
+        platformModules:
+          [
+            ./home-manager/home.nix
+            ./home-manager/modules/home.nix
+          ]
+          ++ platformModules
+      );
 
     # Load overlays per category
     sharedOverlays = loadOverlays ./overlays;
@@ -127,8 +134,31 @@
     # Combine overlays per system (shared first, then system-specific)
     darwinAllOverlays = [cursorPROverlay] ++ sharedOverlays ++ darwinOverlays;
     nixosAllOverlays = [cursorPROverlay] ++ sharedOverlays ++ nixosOverlays;
+
+    # Shared zed configuration (used by both home-manager and app output)
+    mkZedConfig = pkgs: import ./shared/zed.nix {inherit pkgs;};
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
+
+    # Zed with dev config - iterate without rebuild
+    # Usage: nix run .#zed
+    apps = forAllSystems (
+      system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        zedConfig = mkZedConfig pkgs;
+        settingsJson = pkgs.writeText "zed-settings.json" (builtins.toJSON zedConfig.settings);
+      in {
+        zed = {
+          type = "app";
+          program = "${pkgs.writeShellScript "zed-dev" ''
+            CONFIG_DIR=$(mktemp -d)
+            mkdir -p "$CONFIG_DIR/zed"
+            cp ${settingsJson} "$CONFIG_DIR/zed/settings.json"
+            XDG_CONFIG_HOME="$CONFIG_DIR" exec ${pkgs.zed-editor}/bin/zed "$@"
+          ''}";
+        };
+      }
+    );
 
     nixosConfigurations = let
       nixosModules = loadModulesFromDir ./nixos/modules;
@@ -148,7 +178,7 @@
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
               home-manager.extraSpecialArgs = {
-                inherit inputs;
+                inherit inputs mkZedConfig;
               };
 
               home-manager.backupFileExtension = "backup";
@@ -184,7 +214,7 @@
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [];
               home-manager.extraSpecialArgs = {
-                inherit inputs;
+                inherit inputs mkZedConfig;
               };
 
               home-manager.users.potb = {

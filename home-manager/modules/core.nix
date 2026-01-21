@@ -3,8 +3,11 @@
   inputs,
   lib,
   config,
+  mkZedConfig,
   ...
-}: {
+}: let
+  zedConfig = mkZedConfig pkgs;
+in {
   # Font configuration (Linux only - macOS uses system font management)
   fonts.fontconfig.enable = pkgs.stdenv.isLinux;
 
@@ -357,8 +360,27 @@
           };
           size = lib.mkForce 12.0;
         };
-        general = {live_config_reload = true;};
+        general = {
+          live_config_reload = true;
+        };
       };
     };
+  };
+
+  # Disable stylix zed target - we manage zed config ourselves
+  stylix.targets.zed.enable = false;
+
+  # Zed editor with shared config
+  programs.zed-editor = {
+    enable = true;
+    mutableUserSettings = false;
+    mutableUserKeymaps = false;
+    mutableUserTasks = false;
+    extensions = [
+      "catppuccin"
+      "catppuccin-icons"
+      "nix"
+    ];
+    userSettings = zedConfig.settings;
   };
 }
