@@ -382,5 +382,6 @@ in {
       "nix"
     ];
     userSettings = zedConfig.settings;
+    userKeymaps = zedConfig.keymaps;
   };
 }
