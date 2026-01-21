@@ -1,14 +1,16 @@
 # Shared Zed editor configuration
 # Used by both home-manager and flake app output
-{pkgs}: let
-  fonts = import ./fonts.nix {inherit pkgs;};
-in {
+{ pkgs }:
+let
+  fonts = import ./fonts.nix { inherit pkgs; };
+in
+{
   settings = {
     # OpenCode ACP agent server
     agent_servers = {
       OpenCode = {
         command = "${pkgs.opencode}/bin/opencode";
-        args = ["acp"];
+        args = [ "acp" ];
       };
     };
 
@@ -87,7 +89,7 @@ in {
   keymaps = [
     {
       bindings = {
-        "alt-1" = "workspace::ToggleLeftDock";
+        "alt-1" = "workspace::ToggleRightDock";
       };
     }
   ];
