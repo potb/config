@@ -83,4 +83,12 @@ in {
     # Icons from catppuccin-icons extension
     icon_theme = "Catppuccin Latte";
   };
+
+  keymaps = [
+    {
+      bindings = {
+        "alt-1" = "workspace::ToggleLeftDock";
+      };
+    }
+  ];
 }
