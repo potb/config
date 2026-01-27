@@ -1,6 +1,5 @@
-# Shared font definitions
-# Single source of truth for font packages and family names
-{pkgs}: {
+{ pkgs }:
+{
   monospace = {
     package = pkgs.nerd-fonts.fira-code;
     name = "FiraCode Nerd Font Mono";
