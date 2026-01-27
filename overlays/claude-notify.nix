@@ -10,9 +10,7 @@ final: prev: {
       sha256 = "sha256-TcGJkXgBOe8xVPo+2GxvczOakadM4SbWf+DUbTB4kzg=";
     };
 
-    buildInputs =
-      [prev.jq]
-      ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier];
+    buildInputs = [prev.jq] ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier];
 
     nativeBuildInputs = [
       prev.makeWrapper
@@ -45,8 +43,7 @@ final: prev: {
       wrapProgram $out/bin/claude-notify \
         --prefix PATH : ${
         prev.lib.makeBinPath (
-          [prev.jq]
-          ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier]
+          [prev.jq] ++ prev.lib.optionals prev.stdenv.isDarwin [prev.terminal-notifier]
         )
       }
 

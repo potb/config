@@ -12,7 +12,10 @@
     settings = {
       experimental-features = "nix-command flakes pipe-operators";
       warn-dirty = false;
-      trusted-users = ["root" "@admin"];
+      trusted-users = [
+        "root"
+        "@admin"
+      ];
       substituters = [
         "https://cache.nixos.org"
         "https://potb.cachix.org"
