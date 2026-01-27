@@ -3,11 +3,12 @@
   inputs,
   lib,
   ...
-}: {
+}:
+{
   home = {
     packages = (
-      with pkgs; [
-        # CLI tools
+      with pkgs;
+      [
         fnm
         act
         duf
@@ -27,22 +28,18 @@
         bottom
         htop
 
-        # Docker
         colima
         lima
         docker-client
         docker-compose
 
-        # Build tools
         (lib.hiPrio clang)
         gnumake
         pkg-config
 
-        # Editors & IDEs
         jetbrains.datagrip
         opencode
 
-        # Development tools
         claude-code
         stripe-cli
         git-lfs
@@ -55,19 +52,15 @@
         python3Packages.pip
         awscli2
 
-        # LSP servers
         nil
         typescript-language-server
         python3Packages.python-lsp-server
 
-        # Formatters
         nixfmt
         python3Packages.black
 
-        # Notifications
         claude-notify
 
-        # Applications
         spotify
         google-chrome
         slack

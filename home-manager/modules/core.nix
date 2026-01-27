@@ -5,9 +5,11 @@
   config,
   mkZedConfig,
   ...
-}: let
+}:
+let
   zedConfig = mkZedConfig pkgs;
-in {
+in
+{
   # Font configuration (Linux only - macOS uses system font management)
   fonts.fontconfig.enable = pkgs.stdenv.isLinux;
 
@@ -68,16 +70,9 @@ in {
         '')
 
         (lib.mkAfter ''
-          # ============================================
-          # Worktree-first workflow
-          # Layout: repo/../worktrees/repo-name/branch-name
-          # ============================================
-
-          # Unalias OMZ git plugin aliases first
           unalias gco 2>/dev/null || true
           unalias gcb 2>/dev/null || true
 
-          # Create new branch with worktree
           gwtn() {
             local branch="$1"
             local base="''${2:-$(git_main_branch)}"
@@ -92,7 +87,6 @@ in {
             git worktree add -b "$branch" "$wt_dir" "$base" && cd "$wt_dir"
           }
 
-          # Add worktree for existing branch (e.g., PR review)
           gwtc() {
             local branch="$1"
             if [[ -z "$branch" ]]; then
@@ -106,7 +100,6 @@ in {
             git worktree add "$wt_dir" "$branch" && cd "$wt_dir"
           }
 
-          # Switch to worktree (fuzzy with fzf if available)
           gwts() {
             local target="$1"
             if [[ -z "$target" ]]; then
@@ -122,13 +115,11 @@ in {
             [[ -n "$target" ]] && cd "$target"
           }
 
-          # Go to main worktree
           gwtm() {
             local main_wt=$(git worktree list | head -1 | awk '{print $1}')
             [[ -n "$main_wt" ]] && cd "$main_wt"
           }
 
-          # CD to worktree by branch name (direct, no fzf)
           gwcd() {
             local branch="$1"
             if [[ -z "$branch" ]]; then
@@ -145,7 +136,6 @@ in {
             fi
           }
 
-          # Remove worktree and optionally delete branch
           gwtd() {
             local branch="$1"
             local delete_branch="''${2:---keep}"
@@ -155,7 +145,6 @@ in {
             fi
             local wt_path=$(git worktree list | grep "\\[$branch\\]" | awk '{print $1}')
             if [[ -n "$wt_path" ]]; then
-              # Go to main worktree first if we're in the one being deleted
               [[ "$PWD" == "$wt_path"* ]] && gwtm
               git worktree remove "$wt_path"
               [[ "$delete_branch" == "--delete-branch" ]] && git branch -d "$branch"
@@ -164,9 +153,6 @@ in {
             fi
           }
 
-          # Smart gco wrapper: blocks branch switching, allows file restoration
-          # gco branch        -> BLOCKED (use gwtn/gwtc)
-          # gco branch -- file -> ALLOWED (file restoration)
           gco() {
             local has_dashdash=0
             for arg in "$@"; do
@@ -182,14 +168,11 @@ in {
             fi
           }
 
-          # Block gcb entirely
           gcb() {
             echo "Use gwtn for creating new branches with worktrees"
             return 1
           }
 
-          # Clean up worktrees with merged PRs
-          # Only removes worktrees where the branch had a PR that was merged
           gwtclean() {
             local dry_run=0
             [[ "$1" == "--dry-run" || "$1" == "-n" ]] && dry_run=1
@@ -202,7 +185,6 @@ in {
 
               [[ -z "$branch" ]] && continue
 
-              # Check if branch has a merged PR using gh CLI
               local pr_state=$(gh pr view "$branch" --json state --jq '.state' 2>/dev/null)
 
               if [[ "$pr_state" == "MERGED" ]]; then
@@ -222,7 +204,6 @@ in {
             done
           }
 
-          # Worktree completions
           _gwt_branches() {
             local branches
             branches=(''${(f)"$(git worktree list 2>/dev/null | awk '{print $3}' | tr -d '[]')"})
@@ -238,7 +219,6 @@ in {
           _gwtn_complete() {
             local -a branches
             if (( CURRENT == 3 )); then
-              # Second argument: complete with existing branches for base
               branches=(''${(f)"$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's|remotes/origin/||' | sort -u)"})
               _describe 'base branch' branches
             fi
@@ -285,7 +265,7 @@ in {
         };
       };
 
-      includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
+      includes = [ { path = "${inputs.catppuccin-delta}/themes/latte.gitconfig"; } ];
     };
 
     delta = {
@@ -367,10 +347,8 @@ in {
     };
   };
 
-  # Disable stylix zed target - we manage zed config ourselves
   stylix.targets.zed.enable = false;
 
-  # Zed editor with shared config
   programs.zed-editor = {
     enable = true;
     mutableUserSettings = false;
