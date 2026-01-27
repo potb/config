@@ -3,8 +3,8 @@
   pkgs,
   inputs,
   ...
-}: {
-  # Required for xdg-desktop-portal when using home-manager with useUserPackages
+}:
+{
   environment.pathsToLink = [
     "/share/xdg-desktop-portal"
     "/share/applications"
@@ -17,10 +17,9 @@
   };
 
   services.xserver.enable = true;
-  services.xserver.excludePackages = [pkgs.xterm];
+  services.xserver.excludePackages = [ pkgs.xterm ];
   services.xserver.desktopManager.xterm.enable = false;
 
-  # Keyboard repeat settings: delay in ms before repeat starts, interval in ms between repeats
   services.xserver.autoRepeatDelay = 200;
   services.xserver.autoRepeatInterval = 80;
 
@@ -48,12 +47,11 @@
         pkgs.qwerty-fr
         |> (pkg: {
           description = pkg.meta.description;
-          languages = ["eng"];
+          languages = [ "eng" ];
           symbolsFile = "${pkg}/share/X11/xkb/symbols/us_qwerty-fr";
         });
     };
 
-    # Disable screen blanking and DPMS
     serverFlagsSection = ''
       Option "BlankTime" "0"
       Option "StandbyTime" "0"

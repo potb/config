@@ -2,14 +2,15 @@
   pkgs,
   lib,
   ...
-}: let
-  fonts = import ../shared/fonts.nix {inherit pkgs;};
-in {
+}:
+let
+  fonts = import ../shared/fonts.nix { inherit pkgs; };
+in
+{
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
   networking.hostName = "nyx";
 
-  # Fonts (managed at system level on Darwin, not home-manager)
   fonts.packages = [
     fonts.monospace.package
     fonts.ui.package
