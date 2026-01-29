@@ -3,8 +3,7 @@
   pkgs,
   inputs,
   ...
-}:
-{
+}: {
   environment.pathsToLink = [
     "/share/xdg-desktop-portal"
     "/share/applications"
@@ -17,7 +16,10 @@
   };
 
   services.xserver.enable = true;
-  services.xserver.excludePackages = [ pkgs.xterm ];
+  services.xserver.deviceSection = ''
+    Option "kmsdev" "/dev/dri/card1"
+  '';
+  services.xserver.excludePackages = [pkgs.xterm];
   services.xserver.desktopManager.xterm.enable = false;
 
   services.xserver.autoRepeatDelay = 200;
@@ -47,7 +49,7 @@
         pkgs.qwerty-fr
         |> (pkg: {
           description = pkg.meta.description;
-          languages = [ "eng" ];
+          languages = ["eng"];
           symbolsFile = "${pkg}/share/X11/xkb/symbols/us_qwerty-fr";
         });
     };
