@@ -3,12 +3,10 @@
   inputs,
   lib,
   ...
-}:
-{
+}: {
   home = {
     packages = (
-      with pkgs;
-      [
+      with pkgs; [
         fnm
         act
         duf

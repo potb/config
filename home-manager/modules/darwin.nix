@@ -4,8 +4,7 @@
   config,
   inputs,
   ...
-}:
-{
+}: {
   stylix.targets.xresources.enable = false;
 
   home.packages = with pkgs; [
@@ -20,7 +19,7 @@
     pkg-config
   ];
 
-  home.activation.linkHomeManagerApps = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+  home.activation.linkHomeManagerApps = lib.hm.dag.entryAfter ["linkGeneration"] ''
     appsDir="$HOME/Applications/Home Manager Apps"
     $DRY_RUN_CMD mkdir -p "$appsDir"
 
