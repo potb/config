@@ -5,11 +5,9 @@
   config,
   mkZedConfig,
   ...
-}:
-let
+}: let
   zedConfig = mkZedConfig pkgs;
-in
-{
+in {
   # Font configuration (Linux only - macOS uses system font management)
   fonts.fontconfig.enable = pkgs.stdenv.isLinux;
 
@@ -265,7 +263,7 @@ in
         };
       };
 
-      includes = [ { path = "${inputs.catppuccin-delta}/themes/latte.gitconfig"; } ];
+      includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
     };
 
     delta = {

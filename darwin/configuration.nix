@@ -2,11 +2,9 @@
   pkgs,
   lib,
   ...
-}:
-let
-  fonts = import ../shared/fonts.nix { inherit pkgs; };
-in
-{
+}: let
+  fonts = import ../shared/fonts.nix {inherit pkgs;};
+in {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
   networking.hostName = "nyx";
