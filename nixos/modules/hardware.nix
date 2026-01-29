@@ -14,7 +14,10 @@
   fileSystems."/boot" = {
     device = "/dev/disk/by-label/boot";
     fsType = "vfat";
-    options = ["fmask=0077" "dmask=0077"];
+    options = [
+      "fmask=0077"
+      "dmask=0077"
+    ];
   };
 
   boot.initrd.availableKernelModules = [
@@ -39,7 +42,7 @@
   hardware.bluetooth.powerOnBoot = true;
   hardware.keyboard.zsa.enable = true;
 
-  services.xserver.videoDrivers = ["amdgpu"];
+  services.xserver.videoDrivers = ["modesetting"];
   services.gvfs.enable = true;
   services.udisks2.enable = true;
   services.pcscd.enable = true;
