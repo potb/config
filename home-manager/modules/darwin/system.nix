@@ -1,24 +1,17 @@
 {
   pkgs,
   lib,
-  config,
-  inputs,
   ...
 }: {
+  # Workaround for home-manager bug #7352 on Darwin
+  # Disable broken Darwin modules that pull in glibc
+  home.file."Library/Fonts/.home-manager-fonts-version".enable = lib.mkForce false;
+  home.file."Applications/Home Manager Apps".enable = lib.mkForce false;
+
+  # Disable xresources (not used on macOS)
   stylix.targets.xresources.enable = false;
 
-  home.packages = with pkgs; [
-    code-cursor
-    raycast
-
-    stdenv.cc
-    gnumake
-    autoconf
-    automake
-    libtool
-    pkg-config
-  ];
-
+  # Link home-manager apps to Applications folder
   home.activation.linkHomeManagerApps = lib.hm.dag.entryAfter ["linkGeneration"] ''
     appsDir="$HOME/Applications/Home Manager Apps"
     $DRY_RUN_CMD mkdir -p "$appsDir"
@@ -37,12 +30,4 @@
       done
     fi
   '';
-
-  home.sessionVariables = {
-    NH_FLAKE = lib.mkForce "/Users/potb/projects/potb/config";
-    BROWSER = lib.mkForce "google-chrome";
-
-    CC = "${pkgs.stdenv.cc}/bin/cc";
-    CXX = "${pkgs.stdenv.cc}/bin/c++";
-  };
 }
