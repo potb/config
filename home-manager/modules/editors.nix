@@ -1,11 +1,12 @@
 {
   pkgs,
   lib,
-  mkZedConfig,
   ...
-}: let
-  zedConfig = mkZedConfig pkgs;
-in {
+}:
+let
+  fonts = import ../../shared/fonts.nix { inherit pkgs; };
+in
+{
   programs.neovim = {
     enable = true;
     defaultEditor = true;
@@ -53,8 +54,70 @@ in {
       "catppuccin-icons"
       "nix"
     ];
-    userSettings = zedConfig.settings;
-    userKeymaps = zedConfig.keymaps;
+    userSettings = {
+      agent_servers = {
+        OpenCode = {
+          type = "custom";
+          command = "${pkgs.opencode}/bin/opencode";
+          args = [ "acp" ];
+        };
+      };
+
+      features.edit_prediction_provider = "none";
+      agent.enabled = true;
+
+      title_bar = {
+        show_onboarding_banner = false;
+        show_project_items = false;
+        show_branch_name = false;
+        show_user_menu = false;
+        show_menus = false;
+      };
+      tab_bar.show = false;
+      toolbar.quick_actions = false;
+      status_bar."experimental.show" = false;
+      project_panel = {
+        dock = "right";
+        default_width = 400;
+        hide_root = true;
+        auto_fold_dirs = false;
+        starts_open = false;
+        git_status = false;
+        sticky_scroll = false;
+        hide_gitignore = true;
+        scrollbar.show = "never";
+        indent_guides.show = "never";
+      };
+      outline_panel = {
+        default_width = 300;
+        indent_guides.show = "never";
+      };
+      file_finder.modal_max_width = "large";
+
+      buffer_font_family = fonts.monospace.name;
+      buffer_font_size = 14;
+      ui_font_family = fonts.ui.name;
+      ui_font_size = 14;
+      terminal = {
+        font_family = fonts.monospace.name;
+        font_size = 14;
+      };
+
+      theme = {
+        mode = "system";
+        light = "Catppuccin Latte";
+        dark = "Catppuccin Mocha";
+      };
+      icon_theme = "Catppuccin Latte";
+    };
+    userKeymaps = [
+      {
+        bindings = {
+          "alt-1" = "project_panel::ToggleFocus";
+          "alt-2" = "agent::ToggleFocus";
+        };
+      }
+    ];
   };
 
   home.packages = with pkgs; [
