@@ -57,6 +57,8 @@
         nixfmt
         python3Packages.black
 
+        lefthook
+
         claude-notify
 
         spotify
