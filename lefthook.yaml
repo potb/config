@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  commands:
+    nix-fmt:
+      glob: "*.nix"
+      run: nix fmt {staged_files}
+      stage_fixed: true
