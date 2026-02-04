@@ -47,8 +47,6 @@
   services.udisks2.enable = true;
   services.pcscd.enable = true;
 
-  # Fix AMD GPU second monitor artifacts during gaming/video
-  # Forces consistent power to both displays
   systemd.services.amdgpu-perf-fix = {
     description = "Set AMD GPU to high performance mode";
     wantedBy = ["multi-user.target"];

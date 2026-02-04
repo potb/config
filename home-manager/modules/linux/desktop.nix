@@ -4,7 +4,6 @@
   inputs,
   ...
 }: {
-  # Cursor theme (works for X11, GTK, and Hyprland)
   home.pointerCursor = {
     name = "DMZ-Black";
     package = pkgs.vanilla-dmz;
@@ -13,7 +12,6 @@
     gtk.enable = true;
     hyprcursor.enable = true;
   };
-  # XDG configuration
   xdg = {
     enable = true;
 
@@ -37,7 +35,6 @@
       enable = lib.mkForce true; # Override hyprland module's false when package = null
       extraPortals = [
         pkgs.xdg-desktop-portal-gtk
-        # Hyprland portal for screen sharing - must match NixOS version
         inputs.hy3.inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland
       ];
       xdgOpenUsePortal = true;
@@ -115,11 +112,9 @@
     '';
   };
 
-  # Application launchers and utilities
   programs.rofi.enable = true;
   programs.yazi.enable = true;
 
-  # Notifications
   services.dunst = {
     enable = true;
     settings.global.font = lib.mkForce "Inter 10";

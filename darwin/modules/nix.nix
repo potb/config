@@ -42,10 +42,6 @@
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
 
-    # Disable default linux-builder - using nix-rosetta-builder instead
-    # nix-rosetta-builder (configured in flake.nix) handles both:
-    # - aarch64-linux (native ARM64)
-    # - x86_64-linux (via Rosetta 2 acceleration)
     linux-builder.enable = false;
 
     distributedBuilds = true;
