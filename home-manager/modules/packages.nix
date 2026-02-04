@@ -34,7 +34,6 @@
     lefthook
 
     claude-code
-    claude-notify
 
     spotify
     google-chrome
