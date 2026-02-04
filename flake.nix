@@ -74,14 +74,10 @@
         |> map (name: import (overlaysDir + "/${name}"))
       else [];
 
-    # Auto-load home-manager modules with platform support
-    # - home-manager/modules/*.nix → shared (all platforms)
-    # - home-manager/modules/{platform}/*.nix → platform-specific
     getHomeManagerModules = platform: let
       modulesDir = ./home-manager/modules;
       platformDir = modulesDir + "/${platform}";
 
-      # Load .nix files from a directory (paths only, not imported)
       loadNixPaths = dir:
         builtins.readDir dir
         |> builtins.attrNames
