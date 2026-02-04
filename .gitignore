@@ -1,0 +1,25 @@
+### JetBrains template
+# User-specific stuff
+.idea
+
+# File-based project format
+*.iml
+*.ipr
+*.iws
+
+# IntelliJ
+out/
+
+### Nix template
+# Ignore build outputs from performing a nix-build or `nix build` command
+result
+result-*
+*.qcow2
+
+### MacOS template
+.DS_Store
+
+
+.serena
+.sisyphus
+*.log
