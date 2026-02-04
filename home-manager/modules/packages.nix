@@ -19,7 +19,6 @@
   programs.jq.enable = true;
 
   home.packages = with pkgs; [
-    # Utilities
     fd
     fzf
     duf
@@ -34,11 +33,9 @@
     ffmpeg
     lefthook
 
-    # AI tools
     claude-code
     claude-notify
 
-    # GUI apps (both platforms via Nix)
     spotify
     google-chrome
     slack

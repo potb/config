@@ -131,9 +131,7 @@ in {
   systemd.timers.${service-name} = {
     wantedBy = ["timers.target"];
     timerConfig = {
-      # Run every hour
       OnCalendar = "hourly";
-      # Also run shortly after boot
       OnBootSec = "2min";
       Persistent = true;
       Unit = "${service-name}.service";
