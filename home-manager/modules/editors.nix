@@ -2,11 +2,9 @@
   pkgs,
   lib,
   ...
-}:
-let
-  fonts = import ../../shared/fonts.nix { inherit pkgs; };
-in
-{
+}: let
+  fonts = import ../../shared/fonts.nix {inherit pkgs;};
+in {
   programs.neovim = {
     enable = true;
     defaultEditor = true;
@@ -59,7 +57,7 @@ in
         OpenCode = {
           type = "custom";
           command = "${pkgs.opencode}/bin/opencode";
-          args = [ "acp" ];
+          args = ["acp"];
         };
       };
 

@@ -17,7 +17,6 @@
     stdenv.cc
 
     # macOS apps
-    code-cursor
     raycast
   ];
 }

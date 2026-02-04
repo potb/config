@@ -5,9 +5,10 @@
 }: {
   home.sessionVariables = {
     NH_FLAKE = "/home/potb/projects/potb/config";
-    NIX_XDG_DESKTOP_PORTAL_DIR = lib.mkForce "/home/potb/.local/state/nix/profiles/home-manager/home-path/share/xdg-desktop-portal/portals";
-    XDG_CURRENT_DESKTOP = "i3";
+    # XDG_CURRENT_DESKTOP is set per-session by the window manager
     XDG_DATA_DIRS = "$HOME/Desktop:$XDG_DATA_DIRS";
+    # Electron apps: use native Wayland when available
+    NIXOS_OZONE_WL = "1";
 
     # Playwright / agent-browser: use system Google Chrome on NixOS
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
@@ -26,12 +27,17 @@
     binutils
 
     # Linux apps
-    code-cursor-fhs
     audacity
-    maim
     prismlauncher
     vlc
-    xclip
     yazi
+
+    # Wayland tools (for Hyprland session)
+    grim # Screenshot
+    slurp # Region selection
+    wl-clipboard # Clipboard (wl-copy, wl-paste)
+
+    # Status bar
+    i3status
   ];
 }

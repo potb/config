@@ -1,8 +1,18 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }: {
+  # Cursor theme (works for X11, GTK, and Hyprland)
+  home.pointerCursor = {
+    name = "DMZ-Black";
+    package = pkgs.vanilla-dmz;
+    size = 24;
+    x11.enable = true;
+    gtk.enable = true;
+    hyprcursor.enable = true;
+  };
   # XDG configuration
   xdg = {
     enable = true;
@@ -24,116 +34,84 @@
     };
 
     portal = {
-      enable = true;
+      enable = lib.mkForce true; # Override hyprland module's false when package = null
       extraPortals = [
-        (pkgs.xdg-desktop-portal-gtk.overrideAttrs (oldAttrs: {
-          postInstall = ''
-            ${oldAttrs.postInstall or ""}
-            sed -i 's/UseIn=gnome/UseIn=gnome;i3/' $out/share/xdg-desktop-portal/portals/gtk.portal
-          '';
-        }))
+        pkgs.xdg-desktop-portal-gtk
+        # Hyprland portal for screen sharing - must match NixOS version
+        inputs.hy3.inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland
       ];
       xdgOpenUsePortal = true;
       config = {
-        common.default = ["gtk"];
-        i3.default = ["gtk"];
+        common = {
+          default = [
+            "hyprland"
+            "gtk"
+          ];
+          "org.freedesktop.impl.portal.ScreenCast" = ["hyprland"];
+          "org.freedesktop.impl.portal.Screenshot" = ["hyprland"];
+        };
       };
     };
   };
 
-  # i3 window manager
-  xsession.windowManager.i3 = let
-    mod = "Mod4";
-  in {
+  programs.waybar = {
     enable = true;
-    package = pkgs.i3;
+    settings = {
+      mainBar = {
+        position = "bottom";
+        layer = "top";
+        height = 32;
+        spacing = 8;
+        modules-left = ["hyprland/workspaces"];
+        modules-center = [];
+        modules-right = [
+          "tray"
+          "custom/i3status"
+        ];
 
-    config = {
-      modifier = mod;
-      gaps = {
-        inner = 10;
-        outer = 5;
-      };
-      fonts = {
-        names = ["monospace"];
-        size = lib.mkForce 9.0;
-      };
-      bars = [
-        {
-          position = "bottom";
-          fonts = {
-            names = ["monospace"];
-            size = 10.0;
-          };
-          hiddenState = "hide";
-          statusCommand = "${pkgs.i3status}/bin/i3status";
-        }
-      ];
+        "hyprland/workspaces" = {
+          format = "{name}";
+          on-click = "activate";
+        };
 
-      keybindings = {
-        "${mod}+Return" = "exec alacritty";
-        "${mod}+p" = "exec rofi -show drun";
-        "${mod}+w" = "exec google-chrome-stable";
-        "${mod}+e" = "exec alacritty -e yazi";
-        "Print" = "exec --no-startup-id sh -c 'maim -s | xclip -selection clipboard -t image/png'";
+        tray = {
+          spacing = 6;
+        };
 
-        "${mod}+Shift+Escape" = "exit";
-        "${mod}+BackSpace" = "kill";
-        "${mod}+f" = "fullscreen toggle";
-        "${mod}+Shift+space" = "floating toggle";
-        "${mod}+space" = "floating toggle";
-        "${mod}+Shift+r" = "reload";
-
-        "${mod}+h" = "split h";
-        "${mod}+v" = "split v";
-
-        "${mod}+Left" = "focus left";
-        "${mod}+Down" = "focus down";
-        "${mod}+Up" = "focus up";
-        "${mod}+Right" = "focus right";
-
-        "${mod}+Shift+Left" = "move left";
-        "${mod}+Shift+Down" = "move down";
-        "${mod}+Shift+Up" = "move up";
-        "${mod}+Shift+Right" = "move right";
-
-        "${mod}+1" = "workspace \"1\"";
-        "${mod}+2" = "workspace \"2\"";
-        "${mod}+3" = "workspace \"3\"";
-        "${mod}+4" = "workspace \"4\"";
-        "${mod}+5" = "workspace \"5\"";
-        "${mod}+6" = "workspace \"6\"";
-        "${mod}+7" = "workspace \"7\"";
-        "${mod}+8" = "workspace \"8\"";
-        "${mod}+9" = "workspace \"9\"";
-        "${mod}+0" = "workspace \"10\"";
-
-        "${mod}+Shift+1" = "move container to workspace \"1\"";
-        "${mod}+Shift+2" = "move container to workspace \"2\"";
-        "${mod}+Shift+3" = "move container to workspace \"3\"";
-        "${mod}+Shift+4" = "move container to workspace \"4\"";
-        "${mod}+Shift+5" = "move container to workspace \"5\"";
-        "${mod}+Shift+6" = "move container to workspace \"6\"";
-        "${mod}+Shift+7" = "move container to workspace \"7\"";
-        "${mod}+Shift+8" = "move container to workspace \"8\"";
-        "${mod}+Shift+9" = "move container to workspace \"9\"";
-        "${mod}+Shift+0" = "move container to workspace \"10\"";
-
-        "${mod}+Ctrl+1" = "move container to workspace \"1\"; workspace \"1\"";
-        "${mod}+Ctrl+2" = "move container to workspace \"2\"; workspace \"2\"";
-        "${mod}+Ctrl+3" = "move container to workspace \"3\"; workspace \"3\"";
-        "${mod}+Ctrl+4" = "move container to workspace \"4\"; workspace \"4\"";
-        "${mod}+Ctrl+5" = "move container to workspace \"5\"; workspace \"5\"";
-        "${mod}+Ctrl+6" = "move container to workspace \"6\"; workspace \"6\"";
-        "${mod}+Ctrl+7" = "move container to workspace \"7\"; workspace \"7\"";
-        "${mod}+Ctrl+8" = "move container to workspace \"8\"; workspace \"8\"";
-        "${mod}+Ctrl+9" = "move container to workspace \"9\"; workspace \"9\"";
-        "${mod}+Ctrl+0" = "move container to workspace \"10\"; workspace \"10\"";
+        "custom/i3status" = {
+          exec = "i3status";
+          return-type = "text";
+        };
       };
     };
 
-    extraConfig = ''
-      for_window [class=".*"] border pixel 4
+    style = ''
+      * {
+        font-family: monospace;
+        font-size: 14px;
+      }
+
+      window#waybar {
+        background: #222222;
+        color: #dddddd;
+      }
+
+      #workspaces button {
+        padding: 0 6px;
+        color: #dddddd;
+        background: transparent;
+        border: none;
+      }
+
+      #workspaces button.active {
+        background: #4c7899;
+        color: #ffffff;
+      }
+
+      #tray,
+      #custom-i3status {
+        padding: 0 6px;
+      }
     '';
   };
 
@@ -141,18 +119,7 @@
   programs.rofi.enable = true;
   programs.yazi.enable = true;
 
-  # Compositor and notifications
-  services.picom = {
-    enable = true;
-    backend = "glx";
-    vSync = true;
-    shadow = true;
-    fade = true;
-    inactiveOpacity = 0.9;
-    fadeDelta = 5;
-    settings.unredir-if-possible = false;
-  };
-
+  # Notifications
   services.dunst = {
     enable = true;
     settings.global.font = lib.mkForce "Inter 10";
