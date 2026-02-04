@@ -5,7 +5,14 @@
 }: {
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.blacklistedKernelModules = [];
-  boot.kernelParams = [];
+  boot.kernelParams = [
+    "amdgpu.modeset=1"
+    "quiet"
+    "udev.log_level=3"
+  ];
+
+  boot.consoleLogLevel = 0;
+  boot.initrd.verbose = false;
 
   boot.kernel.sysctl = {
     "fs.inotify.max_user_instances" = 1048576;
