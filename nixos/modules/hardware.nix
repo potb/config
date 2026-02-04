@@ -42,7 +42,7 @@
   hardware.bluetooth.powerOnBoot = true;
   hardware.keyboard.zsa.enable = true;
 
-  services.xserver.videoDrivers = ["modesetting"];
+  services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;
   services.udisks2.enable = true;
   services.pcscd.enable = true;
