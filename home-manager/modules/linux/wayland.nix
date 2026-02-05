@@ -48,7 +48,7 @@
       enable = lib.mkForce true;
       extraPortals = [
         pkgs.xdg-desktop-portal-gtk
-        inputs.hy3.inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland
+        inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
       ];
       xdgOpenUsePortal = true;
       config = {
@@ -70,7 +70,7 @@
     package = null;
     portalPackage = null;
 
-    plugins = [inputs.hy3.packages.${pkgs.system}.hy3];
+    plugins = [inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3];
 
     settings = {
       "$mod" = "SUPER";
