@@ -11,6 +11,7 @@
   home.packages = with pkgs; [
     gcc
     binutils
+    libnotify
 
     audacity
     prismlauncher
