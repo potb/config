@@ -32,8 +32,6 @@
     act
     ffmpeg
     lefthook
-
-    claude-code
   ];
 
   home.sessionVariables.EDITOR = "nvim";
