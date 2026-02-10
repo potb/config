@@ -1,0 +1,3 @@
+{...}: {
+  programs.bluetuith.enable = true;
+}
