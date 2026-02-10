@@ -40,6 +40,15 @@
   };
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
+  hardware.bluetooth.settings = {
+    Policy = {
+      AutoEnable = true;
+    };
+    General = {
+      FastConnectable = true;
+      JustWorksRepairing = "always";
+    };
+  };
   hardware.keyboard.zsa.enable = true;
 
   services.xserver.videoDrivers = ["amdgpu"];
