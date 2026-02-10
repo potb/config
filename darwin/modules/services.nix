@@ -17,5 +17,6 @@
 
   system.activationScripts.extraActivation.text = ''
     softwareupdate --install-rosetta --agree-to-license
+    defaults write com.google.drivefs CreateDesktopShortcuts -bool false
   '';
 }
