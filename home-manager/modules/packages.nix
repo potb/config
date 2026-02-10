@@ -34,11 +34,6 @@
     lefthook
 
     claude-code
-
-    spotify
-    google-chrome
-    slack
-    discord
   ];
 
   home.sessionVariables.EDITOR = "nvim";
