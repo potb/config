@@ -14,6 +14,10 @@
       "slack"
       "spotify"
       "datagrip"
+      "claude"
+      "google-drive"
+      "granola"
+      "linear-linear"
     ];
   };
 }
