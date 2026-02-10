@@ -16,5 +16,11 @@
     audacity
     prismlauncher
     vlc
+
+    spotify
+    google-chrome
+    slack
+    discord
+    jetbrains.datagrip
   ];
 }
