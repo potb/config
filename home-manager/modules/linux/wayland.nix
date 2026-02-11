@@ -3,7 +3,19 @@
   lib,
   inputs,
   ...
-}: {
+}: let
+  fonts = import ../../../shared/fonts.nix {inherit pkgs;};
+
+  # Bar module CSS selectors that should use monospace font.
+  # The global `*` selector uses sans-serif so tray context menus
+  # (rendered as separate GTK top-level windows) get a readable font.
+  barMonoSelectors = [
+    "#workspaces button"
+    "#tray"
+    "#custom-ip"
+    "#custom-i3status"
+  ];
+in {
   home.pointerCursor = {
     name = "DMZ-Black";
     package = pkgs.vanilla-dmz;
@@ -248,7 +260,7 @@
           border_width = 2;
           render_text = true;
           text_center = true;
-          text_font = "monospace";
+          text_font = fonts.ui.name;
           text_height = 8;
         };
 
@@ -306,10 +318,16 @@
       };
     };
 
-    style = ''
+    style = let
+      monoRule = builtins.concatStringsSep ",\n      " barMonoSelectors;
+    in ''
       * {
-        font-family: monospace;
-        font-size: 14px;
+        font-family: ${fonts.ui.name}, sans-serif;
+        font-size: ${fonts.sizes.str.large}px;
+      }
+
+      ${monoRule} {
+        font-family: ${fonts.monospace.name}, monospace;
       }
 
       window#waybar {
@@ -341,6 +359,6 @@
 
   services.dunst = {
     enable = true;
-    settings.global.font = lib.mkForce "Inter 10";
+    settings.global.font = lib.mkForce "${fonts.ui.name} ${fonts.sizes.str.small}";
   };
 }

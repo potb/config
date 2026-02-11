@@ -15,4 +15,12 @@
     package = pkgs.nerd-fonts.symbols-only;
     name = "Symbols Nerd Font";
   };
+  sizes = let
+    values = {
+      small = 10;
+      medium = 12;
+      large = 14;
+    };
+  in
+    values // {str = builtins.mapAttrs (_: toString) values;};
 }
