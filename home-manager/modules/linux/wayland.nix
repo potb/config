@@ -102,6 +102,16 @@
     plugins = [inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3];
 
     settings = {
+      monitor = [
+        "DP-2, 2560x1440@165, 0x0, 1"
+        "DP-1, 2560x1440@165, 2560x0, 1"
+      ];
+
+      workspace = [
+        "1, monitor:DP-1, default:true"
+        "10, monitor:DP-2, default:true"
+      ];
+
       "$mod" = "SUPER";
 
       env = [
