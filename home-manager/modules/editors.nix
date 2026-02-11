@@ -23,18 +23,18 @@ in {
     settings = {
       font = {
         normal = {
-          family = lib.mkForce "FiraCode Nerd Font Mono";
+          family = lib.mkForce fonts.monospace.name;
           style = "Regular";
         };
         bold = {
-          family = lib.mkForce "FiraCode Nerd Font Mono";
+          family = lib.mkForce fonts.monospace.name;
           style = "Bold";
         };
         italic = {
-          family = lib.mkForce "FiraCode Nerd Font Mono";
+          family = lib.mkForce fonts.monospace.name;
           style = "Italic";
         };
-        size = lib.mkForce 12.0;
+        size = lib.mkForce fonts.sizes.medium;
       };
       general.live_config_reload = true;
     };
@@ -93,12 +93,12 @@ in {
       file_finder.modal_max_width = "large";
 
       buffer_font_family = fonts.monospace.name;
-      buffer_font_size = 14;
+      buffer_font_size = fonts.sizes.large;
       ui_font_family = fonts.ui.name;
-      ui_font_size = 14;
+      ui_font_size = fonts.sizes.large;
       terminal = {
         font_family = fonts.monospace.name;
-        font_size = 14;
+        font_size = fonts.sizes.large;
       };
 
       theme = {
