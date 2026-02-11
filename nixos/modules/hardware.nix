@@ -50,6 +50,7 @@
     };
   };
   hardware.keyboard.zsa.enable = true;
+  hardware.i2c.enable = true;
 
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;
