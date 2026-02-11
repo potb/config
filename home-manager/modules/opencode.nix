@@ -69,6 +69,18 @@
       };
     };
   };
+
+  reviewCommandTemplate = builtins.readFile ./opencode/review-command.md;
+  globalOpencodeConfig = {
+    "$schema" = "https://opencode.ai/config.json";
+    command = {
+      review = {
+        description = "4x parallel code review [commit|branch|pr], defaults to uncommitted";
+        subtask = true;
+        template = reviewCommandTemplate;
+      };
+    };
+  };
 in {
   home.activation.generateOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
     $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
@@ -79,6 +91,12 @@ in {
   home.activation.generateOhMyOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
     $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-opencode.json" (builtins.toJSON ohMyOpencodeConfig)} "$HOME/.config/opencode/oh-my-opencode.json"
     $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-opencode.json"
+  '';
+
+  home.activation.generateGlobalOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    $DRY_RUN_CMD mkdir -p "$HOME/.opencode"
+    $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode-global.json" (builtins.toJSON globalOpencodeConfig)} "$HOME/.opencode/opencode.json"
+    $DRY_RUN_CMD chmod 644 "$HOME/.opencode/opencode.json"
   '';
 
   xdg.configFile."opencode/command/review-loop.md".source = ./opencode/review-loop.md;
