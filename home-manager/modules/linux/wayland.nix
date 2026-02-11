@@ -28,6 +28,35 @@
   xdg = {
     enable = true;
 
+    configFile."i3status/config".text = ''
+      general {
+        colors = true
+        interval = 5
+        output_format = "none"
+      }
+
+      order += "disk /"
+      order += "cpu_usage"
+      order += "memory"
+      order += "tztime local"
+
+      disk "/" {
+        format = "/ %avail"
+      }
+
+      cpu_usage {
+        format = "CPU %usage"
+      }
+
+      memory {
+        format = "MEM %used / %total"
+      }
+
+      tztime local {
+        format = "%Y-%m-%d %H:%M:%S"
+      }
+    '';
+
     mimeApps = {
       enable = true;
       defaultApplications =
@@ -242,6 +271,7 @@
         modules-center = [];
         modules-right = [
           "tray"
+          "custom/ip"
           "custom/i3status"
         ];
 
@@ -252,6 +282,11 @@
 
         tray = {
           spacing = 6;
+        };
+
+        "custom/ip" = {
+          exec = "ip -4 -o addr show scope global | awk '{split($4,a,\"/\"); print a[1]}' | head -1";
+          interval = 10;
         };
 
         "custom/i3status" = {
