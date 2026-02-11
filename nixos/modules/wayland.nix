@@ -21,18 +21,16 @@ in {
 
   xdg.portal.enable = true;
 
-  # Seat management for Wayland compositors
   services.seatd.enable = true;
 
-  # Hyprland (Wayland) with hy3 plugin - use hy3's bundled Hyprland for compatibility
   programs.hyprland = {
     enable = true;
-    package = inputs.hy3.inputs.hyprland.packages.${pkgs.system}.hyprland;
-    portalPackage = inputs.hy3.inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland;
+    package = inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    portalPackage =
+      inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     xwayland.enable = true;
   };
 
-  # XWayland support (for X11 apps under Hyprland)
   services.xserver = {
     enable = true;
     deviceSection = ''
@@ -42,11 +40,9 @@ in {
     desktopManager.xterm.enable = false;
     displayManager.lightdm.enable = false;
 
-    # Key repeat (for XWayland apps)
     autoRepeatDelay = 200;
     autoRepeatInterval = 80;
 
-    # XKB layout (used by both X11 and Wayland)
     xkb = {
       layout = "qwerty-fr";
 
@@ -59,7 +55,6 @@ in {
         });
     };
 
-    # Disable screen blanking
     serverFlagsSection = ''
       Option "BlankTime" "0"
       Option "StandbyTime" "0"
@@ -72,12 +67,10 @@ in {
   services.greetd = {
     enable = true;
     settings = {
-      # Autologin on boot
       initial_session = {
         user = "potb";
         command = "start-hyprland";
       };
-      # Manual login after logout
       default_session = {
         user = "greeter";
         command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --sessions /run/current-system/sw/share/wayland-sessions";

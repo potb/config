@@ -42,6 +42,20 @@
       url = "github:cpick/nix-rosetta-builder";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nix-homebrew = {
+      url = "github:zhaofengli/nix-homebrew";
+    };
+
+    homebrew-core = {
+      url = "github:homebrew/homebrew-core";
+      flake = false;
+    };
+
+    homebrew-cask = {
+      url = "github:homebrew/homebrew-cask";
+      flake = false;
+    };
   };
 
   outputs = {
@@ -50,6 +64,7 @@
     home-manager,
     nix-darwin,
     nix-rosetta-builder,
+    nix-homebrew,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -74,14 +89,10 @@
         |> map (name: import (overlaysDir + "/${name}"))
       else [];
 
-    # Auto-load home-manager modules with platform support
-    # - home-manager/modules/*.nix → shared (all platforms)
-    # - home-manager/modules/{platform}/*.nix → platform-specific
     getHomeManagerModules = platform: let
       modulesDir = ./home-manager/modules;
       platformDir = modulesDir + "/${platform}";
 
-      # Load .nix files from a directory (paths only, not imported)
       loadNixPaths = dir:
         builtins.readDir dir
         |> builtins.attrNames
@@ -161,12 +172,24 @@
             ./darwin/configuration.nix
             inputs.home-manager.darwinModules.home-manager
             nix-rosetta-builder.darwinModules.default
+            nix-homebrew.darwinModules.nix-homebrew
 
             {
               nixpkgs.overlays = darwinAllOverlays;
 
               nix-rosetta-builder.enable = true;
               nix-rosetta-builder.onDemand = true;
+
+              nix-homebrew = {
+                enable = true;
+                enableRosetta = true;
+                user = "potb";
+                taps = {
+                  "homebrew/homebrew-core" = inputs.homebrew-core;
+                  "homebrew/homebrew-cask" = inputs.homebrew-cask;
+                };
+                mutableTaps = false;
+              };
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;

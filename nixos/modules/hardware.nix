@@ -40,6 +40,15 @@
   };
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
+  hardware.bluetooth.settings = {
+    Policy = {
+      AutoEnable = true;
+    };
+    General = {
+      FastConnectable = true;
+      JustWorksRepairing = "always";
+    };
+  };
   hardware.keyboard.zsa.enable = true;
 
   services.xserver.videoDrivers = ["amdgpu"];
@@ -47,8 +56,6 @@
   services.udisks2.enable = true;
   services.pcscd.enable = true;
 
-  # Fix AMD GPU second monitor artifacts during gaming/video
-  # Forces consistent power to both displays
   systemd.services.amdgpu-perf-fix = {
     description = "Set AMD GPU to high performance mode";
     wantedBy = ["multi-user.target"];
