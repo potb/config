@@ -277,6 +277,7 @@ in {
       windowrule = [
         "immediate on, match:class ^(steam)$"
         "immediate on, match:class ^(.*\\.exe)$"
+        "size 1 1, move -100 -100, match:xwayland true, match:title ^$, match:class ^$, match:initial_class ^$, match:initial_title ^$"
       ];
     };
   };
@@ -356,6 +357,8 @@ in {
 
   programs.rofi.enable = true;
   programs.yazi.enable = true;
+
+  services.xembed-sni-proxy.enable = true;
 
   systemd.user.services.swww-daemon = {
     Unit = {
