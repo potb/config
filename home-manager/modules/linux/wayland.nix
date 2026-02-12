@@ -53,7 +53,7 @@ in {
       order += "tztime local"
 
       disk "/" {
-        format = "/ %avail"
+        format = "| %used / %total"
       }
 
       cpu_usage {
