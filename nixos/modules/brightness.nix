@@ -5,7 +5,7 @@
     DDCUTIL="${pkgs.ddcutil}/bin/ddcutil"
     HOUR=$(${pkgs.coreutils}/bin/date +%H)
 
-    if [ "$HOUR" -ge 20 ] || [ "$HOUR" -lt 8 ]; then
+    if [ "$HOUR" -ge 19 ] || [ "$HOUR" -lt 8 ]; then
       BRIGHTNESS=0
     else
       BRIGHTNESS=100
@@ -37,10 +37,10 @@ in {
   };
 
   systemd.timers.monitor-brightness-evening = {
-    description = "Dim monitors at 20:00";
+    description = "Dim monitors at 19:00";
     wantedBy = ["timers.target"];
     timerConfig = {
-      OnCalendar = "*-*-* 20:00:00";
+      OnCalendar = "*-*-* 19:00:00";
       Persistent = true;
     };
   };
@@ -58,7 +58,7 @@ in {
   systemd.timers.monitor-brightness-evening.unitConfig.Requires = "monitor-brightness.service";
   systemd.timers.monitor-brightness-morning.unitConfig.Requires = "monitor-brightness.service";
 
-  # Also run on boot to catch up if booted between 20:00-08:00
+  # Also run on boot to catch up if booted between 19:00-08:00
   systemd.timers.monitor-brightness-boot = {
     description = "Set monitor brightness on boot";
     wantedBy = ["timers.target"];
