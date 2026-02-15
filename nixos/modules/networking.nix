@@ -1,6 +1,6 @@
 {
   lib,
-  pkgs,
+  inputs,
   ...
 }: {
   networking.hostName = "charon";
@@ -8,19 +8,20 @@
   networking.networkmanager.dns = "none";
   networking.nameservers = ["127.0.0.1"];
 
-  environment.systemPackages = [pkgs.cloudflared];
-
-  systemd.services.cloudflared-doh = {
-    description = "Cloudflared DoH";
-    after = ["network-online.target"];
-    wants = ["network-online.target"];
-    wantedBy = ["multi-user.target"];
-    serviceConfig = {
-      ExecStart = "${pkgs.cloudflared}/bin/cloudflared proxy-dns --address 127.0.0.1 --port 53 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query";
-      Restart = "on-failure";
-      RestartSec = 2;
-      TimeoutStopSec = "5s";
-      KillSignal = "SIGTERM";
+  services.dnscrypt-proxy = {
+    enable = true;
+    settings = {
+      listen_addresses = ["127.0.0.1:53"];
+      server_names = ["cloudflare"];
+      ipv6_servers = false;
+      require_dnssec = true;
+      cache = true;
+      cache_size = 4096;
+      sources.public-resolvers = {
+        urls = [];
+        cache_file = "${inputs.dnscrypt-resolvers}/v3/public-resolvers.md";
+        minisign_key = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
+      };
     };
   };
 
