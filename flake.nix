@@ -56,6 +56,11 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
+
+    dnscrypt-resolvers = {
+      url = "github:DNSCrypt/dnscrypt-resolvers";
+      flake = false;
+    };
   };
 
   outputs = {
