@@ -44,6 +44,7 @@
     optimise.automatic = true;
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
+    nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
 
     linux-builder.enable = false;
 
