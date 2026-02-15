@@ -12,6 +12,7 @@
     gcc
     binutils
     libnotify
+    lm_sensors
 
     audacity
     prismlauncher
