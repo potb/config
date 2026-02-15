@@ -182,7 +182,6 @@ in {
         "$mod, Return, exec, alacritty"
         "$mod, p, exec, rofi -show drun"
         "$mod, w, exec, google-chrome-stable"
-        "$mod, e, exec, alacritty -e yazi"
 
         ", Print, exec, grim -g \"$(slurp)\" - | wl-copy"
 
@@ -356,7 +355,6 @@ in {
   };
 
   programs.rofi.enable = true;
-  programs.yazi.enable = true;
 
   services.xembed-sni-proxy.enable = true;
 
