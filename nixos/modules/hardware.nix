@@ -6,12 +6,12 @@
 }: {
   imports = [(modulesPath + "/installer/scan/not-detected.nix")];
 
-  fileSystems."/" = {
+  fileSystems."/" = lib.mkForce {
     device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
   };
 
-  fileSystems."/boot" = {
+  fileSystems."/boot" = lib.mkForce {
     device = "/dev/disk/by-label/boot";
     fsType = "vfat";
     options = [

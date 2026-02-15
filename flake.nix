@@ -65,6 +65,11 @@
       url = "github:DNSCrypt/dnscrypt-resolvers";
       flake = false;
     };
+
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -74,6 +79,7 @@
     nix-darwin,
     nix-rosetta-builder,
     nix-homebrew,
+    disko,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -149,6 +155,7 @@
             ./nixos/configuration.nix
             inputs.determinate.nixosModules.default
             inputs.home-manager.nixosModules.home-manager
+            disko.nixosModules.disko
 
             {
               nixpkgs.overlays = nixosAllOverlays;
