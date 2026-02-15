@@ -11,7 +11,6 @@
     settings = {
       experimental-features = "nix-command flakes pipe-operators";
       warn-dirty = false;
-      auto-optimise-store = true;
       max-jobs = "auto";
       trusted-users = [
         "root"
@@ -32,7 +31,7 @@
     };
 
     channel.enable = true;
-    optimise.automatic = false;
+    optimise.automatic = true;
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
     nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
