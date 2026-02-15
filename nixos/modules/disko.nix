@@ -25,9 +25,9 @@
               label = "swap";
               size = "8G";
               type = "8200";
-              content = {
-                type = "swap";
-              };
+              # Swap is managed by the system automatically, not by disko.
+              # Declaring content.type = "swap" causes disko to generate
+              # swapDevices entries that conflict with existing swap activation.
             };
             root = {
               label = "nixos";
