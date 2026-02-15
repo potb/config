@@ -30,7 +30,11 @@
     "sd_mod"
   ];
   boot.initrd.kernelModules = ["amdgpu"];
-  boot.kernelModules = ["kvm-intel"];
+  boot.kernelModules = [
+    "kvm-intel"
+    "nct6775"
+  ];
+  boot.kernelParams = ["acpi_enforce_resources=lax"];
   boot.extraModulePackages = [];
   boot.supportedFilesystems = ["ntfs"];
 
