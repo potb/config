@@ -12,7 +12,11 @@
       experimental-features = "nix-command flakes pipe-operators";
       warn-dirty = false;
       auto-optimise-store = true;
-      trusted-users = ["root" "@wheel"];
+      max-jobs = "auto";
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
       flake-registry = "";
       nix-path = config.nix.nixPath;
 
@@ -26,8 +30,6 @@
         "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
       ];
     };
-
-    package = pkgs.nixVersions.latest;
 
     channel.enable = true;
     optimise.automatic = false;
