@@ -31,17 +31,23 @@
       builders-use-substitutes = true;
     };
 
-    gc = {
-      automatic = true;
-      interval = {
-        Hour = 3;
-        Minute = 15;
-        Weekday = 7;
-      };
-      options = "--delete-older-than 7d";
-    };
-
-    optimise.automatic = true;
+    # NOTE: gc and optimise are disabled when using Determinate Nix
+    # Determinate Nix manages its own garbage collection and store optimization
+    # The nix-darwin module assertions require nix.enable = true, but
+    # determinateNix.enable sets nix.enable = false, causing conflicts.
+    # These settings are kept commented for documentation but not active.
+    #
+    # gc = {
+    #   automatic = true;
+    #   interval = {
+    #     Hour = 3;
+    #     Minute = 15;
+    #     Weekday = 7;
+    #   };
+    #   options = "--delete-older-than 7d";
+    # };
+    #
+    # optimise.automatic = true;
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
     nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
