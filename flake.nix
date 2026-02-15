@@ -11,6 +11,10 @@
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
 
+    determinate = {
+      url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
+    };
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -143,6 +147,7 @@
           nixosModules
           ++ [
             ./nixos/configuration.nix
+            inputs.determinate.nixosModules.default
             inputs.home-manager.nixosModules.home-manager
 
             {
@@ -175,6 +180,7 @@
           darwinModules
           ++ [
             ./darwin/configuration.nix
+            inputs.determinate.darwinModules.default
             inputs.home-manager.darwinModules.home-manager
             nix-rosetta-builder.darwinModules.default
             nix-homebrew.darwinModules.nix-homebrew

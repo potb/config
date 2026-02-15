@@ -5,13 +5,16 @@
   pkgs,
   ...
 }: {
+  # Let Determinate Nix handle Nix configuration management
+  determinateNix.enable = true;
+
   nix = let
     flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
   in {
-    enable = true;
     settings = {
       experimental-features = "nix-command flakes pipe-operators";
       warn-dirty = false;
+      max-jobs = "auto";
       trusted-users = [
         "root"
         "@admin"
