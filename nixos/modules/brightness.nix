@@ -42,6 +42,7 @@ in {
     timerConfig = {
       OnCalendar = "*-*-* 19:00:00";
       Persistent = true;
+      Unit = "monitor-brightness.service";
     };
   };
 
@@ -51,12 +52,9 @@ in {
     timerConfig = {
       OnCalendar = "*-*-* 08:00:00";
       Persistent = true;
+      Unit = "monitor-brightness.service";
     };
   };
-
-  # Both timers trigger the same time-aware service
-  systemd.timers.monitor-brightness-evening.unitConfig.Requires = "monitor-brightness.service";
-  systemd.timers.monitor-brightness-morning.unitConfig.Requires = "monitor-brightness.service";
 
   # Also run on boot to catch up if booted between 19:00-08:00
   systemd.timers.monitor-brightness-boot = {
@@ -64,7 +62,7 @@ in {
     wantedBy = ["timers.target"];
     timerConfig = {
       OnBootSec = "1min";
+      Unit = "monitor-brightness.service";
     };
   };
-  systemd.timers.monitor-brightness-boot.unitConfig.Requires = "monitor-brightness.service";
 }
