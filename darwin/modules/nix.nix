@@ -9,7 +9,11 @@
   determinateNix = {
     enable = true;
     customSettings = {
-      extra-experimental-features = ["pipe-operators"];
+      extra-experimental-features = [
+        "nix-command"
+        "flakes"
+        "pipe-operators"
+      ];
       trusted-users = [
         "root"
         "@admin"
