@@ -80,12 +80,6 @@
       provider = "agent-browser";
     };
     agents = {
-      prometheus = {
-        model = "anthropic/claude-opus-4-6";
-      };
-      atlas = {
-        model = "anthropic/claude-sonnet-4-5";
-      };
       librarian = {
         model = "anthropic/claude-haiku-4-5";
       };
