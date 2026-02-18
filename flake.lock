@@ -1126,7 +1126,24 @@
         "nix-rosetta-builder": "nix-rosetta-builder",
         "nixpkgs": "nixpkgs_4",
         "nixvim": "nixvim",
+        "schemastore": "schemastore",
         "stylix": "stylix"
+      }
+    },
+    "schemastore": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771338855,
+        "narHash": "sha256-LJjcstkIrI0F8AOEoWC0g6szqrBUqxOZF28sH+uDyxA=",
+        "owner": "SchemaStore",
+        "repo": "schemastore",
+        "rev": "40fd775742497c2fdbe9f3c7e3096ad073e77690",
+        "type": "github"
+      },
+      "original": {
+        "owner": "SchemaStore",
+        "repo": "schemastore",
+        "type": "github"
       }
     },
     "stylix": {
