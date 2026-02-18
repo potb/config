@@ -356,8 +356,6 @@ in {
 
   programs.rofi.enable = true;
 
-  services.xembed-sni-proxy.enable = true;
-
   systemd.user.services.swww-daemon = {
     Unit = {
       Description = "swww wallpaper daemon";
