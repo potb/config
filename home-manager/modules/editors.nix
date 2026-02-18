@@ -4,6 +4,22 @@
   ...
 }: let
   fonts = import ../../shared/fonts.nix {inherit pkgs;};
+  opencode-wrapped = pkgs.symlinkJoin {
+    name = "opencode";
+    paths = [pkgs.opencode];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/opencode \
+        --prefix PATH : ${
+        pkgs.lib.makeBinPath [
+          pkgs.nodePackages.typescript
+          pkgs.nodePackages.typescript-language-server
+          pkgs.pyright
+          pkgs.nixd
+        ]
+      }
+    '';
+  };
 in {
   programs.nixvim = {
     enable = true;
@@ -96,7 +112,7 @@ in {
       agent_servers = {
         OpenCode = {
           type = "custom";
-          command = "${pkgs.opencode}/bin/opencode";
+          command = "${opencode-wrapped}/bin/opencode";
           args = ["acp"];
         };
       };
@@ -158,7 +174,7 @@ in {
     ];
   };
 
-  home.packages = with pkgs; [
-    opencode
+  home.packages = [
+    opencode-wrapped
   ];
 }
