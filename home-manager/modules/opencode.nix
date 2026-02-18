@@ -4,12 +4,6 @@
   inputs,
   ...
 }: let
-  schemaStoreCatalog = builtins.fromJSON (
-    builtins.readFile "${inputs.schemastore}/src/api/json/catalog.json"
-  );
-  jsonSchemas = builtins.map (schema: {
-    inherit (schema) fileMatch url;
-  }) (builtins.filter (schema: schema ? fileMatch && schema ? url) schemaStoreCatalog.schemas);
   # To add a new MCP with credentials:
   #
   # 1. Secret as command argument:
@@ -67,18 +61,32 @@
       };
     };
     lsp = {
-      json-ls = {
-        command = [
-          "vscode-json-language-server"
-          "--stdio"
-        ];
+      json-ls = let
         extensions = [
           ".json"
           ".jsonc"
         ];
+        schemaStoreCatalog = builtins.fromJSON (
+          builtins.readFile "${inputs.schemastore}/src/api/json/catalog.json"
+        );
+        matchesExtension = pattern: builtins.any (ext: lib.hasSuffix ext pattern) extensions;
+        schemas =
+          schemaStoreCatalog.schemas
+          |> builtins.filter (
+            schema: schema ? fileMatch && schema ? url && builtins.any matchesExtension schema.fileMatch
+          )
+          |> builtins.map (schema: {
+            inherit (schema) fileMatch url;
+          });
+      in {
+        command = [
+          "vscode-json-language-server"
+          "--stdio"
+        ];
+        inherit extensions;
         initialization = {
           provideFormatter = true;
-          schemas = jsonSchemas;
+          inherit schemas;
           validate = {
             enable = true;
           };
