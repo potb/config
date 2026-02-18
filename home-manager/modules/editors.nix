@@ -10,6 +10,7 @@ in {
     defaultEditor = true;
     viAlias = true;
     vimAlias = true;
+    man.enable = false;
 
     opts = {
       number = true;
