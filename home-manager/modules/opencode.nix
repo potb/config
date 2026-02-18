@@ -120,6 +120,9 @@
       explore = {
         model = "anthropic/claude-haiku-4-5";
       };
+      atlas = {
+        model = "anthropic/claude-sonnet-4-6";
+      };
     };
     commit_footer = false;
     commit_co_author = false;
