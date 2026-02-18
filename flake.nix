@@ -75,6 +75,11 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    schemastore = {
+      url = "github:SchemaStore/schemastore";
+      flake = false;
+    };
   };
 
   outputs = {

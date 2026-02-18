@@ -16,6 +16,7 @@
           pkgs.nodePackages.typescript-language-server
           pkgs.pyright
           pkgs.nixd
+          pkgs.nodePackages.vscode-langservers-extracted
         ]
       }
     '';

@@ -1,8 +1,15 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }: let
+  schemaStoreCatalog = builtins.fromJSON (
+    builtins.readFile "${inputs.schemastore}/src/api/json/catalog.json"
+  );
+  jsonSchemas = builtins.map (schema: {
+    inherit (schema) fileMatch url;
+  }) (builtins.filter (schema: schema ? fileMatch && schema ? url) schemaStoreCatalog.schemas);
   # To add a new MCP with credentials:
   #
   # 1. Secret as command argument:
@@ -57,6 +64,25 @@
         type = "remote";
         url = "https://mcp.sentry.dev/mcp";
         oauth = {};
+      };
+    };
+    lsp = {
+      json-ls = {
+        command = [
+          "vscode-json-language-server"
+          "--stdio"
+        ];
+        extensions = [
+          ".json"
+          ".jsonc"
+        ];
+        initialization = {
+          provideFormatter = true;
+          schemas = jsonSchemas;
+          validate = {
+            enable = true;
+          };
+        };
       };
     };
     plugin = [
