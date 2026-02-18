@@ -66,6 +66,11 @@
       flake = false;
     };
 
+    nixvim = {
+      url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -162,7 +167,9 @@
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.sharedModules = [];
+              home-manager.sharedModules = [
+                inputs.nixvim.homeModules.nixvim
+              ];
               home-manager.extraSpecialArgs = {
                 inherit inputs;
               };
@@ -211,7 +218,9 @@
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.sharedModules = [];
+              home-manager.sharedModules = [
+                inputs.nixvim.homeModules.nixvim
+              ];
               home-manager.extraSpecialArgs = {
                 inherit inputs;
               };

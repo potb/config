@@ -5,60 +5,56 @@
 }: let
   fonts = import ../../shared/fonts.nix {inherit pkgs;};
 in {
-  programs.neovim = {
+  programs.nixvim = {
     enable = true;
     defaultEditor = true;
     viAlias = true;
     vimAlias = true;
-    plugins = with pkgs.vimPlugins; [
-      nvim-lspconfig
-      nvim-treesitter.withAllGrammars
-      plenary-nvim
-      mini-nvim
-      telescope-nvim
-      telescope-fzf-native-nvim
-      which-key-nvim
-      catppuccin-nvim
-    ];
-    extraPackages = with pkgs; [
-      nil
-      lua-language-server
-      nodePackages.typescript-language-server
-      pyright
-    ];
-    initLua = ''
-      -- Colorscheme
-      vim.cmd.colorscheme "catppuccin-latte"
 
-      -- Basic options
-      vim.opt.number = true
-      vim.opt.relativenumber = true
-      vim.opt.clipboard = "unnamedplus"
+    opts = {
+      number = true;
+      relativenumber = true;
+      clipboard = "unnamedplus";
+    };
 
-      -- LSP keybindings
-      local on_attach = function(client, bufnr)
-        local opts = { noremap = true, silent = true, buffer = bufnr }
-        vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-        vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
-        vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-        vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
-      end
+    colorschemes.catppuccin = {
+      enable = true;
+      settings.flavour = "latte";
+    };
 
-      -- Setup LSP servers
-      local lspconfig = require("lspconfig")
-      lspconfig.nil_ls.setup { on_attach = on_attach }
-      lspconfig.lua_ls.setup { on_attach = on_attach }
-      lspconfig.tsserver.setup { on_attach = on_attach }
-      lspconfig.pyright.setup { on_attach = on_attach }
+    plugins.web-devicons.enable = true;
+    plugins.treesitter.enable = true;
 
-      -- Telescope keybindings
-      local telescope = require("telescope.builtin")
-      vim.keymap.set("n", "<leader>ff", telescope.find_files, { noremap = true, silent = true })
-      vim.keymap.set("n", "<leader>fg", telescope.live_grep, { noremap = true, silent = true })
+    plugins.telescope = {
+      enable = true;
+      extensions.fzf-native.enable = true;
+      keymaps = {
+        "<leader>ff" = "find_files";
+        "<leader>fg" = "live_grep";
+      };
+      keymapsSilent = true;
+    };
 
-      -- Which-key setup
-      require("which-key").setup {}
-    '';
+    plugins.which-key.enable = true;
+
+    plugins.lsp = {
+      enable = true;
+      keymaps = {
+        silent = true;
+        lspBuf = {
+          "gd" = "definition";
+          "gr" = "references";
+          "K" = "hover";
+          "<leader>rn" = "rename";
+        };
+      };
+      servers = {
+        nil_ls.enable = true;
+        lua_ls.enable = true;
+        ts_ls.enable = true;
+        pyright.enable = true;
+      };
+    };
   };
 
   programs.alacritty = {
