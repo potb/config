@@ -23,5 +23,7 @@
     slack
     discord
     jetbrains.datagrip
+
+    bottles
   ];
 }
