@@ -6,12 +6,12 @@
 }: {
   imports = [(modulesPath + "/installer/scan/not-detected.nix")];
 
-  fileSystems."/" = {
+  fileSystems."/" = lib.mkForce {
     device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
   };
 
-  fileSystems."/boot" = {
+  fileSystems."/boot" = lib.mkForce {
     device = "/dev/disk/by-label/boot";
     fsType = "vfat";
     options = [
@@ -30,7 +30,11 @@
     "sd_mod"
   ];
   boot.initrd.kernelModules = ["amdgpu"];
-  boot.kernelModules = ["kvm-intel"];
+  boot.kernelModules = [
+    "kvm-intel"
+    "nct6775"
+  ];
+  boot.kernelParams = ["acpi_enforce_resources=lax"];
   boot.extraModulePackages = [];
   boot.supportedFilesystems = ["ntfs"];
 
@@ -50,6 +54,7 @@
     };
   };
   hardware.keyboard.zsa.enable = true;
+  hardware.i2c.enable = true;
 
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;

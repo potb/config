@@ -4,18 +4,75 @@
   ...
 }: let
   fonts = import ../../shared/fonts.nix {inherit pkgs;};
+  opencode-wrapped = pkgs.symlinkJoin {
+    name = "opencode";
+    paths = [pkgs.opencode];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/opencode \
+        --prefix PATH : ${
+        pkgs.lib.makeBinPath [
+          pkgs.nodePackages.typescript
+          pkgs.nodePackages.typescript-language-server
+          pkgs.pyright
+          pkgs.nixd
+          pkgs.nodePackages.vscode-langservers-extracted
+        ]
+      }
+    '';
+  };
 in {
-  programs.neovim = {
+  programs.nixvim = {
     enable = true;
     defaultEditor = true;
     viAlias = true;
     vimAlias = true;
-    plugins = with pkgs.vimPlugins; [
-      nvim-lspconfig
-      nvim-treesitter.withAllGrammars
-      plenary-nvim
-      mini-nvim
-    ];
+    man.enable = false;
+
+    opts = {
+      number = true;
+      relativenumber = true;
+      clipboard = "unnamedplus";
+    };
+
+    colorschemes.catppuccin = {
+      enable = true;
+      settings.flavour = "latte";
+    };
+
+    plugins.web-devicons.enable = true;
+    plugins.treesitter.enable = true;
+
+    plugins.telescope = {
+      enable = true;
+      extensions.fzf-native.enable = true;
+      keymaps = {
+        "<leader>ff" = "find_files";
+        "<leader>fg" = "live_grep";
+      };
+      keymapsSilent = true;
+    };
+
+    plugins.which-key.enable = true;
+
+    plugins.lsp = {
+      enable = true;
+      keymaps = {
+        silent = true;
+        lspBuf = {
+          "gd" = "definition";
+          "gr" = "references";
+          "K" = "hover";
+          "<leader>rn" = "rename";
+        };
+      };
+      servers = {
+        nil_ls.enable = true;
+        lua_ls.enable = true;
+        ts_ls.enable = true;
+        pyright.enable = true;
+      };
+    };
   };
 
   programs.alacritty = {
@@ -56,7 +113,7 @@ in {
       agent_servers = {
         OpenCode = {
           type = "custom";
-          command = "${pkgs.opencode}/bin/opencode";
+          command = "${opencode-wrapped}/bin/opencode";
           args = ["acp"];
         };
       };
@@ -118,7 +175,7 @@ in {
     ];
   };
 
-  home.packages = with pkgs; [
-    opencode
+  home.packages = [
+    opencode-wrapped
   ];
 }

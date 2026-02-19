@@ -11,6 +11,10 @@
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
 
+    determinate = {
+      url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
+    };
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -56,6 +60,26 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
+
+    dnscrypt-resolvers = {
+      url = "github:DNSCrypt/dnscrypt-resolvers";
+      flake = false;
+    };
+
+    nixvim = {
+      url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    schemastore = {
+      url = "github:SchemaStore/schemastore";
+      flake = false;
+    };
   };
 
   outputs = {
@@ -65,6 +89,7 @@
     nix-darwin,
     nix-rosetta-builder,
     nix-homebrew,
+    disko,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -138,14 +163,18 @@
           nixosModules
           ++ [
             ./nixos/configuration.nix
+            inputs.determinate.nixosModules.default
             inputs.home-manager.nixosModules.home-manager
+            disko.nixosModules.disko
 
             {
               nixpkgs.overlays = nixosAllOverlays;
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.sharedModules = [];
+              home-manager.sharedModules = [
+                inputs.nixvim.homeModules.nixvim
+              ];
               home-manager.extraSpecialArgs = {
                 inherit inputs;
               };
@@ -170,15 +199,17 @@
           darwinModules
           ++ [
             ./darwin/configuration.nix
+            inputs.determinate.darwinModules.default
             inputs.home-manager.darwinModules.home-manager
-            nix-rosetta-builder.darwinModules.default
+            # TODO: Re-enable after VM-based linux builder is bootstrapped
+            # nix-rosetta-builder.darwinModules.default
             nix-homebrew.darwinModules.nix-homebrew
 
             {
               nixpkgs.overlays = darwinAllOverlays;
 
-              nix-rosetta-builder.enable = true;
-              nix-rosetta-builder.onDemand = true;
+              # nix-rosetta-builder.enable = true;
+              # nix-rosetta-builder.onDemand = true;
 
               nix-homebrew = {
                 enable = true;
@@ -193,7 +224,9 @@
 
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.sharedModules = [];
+              home-manager.sharedModules = [
+                inputs.nixvim.homeModules.nixvim
+              ];
               home-manager.extraSpecialArgs = {
                 inherit inputs;
               };

@@ -11,8 +11,11 @@
     settings = {
       experimental-features = "nix-command flakes pipe-operators";
       warn-dirty = false;
-      auto-optimise-store = true;
-      trusted-users = ["root" "@wheel"];
+      max-jobs = "auto";
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
       flake-registry = "";
       nix-path = config.nix.nixPath;
 
@@ -25,12 +28,11 @@
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
         "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
       ];
+      builders-use-substitutes = true;
     };
 
-    package = pkgs.nixVersions.latest;
-
     channel.enable = true;
-    optimise.automatic = false;
+    optimise.automatic = true;
 
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
     nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");

@@ -12,6 +12,7 @@
     gcc
     binutils
     libnotify
+    lm_sensors
 
     audacity
     prismlauncher
@@ -22,5 +23,7 @@
     slack
     discord
     jetbrains.datagrip
+
+    bottles
   ];
 }

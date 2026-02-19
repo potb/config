@@ -5,46 +5,29 @@
   pkgs,
   ...
 }: {
-  nix = let
-    flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
-  in {
+  # Let Determinate Nix handle Nix configuration management
+  determinateNix = {
     enable = true;
-    settings = {
-      experimental-features = "nix-command flakes pipe-operators";
-      warn-dirty = false;
+    nixosVmBasedLinuxBuilder.enable = true;
+    customSettings = {
+      extra-experimental-features = [
+        "nix-command"
+        "flakes"
+        "pipe-operators"
+      ];
       trusted-users = [
         "root"
         "@admin"
       ];
-      substituters = [
-        "https://cache.nixos.org"
-        "https://potb.cachix.org"
-      ];
-      trusted-public-keys = [
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
-      ];
-      flake-registry = "";
       builders-use-substitutes = true;
     };
+  };
 
-    gc = {
-      automatic = true;
-      interval = {
-        Hour = 3;
-        Minute = 15;
-        Weekday = 7;
-      };
-      options = "--delete-older-than 7d";
-    };
-
-    optimise.automatic = true;
-
+  nix = let
+    flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
+  in {
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
-
-    linux-builder.enable = false;
-
-    distributedBuilds = true;
+    nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
   };
 
   nixpkgs.config.allowUnfree = true;

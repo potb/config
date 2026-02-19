@@ -53,7 +53,7 @@ in {
       order += "tztime local"
 
       disk "/" {
-        format = "/ %avail"
+        format = "| %used / %total"
       }
 
       cpu_usage {
@@ -182,7 +182,6 @@ in {
         "$mod, Return, exec, alacritty"
         "$mod, p, exec, rofi -show drun"
         "$mod, w, exec, google-chrome-stable"
-        "$mod, e, exec, alacritty -e yazi"
 
         ", Print, exec, grim -g \"$(slurp)\" - | wl-copy"
 
@@ -277,6 +276,7 @@ in {
       windowrule = [
         "immediate on, match:class ^(steam)$"
         "immediate on, match:class ^(.*\\.exe)$"
+        "size 1 1, move -100 -100, match:xwayland true, match:title ^$, match:class ^$, match:initial_class ^$, match:initial_title ^$"
       ];
     };
   };
@@ -355,7 +355,6 @@ in {
   };
 
   programs.rofi.enable = true;
-  programs.yazi.enable = true;
 
   systemd.user.services.swww-daemon = {
     Unit = {
