@@ -8,6 +8,7 @@
   # Let Determinate Nix handle Nix configuration management
   determinateNix = {
     enable = true;
+    nixosVmBasedLinuxBuilder.enable = true;
     customSettings = {
       extra-experimental-features = [
         "nix-command"
@@ -27,10 +28,6 @@
   in {
     registry = flakeInputs |> lib.mapAttrs (_: flake: {inherit flake;});
     nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
-
-    linux-builder.enable = false;
-
-    distributedBuilds = true;
   };
 
   nixpkgs.config.allowUnfree = true;

@@ -201,14 +201,15 @@
             ./darwin/configuration.nix
             inputs.determinate.darwinModules.default
             inputs.home-manager.darwinModules.home-manager
-            nix-rosetta-builder.darwinModules.default
+            # TODO: Re-enable after VM-based linux builder is bootstrapped
+            # nix-rosetta-builder.darwinModules.default
             nix-homebrew.darwinModules.nix-homebrew
 
             {
               nixpkgs.overlays = darwinAllOverlays;
 
-              nix-rosetta-builder.enable = true;
-              nix-rosetta-builder.onDemand = true;
+              # nix-rosetta-builder.enable = true;
+              # nix-rosetta-builder.onDemand = true;
 
               nix-homebrew = {
                 enable = true;
