@@ -32,6 +32,7 @@
     act
     ffmpeg
     lefthook
+    _1password-cli
   ];
 
   home.sessionVariables.EDITOR = "nvim";
