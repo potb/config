@@ -8,6 +8,7 @@
       upgrade = false;
     };
     casks = [
+      "1password"
       "discord"
       "google-chrome"
       "raycast"
