@@ -6,6 +6,11 @@
 }: let
   fonts = import ../../../shared/fonts.nix {inherit pkgs;};
 
+  hy3PluginConf = let
+    hy3 = inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3;
+  in
+    pkgs.writeText "hypr-hy3-plugin.conf" "plugin = ${hy3}/lib/libhy3.so";
+
   # Bar module CSS selectors that should use monospace font.
   # The global `*` selector uses sans-serif so tray context menus
   # (rendered as separate GTK top-level windows) get a readable font.
@@ -111,9 +116,9 @@ in {
     package = null;
     portalPackage = null;
 
-    plugins = [inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3];
-
     settings = {
+      source = ["${hy3PluginConf}"];
+
       monitor = [
         "DP-2, 2560x1440@165, 0x0, 1"
         "DP-1, 2560x1440@165, 2560x0, 1"
