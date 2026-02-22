@@ -120,10 +120,10 @@
     };
     agents = {
       librarian = {
-        model = "anthropic/claude-haiku-4-5";
+        model = "github-copilot/gemini-3-flash";
       };
       explore = {
-        model = "anthropic/claude-haiku-4-5";
+        model = "github-copilot/grok-code-fast-1";
       };
       atlas = {
         model = "anthropic/claude-sonnet-4-6";
