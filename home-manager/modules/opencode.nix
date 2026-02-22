@@ -131,7 +131,6 @@
     };
     commit_footer = false;
     commit_co_author = false;
-    disabled_mcps = ["websearch"];
     categories = {
       quick = {
         model = "anthropic/claude-haiku-4-5";
