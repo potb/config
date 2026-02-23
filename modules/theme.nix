@@ -1,16 +1,15 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }: let
-  fonts = import ../fonts.nix {inherit pkgs;};
-in {
-  stylix =
+  fonts = import ../shared/fonts.nix {inherit pkgs;};
+  stylixConfig =
     "${pkgs.base16-schemes}/share/themes/catppuccin-latte.yaml"
     |> (theme: {
       enable = true;
       base16Scheme = theme;
-
       fonts = {
         monospace = fonts.monospace;
         sansSerif = fonts.ui;
@@ -18,4 +17,18 @@ in {
         emoji = fonts.emoji;
       };
     });
+in {
+  nixos = {
+    imports = with inputs; [
+      stylix.nixosModules.stylix
+    ];
+    stylix = stylixConfig;
+  };
+
+  darwin = {
+    imports = with inputs; [
+      stylix.darwinModules.stylix
+    ];
+    stylix = stylixConfig;
+  };
 }
