@@ -1086,6 +1086,38 @@
         "type": "github"
       }
     },
+    "opencode-md-table-formatter": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771635757,
+        "narHash": "sha256-cmLsPeUnGo1spaz1UGhIYPdmIdRnLQ3tEaONoMGBTcw=",
+        "owner": "franlol",
+        "repo": "opencode-md-table-formatter",
+        "rev": "1c6d9ec3ecaf45f5ecc3afa71fc16c2625a60d4c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "franlol",
+        "repo": "opencode-md-table-formatter",
+        "type": "github"
+      }
+    },
+    "opencode-oh-my-opencode": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771926336,
+        "narHash": "sha256-rXesQJVYVZQrAdryqtzMSF83pH59pj9O+gsDI+obbcg=",
+        "owner": "code-yeongyu",
+        "repo": "oh-my-opencode",
+        "rev": "55b9ad60d83744d07604120e52c7abf7e85135ab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "code-yeongyu",
+        "repo": "oh-my-opencode",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1126,6 +1158,8 @@
         "nix-rosetta-builder": "nix-rosetta-builder",
         "nixpkgs": "nixpkgs_4",
         "nixvim": "nixvim",
+        "opencode-md-table-formatter": "opencode-md-table-formatter",
+        "opencode-oh-my-opencode": "opencode-oh-my-opencode",
         "schemastore": "schemastore",
         "stylix": "stylix"
       }

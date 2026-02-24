@@ -98,9 +98,15 @@
         };
       };
     };
-    plugin = [
-      "oh-my-opencode@latest"
-      "@franlol/opencode-md-table-formatter@latest"
+    plugin = let
+      ohMyOpencodeVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-opencode}/package.json")).version;
+      mdTableFormatterVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-md-table-formatter}/package.json"))
+          .version;
+    in [
+      "oh-my-opencode@${ohMyOpencodeVersion}"
+      "@franlol/opencode-md-table-formatter@${mdTableFormatterVersion}"
     ];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
