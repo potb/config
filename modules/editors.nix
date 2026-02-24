@@ -175,6 +175,13 @@ in {
             "alt-2" = "agent::ToggleFocus";
           };
         }
+        {
+          context = "Editor";
+          bindings = {
+            "ctrl-=" = "editor::UnfoldLines";
+            "ctrl--" = "editor::Fold";
+          };
+        }
       ];
     };
 
