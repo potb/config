@@ -59,6 +59,11 @@
         url = "https://mcp.sentry.dev/mcp";
         oauth = {};
       };
+      websearch = {
+        type = "remote";
+        url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
+        enabled = true;
+      };
     };
     lsp = {
       json-ls = let
@@ -115,10 +120,10 @@
     };
     agents = {
       librarian = {
-        model = "anthropic/claude-haiku-4-5";
+        model = "github-copilot/gemini-3-flash";
       };
       explore = {
-        model = "anthropic/claude-haiku-4-5";
+        model = "github-copilot/grok-code-fast-1";
       };
       atlas = {
         model = "anthropic/claude-sonnet-4-6";
@@ -145,27 +150,42 @@
     };
   };
 in {
-  home.activation.generateOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
-    $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
-    $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
-  '';
+  nixos = {};
+  darwin = {};
+  home = {
+    home.activation.generateOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
 
-  home.activation.generateOhMyOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-opencode.json" (builtins.toJSON ohMyOpencodeConfig)} "$HOME/.config/opencode/oh-my-opencode.json"
-    $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-opencode.json"
-  '';
+      EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
+      if [ -f "$EXA_SECRET_FILE" ]; then
+        EXA_KEY=$(${pkgs.coreutils}/bin/tr -d '\n' < "$EXA_SECRET_FILE")
+        ${pkgs.gnused}/bin/sed "s/__EXA_API_KEY__/$EXA_KEY/g" \
+          ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} \
+          > "$HOME/.config/opencode/opencode.jsonc"
+      else
+        echo "WARNING: $EXA_SECRET_FILE not found, websearch MCP will not work" >&2
+        $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
+      fi
 
-  home.activation.generateGlobalOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    $DRY_RUN_CMD mkdir -p "$HOME/.opencode"
-    $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode-global.json" (builtins.toJSON globalOpencodeConfig)} "$HOME/.opencode/opencode.json"
-    $DRY_RUN_CMD chmod 644 "$HOME/.opencode/opencode.json"
-  '';
+      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
+    '';
 
-  home.activation.ensureSecretsDir = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    $DRY_RUN_CMD mkdir -p "$HOME/.secrets"
-    $DRY_RUN_CMD chmod 700 "$HOME/.secrets"
-  '';
+    home.activation.generateOhMyOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-opencode.json" (builtins.toJSON ohMyOpencodeConfig)} "$HOME/.config/opencode/oh-my-opencode.json"
+      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-opencode.json"
+    '';
 
-  xdg.configFile."opencode/command/review-loop.md".source = ./opencode/review-loop.md;
+    home.activation.generateGlobalOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD mkdir -p "$HOME/.opencode"
+      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode-global.json" (builtins.toJSON globalOpencodeConfig)} "$HOME/.opencode/opencode.json"
+      $DRY_RUN_CMD chmod 644 "$HOME/.opencode/opencode.json"
+    '';
+
+    home.activation.ensureSecretsDir = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD mkdir -p "$HOME/.secrets"
+      $DRY_RUN_CMD chmod 700 "$HOME/.secrets"
+    '';
+
+    xdg.configFile."opencode/command/review-loop.md".source = ./opencode/review-loop.md;
+  };
 }

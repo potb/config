@@ -98,6 +98,7 @@
       "aarch64-darwin"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
+    lib = nixpkgs.lib;
 
     loadModulesFromDir = moduleDir:
       builtins.readDir moduleDir
@@ -114,23 +115,77 @@
         |> map (name: import (overlaysDir + "/${name}"))
       else [];
 
-    getHomeManagerModules = platform: let
-      modulesDir = ./home-manager/modules;
-      platformDir = modulesDir + "/${platform}";
+    loadUnifiedModules = platform: modulesDir:
+      builtins.readDir modulesDir
+      |> builtins.attrNames
+      |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
+      |> map (
+        name: let
+          file = modulesDir + "/${name}";
 
-      loadNixPaths = dir:
-        builtins.readDir dir
-        |> builtins.attrNames
-        |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
-        |> map (name: dir + "/${name}");
+          # Static pass: ONLY for platform imports + existence checks.
+          # `pkgs` must not be touched while computing imports — throw if accessed.
+          modStatic = import file {
+            inherit lib inputs;
+            pkgs = builtins.throw "pkgs used during static import of ${toString file}";
+          };
 
-      sharedModules = loadNixPaths modulesDir;
-      platformModules =
-        if builtins.pathExists platformDir
-        then loadNixPaths platformDir
-        else [];
-    in
-      sharedModules ++ platformModules;
+          staticPlatform = modStatic.${platform} or {};
+          staticImports = staticPlatform.imports or [];
+          hasHome = modStatic ? home;
+        in
+          # NixOS/Darwin module wrapper.
+          # pkgs is captured here and threaded into hmModule so HM never needs
+          # to resolve pkgs from _module.args (avoids infinite recursion with
+          # useGlobalPkgs=true).
+          args @ {
+            pkgs,
+            lib,
+            inputs,
+            ...
+          }: let
+            # HM module: closes over NixOS `pkgs` so HM's module system never
+            # needs to resolve pkgs itself (which would cause infinite recursion).
+            hmModule = hmArgs @ {
+              lib,
+              inputs,
+              ...
+            }: {
+              config = let
+                # Inject NixOS pkgs (== HM pkgs with useGlobalPkgs=true).
+                realArgs =
+                  hmArgs
+                  // {
+                    inherit pkgs;
+                  };
+                mod = import file realArgs;
+                homeAttr = mod.home or null;
+              in
+                if homeAttr == null
+                then {}
+                else if builtins.isFunction homeAttr
+                then homeAttr realArgs
+                else homeAttr;
+            };
+          in {
+            imports = staticImports;
+            config = let
+              mod = import file args;
+              platformConfig = mod.${platform} or {};
+              platformConfigClean = builtins.removeAttrs platformConfig ["imports"];
+            in
+              # Merge platform config with HM wiring.
+              # Use `home-manager.users.potb = { imports = [...]; }` (not
+              # `home-manager.users.potb.imports = [...]`) — the latter is not
+              # a valid NixOS option; `imports` is a submodule directive.
+              platformConfigClean
+              // lib.optionalAttrs hasHome {
+                home-manager.users.potb = {
+                  imports = [hmModule];
+                };
+              };
+          }
+      );
 
     sharedOverlays = loadOverlays ./overlays;
     darwinOverlays = loadOverlays ./darwin/overlays;
@@ -161,6 +216,7 @@
         specialArgs = {inherit inputs outputs;};
         modules =
           nixosModules
+          ++ (loadUnifiedModules "nixos" ./modules)
           ++ [
             ./nixos/configuration.nix
             inputs.determinate.nixosModules.default
@@ -181,10 +237,7 @@
 
               home-manager.backupFileExtension = "backup";
 
-              home-manager.users.potb = {
-                imports = getHomeManagerModules "linux";
-                home.homeDirectory = nixpkgs.lib.mkForce "/home/potb";
-              };
+              home-manager.users.potb.home.homeDirectory = nixpkgs.lib.mkForce "/home/potb";
             }
           ];
       };
@@ -197,6 +250,7 @@
         specialArgs = {inherit inputs outputs;};
         modules =
           darwinModules
+          ++ (loadUnifiedModules "darwin" ./modules)
           ++ [
             ./darwin/configuration.nix
             inputs.determinate.darwinModules.default
@@ -231,10 +285,7 @@
                 inherit inputs;
               };
 
-              home-manager.users.potb = {
-                imports = getHomeManagerModules "darwin";
-                home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
-              };
+              home-manager.users.potb.home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
             }
           ];
       };
