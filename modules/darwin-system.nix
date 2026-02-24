@@ -6,8 +6,8 @@
   nixos = {};
   darwin = {};
   home = lib.optionalAttrs pkgs.stdenv.isDarwin {
-    file."Library/Fonts/.home-manager-fonts-version".enable = lib.mkForce false;
-    file."Applications/Home Manager Apps".enable = lib.mkForce false;
+    home.file."Library/Fonts/.home-manager-fonts-version".enable = lib.mkForce false;
+    home.file."Applications/Home Manager Apps".enable = lib.mkForce false;
 
     stylix.targets.xresources.enable = false;
 
