@@ -135,8 +135,10 @@
         model = "anthropic/claude-sonnet-4-6";
       };
     };
-    commit_footer = false;
-    commit_co_author = false;
+    git_master = {
+      commit_footer = false;
+      include_co_authored_by = false;
+    };
     categories = {
       quick = {
         model = "anthropic/claude-haiku-4-5";
