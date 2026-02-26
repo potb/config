@@ -67,7 +67,7 @@
     after = ["systemd-modules-load.service"];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "/run/current-system/sw/bin/bash -c 'echo high > /sys/class/drm/card1/device/power_dpm_force_performance_level'";
+      ExecStart = "/run/current-system/sw/bin/bash -c 'for card in /sys/class/drm/card*/device/vendor; do [ \"$(cat $card)\" = \"0x1002\" ] && echo high > $(dirname $card)/power_dpm_force_performance_level; done'";
       RemainAfterExit = true;
     };
   };

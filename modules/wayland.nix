@@ -35,9 +35,6 @@
 
       services.xserver = {
         enable = true;
-        deviceSection = ''
-          Option "kmsdev" "/dev/dri/card1"
-        '';
         excludePackages = [pkgs.xterm];
         desktopManager.xterm.enable = false;
         displayManager.lightdm.enable = false;
@@ -208,13 +205,11 @@
             source = ["${hy3PluginConf}"];
 
             monitor = [
-              "DP-2, 2560x1440@165, 0x0, 1"
-              "DP-1, 2560x1440@165, 2560x0, 1"
+              "DP-1, 3840x2160@120, 0x0, 1"
             ];
 
             workspace = [
               "1, monitor:DP-1, default:true"
-              "10, monitor:DP-2, default:true"
             ];
 
             "$mod" = "SUPER";
