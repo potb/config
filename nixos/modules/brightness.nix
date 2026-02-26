@@ -6,7 +6,7 @@
     HOUR=$(${pkgs.coreutils}/bin/date +%H)
 
     if [ "$HOUR" -ge 19 ] || [ "$HOUR" -lt 8 ]; then
-      BRIGHTNESS=0
+      BRIGHTNESS=10
     else
       BRIGHTNESS=100
     fi
