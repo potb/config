@@ -102,7 +102,7 @@ in {
 
     home.packages = [
       opencode-wrapped
-      pkgs.jetbrains.webstorm
+      pkgs.jetbrains.idea
     ];
   };
 }
