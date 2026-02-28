@@ -371,6 +371,7 @@
               "immediate on, match:class ^(steam)$"
               "immediate on, match:class ^(.*\\.exe)$"
               "size 1 1, move -100 -100, match:xwayland true, match:title ^$, match:class ^$, match:initial_class ^$, match:initial_title ^$"
+              "no_anim on, match:class ^(jetbrains-idea)$"
             ];
           };
         };
