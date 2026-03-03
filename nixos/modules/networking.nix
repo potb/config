@@ -1,5 +1,6 @@
 {
   lib,
+  pkgs,
   inputs,
   ...
 }: {
@@ -7,6 +8,43 @@
   networking.networkmanager.enable = true;
   networking.networkmanager.dns = "none";
   networking.nameservers = ["127.0.0.1"];
+
+  # CNVi WiFi on Z790 can fail PCI enumeration at boot.
+  # This service rescans PCI, loads iwlwifi, and restarts NetworkManager if no WiFi interface is found.
+  systemd.services.wifi-pci-rescan = {
+    description = "Rescan PCI bus for late-initializing CNVi WiFi";
+    wantedBy = ["multi-user.target"];
+    after = [
+      "systemd-modules-load.service"
+      "systemd-udev-settle.service"
+    ];
+    before = ["NetworkManager.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "wifi-pci-rescan" ''
+        # If a WiFi interface already exists, nothing to do
+        if ${pkgs.iw}/bin/iw dev 2>/dev/null | grep -q Interface; then
+          echo "WiFi interface found, skipping PCI rescan"
+          exit 0
+        fi
+
+        echo "No WiFi interface detected — rescanning PCI bus"
+        echo 1 > /sys/bus/pci/rescan
+        sleep 2
+
+        # Load iwlwifi in case it didn't autobind
+        ${pkgs.kmod}/bin/modprobe iwlwifi 2>/dev/null || true
+        sleep 1
+
+        if ${pkgs.iw}/bin/iw dev 2>/dev/null | grep -q Interface; then
+          echo "WiFi interface appeared after PCI rescan"
+        else
+          echo "WiFi interface still missing after PCI rescan"
+        fi
+      '';
+    };
+  };
 
   services.dnscrypt-proxy = {
     enable = true;
