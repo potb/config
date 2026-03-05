@@ -48,6 +48,7 @@
         libnotify
         lm_sensors
         audacity
+        easyeffects
         prismlauncher
         vlc
         spotify

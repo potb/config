@@ -1,0 +1,59 @@
+--- a/src/equalizer_preset.cpp	2026-03-05 18:44:40.100720088 +0100
++++ b/src/equalizer_preset.cpp	2026-03-05 18:45:16.367878217 +0100
+@@ -57,7 +57,16 @@
+ 
+   json[section][instance_name]["output-gain"] = settings->outputGain();
+ 
+-  json[section][instance_name]["mode"] = settings->defaultModeLabelsValue()[settings->mode()].toStdString();
++  {
++    const auto& modeLabels = settings->defaultModeLabelsValue();
++    auto modeIdx = settings->mode();
++
++    if (modeIdx < 0 || modeIdx >= modeLabels.size()) {
++      modeIdx = 0;
++    }
++
++    json[section][instance_name]["mode"] = modeLabels[modeIdx].toStdString();
++  }
+ 
+   json[section][instance_name]["split-channels"] = settings->splitChannels();
+ 
+@@ -84,14 +93,30 @@
+   for (int n = 0; n < nbands; n++) {
+     const auto* const bandn = band_id[n];
+ 
+-    json[bandn]["type"] =
+-        settings->bandTypeLabels()[settings->property(band_type[n].data()).value<int>()].toStdString();
+-
+-    json[bandn]["mode"] =
+-        settings->bandModeLabels()[settings->property(band_mode[n].data()).value<int>()].toStdString();
+-
+-    json[bandn]["slope"] =
+-        settings->bandSlopeLabels()[settings->property(band_slope[n].data()).value<int>()].toStdString();
++    const auto& typeLabels = settings->bandTypeLabels();
++    const auto& modeLabels = settings->bandModeLabels();
++    const auto& slopeLabels = settings->bandSlopeLabels();
++
++    auto typeIdx = settings->property(band_type[n].data()).value<int>();
++    auto modeIdx = settings->property(band_mode[n].data()).value<int>();
++    auto slopeIdx = settings->property(band_slope[n].data()).value<int>();
++
++    // Guard against out-of-bounds indices (e.g. -1 from QStringList::indexOf)
++    if (typeIdx < 0 || typeIdx >= typeLabels.size()) {
++      typeIdx = 0;
++    }
++
++    if (modeIdx < 0 || modeIdx >= modeLabels.size()) {
++      modeIdx = 0;
++    }
++
++    if (slopeIdx < 0 || slopeIdx >= slopeLabels.size()) {
++      slopeIdx = 0;
++    }
++
++    json[bandn]["type"] = typeLabels[typeIdx].toStdString();
++    json[bandn]["mode"] = modeLabels[modeIdx].toStdString();
++    json[bandn]["slope"] = slopeLabels[slopeIdx].toStdString();
+ 
+     json[bandn]["solo"] = settings->property(band_solo[n].data()).value<bool>();
+ 
