@@ -64,6 +64,10 @@
         url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
         enabled = true;
       };
+      figma = {
+        type = "remote";
+        url = "https://mcp.figma.com/mcp";
+      };
     };
     lsp = {
       json-ls = let
