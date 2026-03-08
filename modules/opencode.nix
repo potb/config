@@ -128,17 +128,6 @@
     browser_automation_engine = {
       provider = "agent-browser";
     };
-    agents = {
-      librarian = {
-        model = "github-copilot/gemini-3-flash";
-      };
-      explore = {
-        model = "github-copilot/grok-code-fast-1";
-      };
-      atlas = {
-        model = "anthropic/claude-sonnet-4-6";
-      };
-    };
     git_master = {
       commit_footer = false;
       include_co_authored_by = false;
