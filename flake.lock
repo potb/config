@@ -449,11 +449,11 @@
     "homebrew-cask": {
       "flake": false,
       "locked": {
-        "lastModified": 1772915405,
-        "narHash": "sha256-FNHei3VTb2u/uV9ptK1jr6RtdGHSiODcFdZsLzPCQPc=",
+        "lastModified": 1772940336,
+        "narHash": "sha256-NF77SINwQw9H5aNqtqoU3JcDVwGUEzjj1ALHzWNLYr8=",
         "owner": "homebrew",
         "repo": "homebrew-cask",
-        "rev": "791a6492496359b5c3fef6cfa8b758d8423ce600",
+        "rev": "c5fa5e445e478207ef8e9c648b53383b507e571b",
         "type": "github"
       },
       "original": {
@@ -465,11 +465,11 @@
     "homebrew-core": {
       "flake": false,
       "locked": {
-        "lastModified": 1772915703,
-        "narHash": "sha256-jqslI39wVeYHv9JLfDI0zeIq2ENCUbfNWuquv0XxNZM=",
+        "lastModified": 1772940357,
+        "narHash": "sha256-40peU8/CRKq/nUGKRp1tluojc/b69yjzxOrjrA4RS88=",
         "owner": "homebrew",
         "repo": "homebrew-core",
-        "rev": "1116231ce59ab1493dccf2f54114ae373af5ef50",
+        "rev": "4f2551378228ffca032bf917a98bdd7c9c74eab6",
         "type": "github"
       },
       "original": {
@@ -977,6 +977,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-master": {
+      "locked": {
+        "lastModified": 1772940584,
+        "narHash": "sha256-PRHyVbKu7JNKZtoSiB7R0Y3FQIlQh5cUR7CfrjIKzF8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "381548fda58beeb01917dac73c2a27e266559c04",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-regression": {
       "locked": {
         "lastModified": 1643052045,
@@ -1105,11 +1121,11 @@
     "opencode-oh-my-opencode": {
       "flake": false,
       "locked": {
-        "lastModified": 1772914215,
-        "narHash": "sha256-N/XIe9FB0qQNfdDT26OIafUov8b+Hbf2BUonHOiUUR4=",
+        "lastModified": 1772919985,
+        "narHash": "sha256-1XrLCAngMr77ixvGxhnUHEpdl/i8yAwgIsquIaKR27c=",
         "owner": "code-yeongyu",
         "repo": "oh-my-opencode",
-        "rev": "ab5a713d2d7d6fd1735f08dbbdea5a43214a3534",
+        "rev": "ba6fc35abd6b5f422850ae197c1b310e9ef22106",
         "type": "github"
       },
       "original": {
@@ -1157,6 +1173,7 @@
         "nix-homebrew": "nix-homebrew",
         "nix-rosetta-builder": "nix-rosetta-builder",
         "nixpkgs": "nixpkgs_4",
+        "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
         "opencode-md-table-formatter": "opencode-md-table-formatter",
         "opencode-oh-my-opencode": "opencode-oh-my-opencode",

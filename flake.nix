@@ -11,6 +11,10 @@
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
 
+    nixpkgs-master = {
+      url = "github:NixOS/nixpkgs/master";
+    };
+
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
     };
@@ -122,7 +126,7 @@
         builtins.readDir overlaysDir
         |> builtins.attrNames
         |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
-        |> map (name: import (overlaysDir + "/${name}"))
+        |> map (name: import (overlaysDir + "/${name}") {inherit inputs lib;})
       else [];
 
     loadUnifiedModules = platform: modulesDir:

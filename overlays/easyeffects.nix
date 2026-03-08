@@ -1,4 +1,4 @@
-final: prev: {
+{...}: final: prev: {
   easyeffects = prev.easyeffects.overrideAttrs (old: {
     patches =
       (old.patches or [])
