@@ -1102,22 +1102,6 @@
         "type": "github"
       }
     },
-    "opencode-md-table-formatter": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1771635757,
-        "narHash": "sha256-cmLsPeUnGo1spaz1UGhIYPdmIdRnLQ3tEaONoMGBTcw=",
-        "owner": "franlol",
-        "repo": "opencode-md-table-formatter",
-        "rev": "1c6d9ec3ecaf45f5ecc3afa71fc16c2625a60d4c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "franlol",
-        "repo": "opencode-md-table-formatter",
-        "type": "github"
-      }
-    },
     "opencode-oh-my-opencode": {
       "flake": false,
       "locked": {
@@ -1175,7 +1159,6 @@
         "nixpkgs": "nixpkgs_4",
         "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
-        "opencode-md-table-formatter": "opencode-md-table-formatter",
         "opencode-oh-my-opencode": "opencode-oh-my-opencode",
         "schemastore": "schemastore",
         "stylix": "stylix"
