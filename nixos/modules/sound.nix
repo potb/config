@@ -12,7 +12,7 @@
 
     extraConfig.pipewire = {
       "01-buffer-underrun" = {
-        link.max-buffers = 64;
+        link.max-buffers = 128;
       };
 
       "02-low-latency" = {
@@ -20,7 +20,7 @@
           "default.clock.rate" = 48000;
           "default.clock.quantum" = 64;
           "default.clock.min-quantum" = 64;
-          "default.clock.max-quantum" = 128;
+          "default.clock.max-quantum" = 2048;
         };
       };
 
