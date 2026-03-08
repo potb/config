@@ -89,11 +89,6 @@
       url = "github:code-yeongyu/oh-my-opencode";
       flake = false;
     };
-
-    opencode-md-table-formatter = {
-      url = "github:franlol/opencode-md-table-formatter";
-      flake = false;
-    };
   };
 
   outputs = {
