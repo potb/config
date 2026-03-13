@@ -95,16 +95,6 @@
           hy3 = inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3;
         in
           pkgs.writeText "hypr-hy3-plugin.conf" "plugin = ${hy3}/lib/libhy3.so";
-
-        # Bar module CSS selectors that should use monospace font.
-        # The global `*` selector uses sans-serif so tray context menus
-        # (rendered as separate GTK top-level windows) get a readable font.
-        barMonoSelectors = [
-          "#workspaces button"
-          "#tray"
-          "#custom-ip"
-          "#custom-i3status"
-        ];
       in {
         home.pointerCursor = {
           name = "DMZ-Black";
@@ -246,6 +236,13 @@
 
             decoration = {
               rounding = 0;
+
+              blur = {
+                enabled = true;
+                size = 5;
+                passes = 3;
+                vibrancy = 0.17;
+              };
             };
 
             input = {
@@ -376,76 +373,222 @@
           };
         };
 
+        stylix.targets.waybar.enable = false;
+
         programs.waybar = {
           enable = true;
-          settings = {
-            mainBar = {
-              position = "bottom";
-              layer = "top";
-              height = 32;
-              spacing = 8;
-              modules-left = ["hyprland/workspaces"];
-              modules-center = [];
-              modules-right = [
-                "tray"
-                "custom/ip"
-                "custom/i3status"
-              ];
-
+          settings = let
+            rightModules = [
+              "tray"
+              "custom/ip"
+              "disk"
+              "cpu"
+              "memory"
+              "clock"
+            ];
+            sharedModules = {
               "hyprland/workspaces" = {
                 format = "{name}";
                 on-click = "activate";
               };
-
               tray = {
-                spacing = 6;
+                spacing = 10;
+                icon-size = 24;
+                show-passive-items = true;
               };
-
               "custom/ip" = {
                 exec = "ip -4 -o addr show scope global | awk '{split($4,a,\"/\"); print a[1]}' | head -1";
                 interval = 10;
               };
-
-              "custom/i3status" = {
-                exec = "i3status";
-                return-type = "text";
+              disk = {
+                format = "<span font_features='tnum'>{used}</span>";
+                path = "/";
+                interval = 30;
+              };
+              cpu = {
+                format = "<span font_features='tnum'>{usage:02}%</span>";
+                interval = 5;
+              };
+              memory = {
+                format = "<span font_features='tnum'>{used:0.1f}G</span>";
+                interval = 5;
+              };
+              clock = {
+                format = "<span font_features='tnum'>{:%Y-%m-%d %H:%M:%S}</span>";
+                interval = 1;
+              };
+            };
+            mkBar = name: height: extra:
+              sharedModules
+              // {
+                inherit name;
+                position = "top";
+                layer = "top";
+                inherit height;
+                spacing = 8;
+                modules-left = ["hyprland/workspaces"];
+                modules-center = [];
+                modules-right = rightModules;
+              }
+              // extra;
+          in {
+            barA = mkBar "bar-a" 46 {
+              modules-left = ["hyprland/workspaces"];
+              tray = {
+                spacing = 10;
+                icon-size = 24;
+                show-passive-items = true;
+              };
+              "custom/ip" = {
+                exec = "ip -4 -o addr show scope global | awk '{split($4,a,\"/\"); print a[1]}' | head -1";
+                format = "{}";
+                interval = 10;
+              };
+              disk = {
+                format = "<span font_features='tnum'>{used}</span>";
+                path = "/";
+                interval = 30;
+              };
+              cpu = {
+                format = "<span font_features='tnum'>{usage:02}%</span>";
+                interval = 5;
+              };
+              memory = {
+                format = "<span font_features='tnum'>{used:0.1f}G</span>";
+                interval = 5;
+              };
+              "custom/date" = {
+                exec = "date '+%Y-%m-%d'";
+                format = "{}";
+                interval = 60;
+              };
+              modules-right = [
+                "tray"
+                "custom/ip"
+                "disk"
+                "cpu"
+                "memory"
+                "custom/date"
+                "clock"
+              ];
+              clock = {
+                format = "<span font_features='tnum'>{:%H:%M:%S}</span>";
+                interval = 1;
               };
             };
           };
 
-          style = let
-            monoRule = builtins.concatStringsSep ",\n      " barMonoSelectors;
-          in ''
+          style = ''
             * {
-              font-family: ${fonts.ui.name}, sans-serif;
-              font-size: ${fonts.sizes.str.large}px;
+              font-family: ${fonts.ui.name}, "${fonts.emoji.name}", "${fonts.monospace.name}", sans-serif;
+              min-height: 0;
             }
 
-            ${monoRule} {
-              font-family: ${fonts.monospace.name}, monospace;
+            /* All bars: transparent background (islands float on top) */
+            window {
+              background: transparent;
+              color: rgba(255, 255, 255, 0.85);
+              font-size: 14px;
+              font-weight: 500;
             }
 
-            window#waybar {
-              background: #222222;
-              color: #dddddd;
+            /* ── Shared light Latte surfaces ── */
+            #workspaces {
+              background: #e6e9ef;
+              border: 1px solid #bcc0cc;
+              border-radius: 12px;
+              margin: 3px 4px;
+              padding: 0 4px;
             }
 
             #workspaces button {
-              padding: 0 6px;
-              color: #dddddd;
+              padding: 0 8px;
+              margin: 3px 2px;
+              color: #5c5f77;
               background: transparent;
               border: none;
+              border-radius: 8px;
+              transition: all 0.2s ease;
             }
 
             #workspaces button.active {
-              background: #4c7899;
-              color: #ffffff;
+              color: #4c4f69;
+              background: #ccd0da;
+            }
+
+            #workspaces button:hover {
+              color: #4c4f69;
+              background: #dce0e8;
             }
 
             #tray,
-            #custom-i3status {
-              padding: 0 6px;
+            #custom-ip,
+            #disk,
+            #cpu,
+            #memory,
+            #custom-date,
+            #clock {
+              background: #eff1f5;
+              border: 1px solid #bcc0cc;
+              border-radius: 12px;
+              padding: 4px 12px;
+              margin: 3px 3px;
+              color: #4c4f69;
             }
+
+            #tray > widget {
+              margin: 0 3px;
+            }
+
+            menu,
+            menu * {
+              color: #4c4f69;
+              font-family: ${fonts.ui.name}, "${fonts.emoji.name}", "${fonts.monospace.name}", sans-serif;
+            }
+
+            menu {
+              background: #eff1f5;
+              border: 1px solid #bcc0cc;
+              border-radius: 12px;
+              padding: 6px;
+            }
+
+            menuitem {
+              color: #4c4f69;
+              background: transparent;
+              border-radius: 8px;
+            }
+
+            menuitem:hover,
+            menuitem:focus {
+              background: #dce0e8;
+              color: #4c4f69;
+            }
+
+            .bar-a #workspaces,
+            .bar-a #tray,
+            .bar-a #custom-ip,
+            .bar-a #disk,
+            .bar-a #cpu,
+            .bar-a #memory,
+            .bar-a #custom-date,
+            .bar-a #clock {
+              background: #e6e9ef;
+              border: 1px solid #bcc0cc;
+              border-radius: 19px;
+              margin: 7px 10px;
+              padding: 8px 18px;
+              box-shadow: 0 8px 18px rgba(76, 79, 105, 0.06);
+              font-size: 18px;
+              font-weight: 700;
+              color: #4c4f69;
+            }
+
+            .bar-a #workspaces { background: #dce0e8; padding: 0 11px; }
+            .bar-a #workspaces button { color: #5c5f77; background: transparent; padding: 0 12px; margin: 5px 3px; font-size: 18px; font-weight: 700; }
+            .bar-a #workspaces button.active { background: #ccd0da; }
+            .bar-a #workspaces button:hover { background: #eff1f5; }
+
           '';
         };
 
@@ -483,7 +626,7 @@
             TEMP_IMAGE_PATH="$IMAGE_DIR/apod_temp.jpg"
             APOD_URL="https://apod.nasa.gov/apod/astropix.html"
             APOD_BASE="https://apod.nasa.gov/apod/"
-            BAR_HEIGHT=32
+            BAR_HEIGHT=0
 
             mkdir -p "$IMAGE_DIR"
 
