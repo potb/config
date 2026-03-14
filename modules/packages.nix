@@ -50,6 +50,7 @@
         audacity
         easyeffects
         prismlauncher
+        rusty-path-of-building
         vlc
         spotify
         slack
