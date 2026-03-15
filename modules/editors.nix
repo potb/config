@@ -4,6 +4,18 @@
   ...
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
+  idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
+    -Dawt.toolkit.name=WLToolkit
+  '';
+  idea-wrapped = pkgs.symlinkJoin {
+    name = "idea";
+    paths = [pkgs.jetbrains.idea];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/idea \
+        --set-default IDEA_VM_OPTIONS ${idea-vmoptions}
+    '';
+  };
   opencode-wrapped = pkgs.symlinkJoin {
     name = "opencode";
     paths = [pkgs.opencode];
@@ -102,7 +114,7 @@ in {
 
     home.packages = [
       opencode-wrapped
-      pkgs.jetbrains.idea
+      idea-wrapped
     ];
   };
 }
