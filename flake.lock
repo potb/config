@@ -1102,6 +1102,22 @@
         "type": "github"
       }
     },
+    "opencode-claude-auth": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774224500,
+        "narHash": "sha256-ggy//lNGWWkeJi/zu2vqPfdEXOcnnTUsq3JknIFKNYM=",
+        "owner": "griffinmartin",
+        "repo": "opencode-claude-auth",
+        "rev": "ae4a8474e106a9721a28b937d065857c0365ccdc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "griffinmartin",
+        "repo": "opencode-claude-auth",
+        "type": "github"
+      }
+    },
     "opencode-oh-my-opencode": {
       "flake": false,
       "locked": {
@@ -1159,6 +1175,7 @@
         "nixpkgs": "nixpkgs_4",
         "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
+        "opencode-claude-auth": "opencode-claude-auth",
         "opencode-oh-my-opencode": "opencode-oh-my-opencode",
         "schemastore": "schemastore",
         "stylix": "stylix"
