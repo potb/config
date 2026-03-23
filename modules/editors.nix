@@ -4,6 +4,8 @@
   ...
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
+  claudeCodeVersion = pkgs.claude-code.version;
+  claudeCodeUserAgent = "claude-cli/${claudeCodeVersion} (external, cli)";
   idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
     -Dawt.toolkit.name=WLToolkit
   '';
@@ -22,8 +24,12 @@
     nativeBuildInputs = [pkgs.makeWrapper];
     postBuild = ''
       wrapProgram $out/bin/opencode \
+        --set-default ANTHROPIC_CLI_VERSION '${claudeCodeVersion}' \
+        --set-default ANTHROPIC_ENABLE_1M_CONTEXT true \
+        --set-default ANTHROPIC_USER_AGENT '${claudeCodeUserAgent}' \
         --prefix PATH : ${
         pkgs.lib.makeBinPath [
+          pkgs.claude-code
           pkgs.nodePackages.typescript
           pkgs.nodePackages.typescript-language-server
           pkgs.pyright
@@ -114,6 +120,7 @@ in {
 
     home.packages = [
       opencode-wrapped
+      pkgs.claude-code
       idea-wrapped
     ];
   };

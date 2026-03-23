@@ -105,8 +105,11 @@
     plugin = let
       ohMyOpencodeVersion =
         (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-opencode}/package.json")).version;
+      claudeAuthVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-claude-auth}/package.json")).version;
     in [
       "oh-my-opencode@${ohMyOpencodeVersion}"
+      "opencode-claude-auth@${claudeAuthVersion}"
     ];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;

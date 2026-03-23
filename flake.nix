@@ -89,6 +89,11 @@
       url = "github:code-yeongyu/oh-my-opencode";
       flake = false;
     };
+
+    opencode-claude-auth = {
+      url = "github:griffinmartin/opencode-claude-auth";
+      flake = false;
+    };
   };
 
   outputs = {
