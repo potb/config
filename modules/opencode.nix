@@ -64,6 +64,10 @@
         url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
         enabled = true;
       };
+      figma = {
+        type = "remote";
+        url = "https://mcp.figma.com/mcp";
+      };
     };
     lsp = {
       json-ls = let
@@ -98,9 +102,11 @@
         };
       };
     };
-    plugin = [
-      "oh-my-opencode@latest"
-      "@franlol/opencode-md-table-formatter@latest"
+    plugin = let
+      ohMyOpencodeVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-opencode}/package.json")).version;
+    in [
+      "oh-my-opencode@${ohMyOpencodeVersion}"
     ];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
@@ -118,19 +124,10 @@
     browser_automation_engine = {
       provider = "agent-browser";
     };
-    agents = {
-      librarian = {
-        model = "github-copilot/gemini-3-flash";
-      };
-      explore = {
-        model = "github-copilot/grok-code-fast-1";
-      };
-      atlas = {
-        model = "anthropic/claude-sonnet-4-6";
-      };
+    git_master = {
+      commit_footer = false;
+      include_co_authored_by = false;
     };
-    commit_footer = false;
-    commit_co_author = false;
     categories = {
       quick = {
         model = "anthropic/claude-haiku-4-5";

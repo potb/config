@@ -4,6 +4,18 @@
   ...
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
+  idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
+    -Dawt.toolkit.name=WLToolkit
+  '';
+  idea-wrapped = pkgs.symlinkJoin {
+    name = "idea";
+    paths = [pkgs.jetbrains.idea];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/idea \
+        --set-default IDEA_VM_OPTIONS ${idea-vmoptions}
+    '';
+  };
   opencode-wrapped = pkgs.symlinkJoin {
     name = "opencode";
     paths = [pkgs.opencode];
@@ -100,86 +112,9 @@ in {
       };
     };
 
-    stylix.targets.zed.enable = false;
-
-    programs.zed-editor = {
-      enable = true;
-      mutableUserSettings = false;
-      mutableUserKeymaps = false;
-      mutableUserTasks = false;
-      extensions = [
-        "catppuccin"
-        "catppuccin-icons"
-        "nix"
-      ];
-      userSettings = {
-        agent_servers = {
-          OpenCode = {
-            type = "custom";
-            command = "${opencode-wrapped}/bin/opencode";
-            args = ["acp"];
-          };
-        };
-
-        features.edit_prediction_provider = "none";
-        agent.enabled = true;
-
-        title_bar = {
-          show_onboarding_banner = false;
-          show_project_items = false;
-          show_branch_name = false;
-          show_user_menu = false;
-          show_menus = false;
-        };
-        tab_bar.show = false;
-        toolbar.quick_actions = false;
-        status_bar."experimental.show" = false;
-        project_panel = {
-          dock = "right";
-          default_width = 400;
-          hide_root = true;
-          auto_fold_dirs = false;
-          starts_open = false;
-          git_status = false;
-          sticky_scroll = false;
-          hide_gitignore = true;
-          scrollbar.show = "never";
-          indent_guides.show = "never";
-        };
-        outline_panel = {
-          default_width = 300;
-          indent_guides.show = "never";
-        };
-        file_finder.modal_max_width = "large";
-
-        buffer_font_family = fonts.monospace.name;
-        buffer_font_size = fonts.sizes.large;
-        ui_font_family = fonts.ui.name;
-        ui_font_size = fonts.sizes.large;
-        terminal = {
-          font_family = fonts.monospace.name;
-          font_size = fonts.sizes.large;
-        };
-
-        theme = {
-          mode = "system";
-          light = "Catppuccin Latte";
-          dark = "Catppuccin Mocha";
-        };
-        icon_theme = "Catppuccin Latte";
-      };
-      userKeymaps = [
-        {
-          bindings = {
-            "alt-1" = "project_panel::ToggleFocus";
-            "alt-2" = "agent::ToggleFocus";
-          };
-        }
-      ];
-    };
-
     home.packages = [
       opencode-wrapped
+      idea-wrapped
     ];
   };
 }

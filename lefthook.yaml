@@ -1,10 +1,27 @@
+output:
+  - failure
+
 pre-commit:
   parallel: true
-  commands:
-    nix-fmt:
-      glob: "*.nix"
+  jobs:
+    - name: format
       run: nix fmt {staged_files}
-      stage_fixed: true
-    nix-check:
       glob: "*.nix"
+      stage_fixed: true
+      skip_empty: true
+
+    - name: check
       run: nix flake check
+      glob: "*.nix"
+
+post-checkout:
+  jobs: []
+
+post-commit:
+  jobs: []
+
+post-merge:
+  jobs: []
+
+pre-push:
+  jobs: []

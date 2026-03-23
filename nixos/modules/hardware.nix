@@ -33,6 +33,8 @@
   boot.kernelModules = [
     "kvm-intel"
     "nct6775"
+    "iwlwifi"
+    "iwlmvm"
   ];
   boot.kernelParams = ["acpi_enforce_resources=lax"];
   boot.extraModulePackages = [];
@@ -67,7 +69,7 @@
     after = ["systemd-modules-load.service"];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "/run/current-system/sw/bin/bash -c 'echo high > /sys/class/drm/card1/device/power_dpm_force_performance_level'";
+      ExecStart = "/run/current-system/sw/bin/bash -c 'for card in /sys/class/drm/card*/device/vendor; do [ \"$(cat $card)\" = \"0x1002\" ] && echo high > $(dirname $card)/power_dpm_force_performance_level; done'";
       RemainAfterExit = true;
     };
   };
@@ -75,5 +77,6 @@
   networking.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.enableRedistributableFirmware = true;
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
