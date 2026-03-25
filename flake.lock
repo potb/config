@@ -433,11 +433,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1774293042,
-        "narHash": "sha256-OEBV+Y5I4Ldu98k0KvGXRfJYh+jjE8ocCSL/dxTGs1s=",
+        "lastModified": 1774379316,
+        "narHash": "sha256-0nGNxWDUH2Hzlj/R3Zf4FEK6fsFNB/dvewuboSRZqiI=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "bc357c75e3142a31b849ba49c5299fb52c61cf59",
+        "rev": "1eb0549a1ab3fe3f5acf86668249be15fa0e64f7",
         "type": "github"
       },
       "original": {
@@ -449,11 +449,11 @@
     "homebrew-cask": {
       "flake": false,
       "locked": {
-        "lastModified": 1774306453,
-        "narHash": "sha256-1iVONxisBd9UE5qP8cyX3HFnekGIXYa+TdOwIptLc24=",
+        "lastModified": 1774459355,
+        "narHash": "sha256-CuSQlykCJpnAFRBDhKQYrUUxE+0ozHF6h1vrM9BfH38=",
         "owner": "homebrew",
         "repo": "homebrew-cask",
-        "rev": "2d5ff086da24734016df8ac4370da9f979c7cbda",
+        "rev": "b1cda37c201ddd054e2467b1327ef9a0e52f7572",
         "type": "github"
       },
       "original": {
@@ -465,11 +465,11 @@
     "homebrew-core": {
       "flake": false,
       "locked": {
-        "lastModified": 1774305544,
-        "narHash": "sha256-6Ke2jUMuith3qa+H+ztB8InOJh8bOHctTActzIFn/8o=",
+        "lastModified": 1774460644,
+        "narHash": "sha256-AmVsb5QbNSIkZ0ZKKdNGon54FDJ5Pc0M2lW1dBM+gtE=",
         "owner": "homebrew",
         "repo": "homebrew-core",
-        "rev": "caf75bf302d7f3778c0f0a99738345edd276f015",
+        "rev": "2835745511cc3f234431065a96252dbaff252422",
         "type": "github"
       },
       "original": {
@@ -855,11 +855,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1773920367,
-        "narHash": "sha256-ADGQjlsFzT9POglBkBJZcFqg3go4d+J3E4GS4WlxENY=",
+        "lastModified": 1774381919,
+        "narHash": "sha256-cG3uweqbgMwNw0EVI0AcsHD2aMNyaiEJx1IwuAB7XKY=",
         "owner": "viperML",
         "repo": "nh",
-        "rev": "b00a24b39944efd4ec7944f02e0bd9113d991767",
+        "rev": "66cefa04b374e9dee95c6bca1adbf49832827c28",
         "type": "github"
       },
       "original": {
@@ -979,11 +979,11 @@
     },
     "nixpkgs-master": {
       "locked": {
-        "lastModified": 1774306304,
-        "narHash": "sha256-Vu2XiNx98h0It82HIXN5P8cfPN7WSi+ZPZweIPFA580=",
+        "lastModified": 1774460864,
+        "narHash": "sha256-Rd0IwL/juLYLm0snehe+ah/SQZoGe5e8QjS7MsxRZBw=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7e36c0a4549372cfbc171945fd8df8c93ff51953",
+        "rev": "6214c690786d058d96962a791bf6d39c8c0276cf",
         "type": "github"
       },
       "original": {
@@ -1064,11 +1064,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1772402258,
-        "narHash": "sha256-3DmCFOdmbkFML1/G9gj8Wb+rCCZFPOQtNoMCpqOF8SA=",
+        "lastModified": 1774309640,
+        "narHash": "sha256-8oWL7YLwElBY9ebYri1LlSlhf/gd1Qoqj0nbBwG2yso=",
         "owner": "nix-community",
         "repo": "nixvim",
-        "rev": "21ae25e13b01d3b4cdc750b5f9e7bad68b150c10",
+        "rev": "28c58bf023bf537354f78d6e496a349d7a0ed554",
         "type": "github"
       },
       "original": {
@@ -1105,11 +1105,11 @@
     "opencode-claude-auth": {
       "flake": false,
       "locked": {
-        "lastModified": 1774224500,
-        "narHash": "sha256-ggy//lNGWWkeJi/zu2vqPfdEXOcnnTUsq3JknIFKNYM=",
+        "lastModified": 1774405536,
+        "narHash": "sha256-KozBWaGAVvPHBgTnJoR0Xcau/Q8I7sAAWOwyt5+sHbo=",
         "owner": "griffinmartin",
         "repo": "opencode-claude-auth",
-        "rev": "ae4a8474e106a9721a28b937d065857c0365ccdc",
+        "rev": "92384f9aa1306accfe1406fa62aec3deb80e9568",
         "type": "github"
       },
       "original": {
@@ -1121,11 +1121,11 @@
     "opencode-oh-my-opencode": {
       "flake": false,
       "locked": {
-        "lastModified": 1774290575,
-        "narHash": "sha256-nOqJ5VqhkPxv6hBZzCmgoTpENyweNoltphEDcz6QfN0=",
+        "lastModified": 1774456250,
+        "narHash": "sha256-qNQwR+3oFM1CZhg2rp/WwYJDL07DOYEt3vXq51LlsdI=",
         "owner": "code-yeongyu",
         "repo": "oh-my-opencode",
-        "rev": "10e56badb3880723cb51c275563505729b33bd4b",
+        "rev": "087e33d0864caed025a4b68cf7124732d64c6937",
         "type": "github"
       },
       "original": {
