@@ -8,6 +8,7 @@
   networking.networkmanager.enable = true;
   networking.networkmanager.dns = "none";
   networking.nameservers = ["127.0.0.1"];
+  networking.firewall.allowedTCPPorts = [4096];
 
   # CNVi WiFi on Z790 can fail PCI enumeration at boot.
   # This service rescans PCI, loads iwlwifi, and restarts NetworkManager if no WiFi interface is found.
