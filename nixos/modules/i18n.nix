@@ -2,6 +2,12 @@
   time.timeZone = "Europe/Paris";
   time.hardwareClockInLocalTime = true;
 
+  location = {
+    provider = "manual";
+    latitude = 48.86;
+    longitude = 2.35;
+  };
+
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "en_US.UTF-8";
