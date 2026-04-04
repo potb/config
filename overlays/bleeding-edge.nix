@@ -6,4 +6,5 @@
 in {
   opencode = pkgs-master.opencode;
   jetbrains = pkgs-master.jetbrains;
+  claude-code = pkgs-master.claude-code;
 }
