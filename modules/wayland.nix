@@ -110,7 +110,7 @@
         };
 
         home.packages = with pkgs; [
-          swww
+          awww
           grim
           slurp
           wl-clipboard
@@ -254,7 +254,7 @@
               "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
               "systemctl --user restart xdg-desktop-portal-hyprland xdg-desktop-portal"
 
-              "systemctl --user start swww-daemon.service"
+              "systemctl --user start awww-daemon.service"
 
               "dunst"
               "waybar"
@@ -590,14 +590,14 @@
 
         programs.rofi.enable = true;
 
-        systemd.user.services.swww-daemon = {
+        systemd.user.services.awww-daemon = {
           Unit = {
-            Description = "swww wallpaper daemon";
+            Description = "awww wallpaper daemon";
             PartOf = ["graphical-session.target"];
             After = ["graphical-session.target"];
           };
           Service = {
-            ExecStart = "${pkgs.swww}/bin/swww-daemon";
+            ExecStart = "${pkgs.awww}/bin/awww-daemon";
             Restart = "on-failure";
             RestartSec = 5;
           };
@@ -608,7 +608,7 @@
           curl = "${pkgs.curl}/bin/curl";
           grep = "${pkgs.gnugrep}/bin/grep";
           sed = "${pkgs.gnused}/bin/sed";
-          swww = "${pkgs.swww}/bin/swww";
+          awww = "${pkgs.awww}/bin/awww";
           hyprctl = "${
             inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland
           }/bin/hyprctl";
@@ -716,17 +716,17 @@
                 "$PROCESSED_MON"
 
               echo "Setting wallpaper on $MON_NAME..."
-              ${swww} img -o "$MON_NAME" "$PROCESSED_MON" --transition-type fade --transition-duration 2 || echo "swww failed for $MON_NAME"
+              ${awww} img -o "$MON_NAME" "$PROCESSED_MON" --transition-type fade --transition-duration 2 || echo "awww failed for $MON_NAME"
             done
           '';
         in {
           Unit = {
             Description = "Update NASA Astronomy Picture of the Day Wallpaper";
             After = [
-              "swww-daemon.service"
+              "awww-daemon.service"
               "network-online.target"
             ];
-            Requires = ["swww-daemon.service"];
+            Requires = ["awww-daemon.service"];
             Wants = ["network-online.target"];
           };
           Service = {

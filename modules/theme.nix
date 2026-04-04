@@ -31,4 +31,9 @@ in {
     ];
     stylix = stylixConfig;
   };
+
+  home = {config, ...}: {
+    gtk.gtk4.theme = config.gtk.theme;
+    manual.manpages.enable = false;
+  };
 }
