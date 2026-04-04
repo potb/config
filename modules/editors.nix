@@ -30,11 +30,11 @@
         --prefix PATH : ${
         pkgs.lib.makeBinPath [
           pkgs.claude-code
-          pkgs.nodePackages.typescript
-          pkgs.nodePackages.typescript-language-server
+          pkgs.typescript
+          pkgs.typescript-language-server
           pkgs.pyright
           pkgs.nixd
-          pkgs.nodePackages.vscode-langservers-extracted
+          pkgs.vscode-langservers-extracted
         ]
       }
     '';
