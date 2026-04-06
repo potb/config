@@ -85,8 +85,8 @@
       flake = false;
     };
 
-    opencode-oh-my-opencode = {
-      url = "github:code-yeongyu/oh-my-opencode";
+    opencode-oh-my-openagent = {
+      url = "github:code-yeongyu/oh-my-openagent";
       flake = false;
     };
 
