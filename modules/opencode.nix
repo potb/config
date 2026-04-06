@@ -103,19 +103,19 @@
       };
     };
     plugin = let
-      ohMyOpencodeVersion =
-        (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-opencode}/package.json")).version;
+      ohMyOpenagentVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-openagent}/package.json")).version;
       claudeAuthVersion =
         (builtins.fromJSON (builtins.readFile "${inputs.opencode-claude-auth}/package.json")).version;
     in [
-      "oh-my-opencode@${ohMyOpencodeVersion}"
+      "oh-my-openagent@${ohMyOpenagentVersion}"
       "opencode-claude-auth@${claudeAuthVersion}"
     ];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
 
-  ohMyOpencodeConfig = {
-    "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json";
+  ohMyOpenagentConfig = {
+    "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-opencode.schema.json";
     claude_code = {
       mcp = false;
       commands = false;
@@ -170,9 +170,9 @@ in {
       $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
     '';
 
-    home.activation.generateOhMyOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-opencode.json" (builtins.toJSON ohMyOpencodeConfig)} "$HOME/.config/opencode/oh-my-opencode.json"
-      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-opencode.json"
+    home.activation.generateOhMyOpenagentConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-openagent.json" (builtins.toJSON ohMyOpenagentConfig)} "$HOME/.config/opencode/oh-my-openagent.json"
+      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-openagent.json"
     '';
 
     home.activation.generateGlobalOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''

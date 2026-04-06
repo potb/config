@@ -1116,19 +1116,19 @@
         "type": "github"
       }
     },
-    "opencode-oh-my-opencode": {
+    "opencode-oh-my-openagent": {
       "flake": false,
       "locked": {
-        "lastModified": 1775297433,
-        "narHash": "sha256-f8dAk5AmiMxORvLy+5FYbtqWMht9txLKuJq+Eer+Fqw=",
+        "lastModified": 1775489887,
+        "narHash": "sha256-dTklR6B27b1Xy9vyuHO1DUEAiFuB5LUhvRzhj9O9DCM=",
         "owner": "code-yeongyu",
-        "repo": "oh-my-opencode",
-        "rev": "5213525a95228cd6b0c9740d3ead65d41e6385b1",
+        "repo": "oh-my-openagent",
+        "rev": "10eb8b9acf1372ccc5c2a9c5b7b673ae4371920d",
         "type": "github"
       },
       "original": {
         "owner": "code-yeongyu",
-        "repo": "oh-my-opencode",
+        "repo": "oh-my-openagent",
         "type": "github"
       }
     },
@@ -1174,7 +1174,7 @@
         "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
         "opencode-claude-auth": "opencode-claude-auth",
-        "opencode-oh-my-opencode": "opencode-oh-my-opencode",
+        "opencode-oh-my-openagent": "opencode-oh-my-openagent",
         "schemastore": "schemastore",
         "stylix": "stylix"
       }
