@@ -75,7 +75,7 @@
     if [ "$SUN_STATE" -eq 2 ]; then
       BRIGHTNESS=100
     elif [ "$SUN_STATE" -eq 3 ]; then
-      BRIGHTNESS=10
+      BRIGHTNESS=15
     else
       echo "sunwait returned unexpected code: $SUN_STATE"
       exit 1
