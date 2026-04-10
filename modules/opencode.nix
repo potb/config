@@ -68,6 +68,10 @@
         type = "remote";
         url = "https://mcp.figma.com/mcp";
       };
+      jam = {
+        type = "remote";
+        url = "https://mcp.jam.dev/mcp";
+      };
     };
     lsp = {
       json-ls = let
