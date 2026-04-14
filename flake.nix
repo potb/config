@@ -90,8 +90,8 @@
       flake = false;
     };
 
-    opencode-claude-auth = {
-      url = "github:griffinmartin/opencode-claude-auth";
+    opencode-anthropic-auth = {
+      url = "github:ex-machina-co/opencode-anthropic-auth";
       flake = false;
     };
   };

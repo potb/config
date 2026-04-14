@@ -109,11 +109,11 @@
     plugin = let
       ohMyOpenagentVersion =
         (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-openagent}/package.json")).version;
-      claudeAuthVersion =
-        (builtins.fromJSON (builtins.readFile "${inputs.opencode-claude-auth}/package.json")).version;
+      anthropicAuthVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
     in [
       "oh-my-openagent@${ohMyOpenagentVersion}"
-      "opencode-claude-auth@${claudeAuthVersion}"
+      "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
     ];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
