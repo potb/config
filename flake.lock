@@ -1100,19 +1100,19 @@
         "type": "github"
       }
     },
-    "opencode-claude-auth": {
+    "opencode-anthropic-auth": {
       "flake": false,
       "locked": {
-        "lastModified": 1775795650,
-        "narHash": "sha256-W7cz1yAbJRM31WxA8gnSA6COVenpu83BrVNgV7EN1wo=",
-        "owner": "griffinmartin",
-        "repo": "opencode-claude-auth",
-        "rev": "66968d0f60388d85ff9755e31d5183cc01bd79b4",
+        "lastModified": 1776148644,
+        "narHash": "sha256-FTv2+Uhm2SsoFIyC1cIvCPz3gT/VrpU8hvyWdHhwFZ4=",
+        "owner": "ex-machina-co",
+        "repo": "opencode-anthropic-auth",
+        "rev": "3b0b624643ba899d7d8969f6633ffd8544b37a37",
         "type": "github"
       },
       "original": {
-        "owner": "griffinmartin",
-        "repo": "opencode-claude-auth",
+        "owner": "ex-machina-co",
+        "repo": "opencode-anthropic-auth",
         "type": "github"
       }
     },
@@ -1173,7 +1173,7 @@
         "nixpkgs": "nixpkgs_4",
         "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
-        "opencode-claude-auth": "opencode-claude-auth",
+        "opencode-anthropic-auth": "opencode-anthropic-auth",
         "opencode-oh-my-openagent": "opencode-oh-my-openagent",
         "schemastore": "schemastore",
         "stylix": "stylix"
