@@ -120,6 +120,11 @@
 
   ohMyOpenagentConfig = {
     "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-opencode.schema.json";
+    agents = {
+      explore = {
+        model = "xai/grok-4-fast-non-reasoning";
+      };
+    };
     claude_code = {
       mcp = false;
       commands = false;
@@ -137,7 +142,7 @@
     };
     categories = {
       quick = {
-        model = "anthropic/claude-haiku-4-5";
+        model = "xai/grok-4-1-fast-non-reasoning";
       };
     };
   };
