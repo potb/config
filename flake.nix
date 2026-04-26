@@ -94,6 +94,11 @@
       url = "github:ex-machina-co/opencode-anthropic-auth";
       flake = false;
     };
+
+    qwerty-fr = {
+      url = "github:qwerty-fr/qwerty-fr/v0.7.3";
+      flake = false;
+    };
   };
 
   outputs = {

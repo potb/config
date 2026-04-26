@@ -1,7 +1,7 @@
 {
   stdenvNoCC,
-  fetchFromGitHub,
   lib,
+  src,
   writeText,
 }: let
   rulesLst = writeText "evdev.lst" ''
@@ -29,12 +29,7 @@ in
     pname = "qwerty-fr";
     version = "0.7.3";
 
-    src = fetchFromGitHub {
-      owner = "qwerty-fr";
-      repo = "qwerty-fr";
-      tag = "v${finalAttrs.version}";
-      hash = "sha256-TD67wKdaPaXzJzjKFCfRZl3WflUfdnUSQl/fnjr9TF8=";
-    };
+    inherit src;
 
     installPhase = ''
       runHook preInstall

@@ -1156,6 +1156,23 @@
         "type": "github"
       }
     },
+    "qwerty-fr": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1702208510,
+        "narHash": "sha256-TD67wKdaPaXzJzjKFCfRZl3WflUfdnUSQl/fnjr9TF8=",
+        "owner": "qwerty-fr",
+        "repo": "qwerty-fr",
+        "rev": "fbd02ead72803852cad55753b0bd59eebe7818c4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "qwerty-fr",
+        "ref": "v0.7.3",
+        "repo": "qwerty-fr",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "catppuccin-delta": "catppuccin-delta",
@@ -1175,6 +1192,7 @@
         "nixvim": "nixvim",
         "opencode-anthropic-auth": "opencode-anthropic-auth",
         "opencode-oh-my-openagent": "opencode-oh-my-openagent",
+        "qwerty-fr": "qwerty-fr",
         "schemastore": "schemastore",
         "stylix": "stylix"
       }
