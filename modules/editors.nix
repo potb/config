@@ -4,6 +4,14 @@
   ...
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
+  opencodeBinPath = pkgs.lib.makeBinPath [
+    pkgs.claude-code
+    pkgs.typescript
+    pkgs.typescript-language-server
+    pkgs.pyright
+    pkgs.nixd
+    pkgs.vscode-langservers-extracted
+  ];
   idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
     -Dawt.toolkit.name=WLToolkit
   '';
@@ -22,18 +30,18 @@
     nativeBuildInputs = [pkgs.makeWrapper];
     postBuild = ''
       wrapProgram $out/bin/opencode \
-        --prefix PATH : ${
-        pkgs.lib.makeBinPath [
-          pkgs.claude-code
-          pkgs.typescript
-          pkgs.typescript-language-server
-          pkgs.pyright
-          pkgs.nixd
-          pkgs.vscode-langservers-extracted
-        ]
-      }
+        --prefix PATH : ${opencodeBinPath}
     '';
   };
+  oc-wrapped = pkgs.writeShellScriptBin "oc" ''
+    export PATH=${opencodeBinPath}:$PATH
+    export XDG_CONFIG_HOME="$HOME/.config/oc"
+    export XDG_DATA_HOME="$HOME/.local/share/oc"
+    export XDG_CACHE_HOME="$HOME/.cache/oc"
+    export XDG_STATE_HOME="$HOME/.local/state/oc"
+    export OPENCODE_APPNAME=oc
+    exec -a oc ${pkgs.opencode}/bin/opencode "$@"
+  '';
 in {
   nixos = {};
   darwin = {};
@@ -115,6 +123,7 @@ in {
 
     home.packages = [
       opencode-wrapped
+      oc-wrapped
       pkgs.claude-code
       idea-wrapped
     ];

@@ -163,20 +163,28 @@ in {
   darwin = {};
   home = {
     home.activation.generateOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
+            EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
+            $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
 
-      EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
-      if [ -f "$EXA_SECRET_FILE" ]; then
-        EXA_KEY=$(${pkgs.coreutils}/bin/tr -d '\n' < "$EXA_SECRET_FILE")
-        ${pkgs.gnused}/bin/sed "s/__EXA_API_KEY__/$EXA_KEY/g" \
-          ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} \
-          > "$HOME/.config/opencode/opencode.jsonc"
-      else
-        echo "WARNING: $EXA_SECRET_FILE not found, websearch MCP will not work" >&2
-        $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
-      fi
+            if [ -f "$EXA_SECRET_FILE" ]; then
+              OPENCODE_TEMPLATE=${pkgs.writeText "opencode.jsonc" opencodeConfigJson} \
+                EXA_SECRET_FILE="$EXA_SECRET_FILE" \
+                OPENCODE_OUTPUT_FILE="$HOME/.config/opencode/opencode.jsonc" \
+                ${pkgs.python3}/bin/python - <<'PY'
+      import os
+      from pathlib import Path
 
-      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
+      template = Path(os.environ["OPENCODE_TEMPLATE"]).read_text()
+      secret = Path(os.environ["EXA_SECRET_FILE"]).read_text().replace("\n", "")
+      output = Path(os.environ["OPENCODE_OUTPUT_FILE"])
+      output.write_text(template.replace("__EXA_API_KEY__", secret))
+      PY
+              $DRY_RUN_CMD chmod 600 "$HOME/.config/opencode/opencode.jsonc"
+            else
+              echo "WARNING: $EXA_SECRET_FILE not found, websearch MCP will not work" >&2
+              $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
+              $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
+            fi
     '';
 
     home.activation.generateOhMyOpenagentConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
