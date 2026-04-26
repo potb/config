@@ -95,6 +95,11 @@
       flake = false;
     };
 
+    gh-copilot-review = {
+      url = "github:k1LoW/gh-copilot-review";
+      flake = false;
+    };
+
     qwerty-fr = {
       url = "github:qwerty-fr/qwerty-fr/v0.7.3";
       flake = false;
