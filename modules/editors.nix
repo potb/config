@@ -5,7 +5,6 @@
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
   opencodeBinPath = pkgs.lib.makeBinPath [
-    pkgs.claude-code
     pkgs.typescript
     pkgs.typescript-language-server
     pkgs.pyright
@@ -124,7 +123,6 @@ in {
     home.packages = [
       opencode-wrapped
       oc-wrapped
-      pkgs.claude-code
       idea-wrapped
     ];
   };
