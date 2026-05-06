@@ -622,7 +622,6 @@
             Restart = "on-failure";
             RestartSec = 5;
           };
-          Install.WantedBy = ["graphical-session.target"];
         };
 
         systemd.user.services.update-nasa-apod-wallpaper = let
