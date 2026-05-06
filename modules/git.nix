@@ -9,13 +9,119 @@
   home = {
     programs.git = {
       enable = true;
+      includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
+
+      # Global activator for mergiraf: only this attribute references the
+      # `merge "mergiraf"` driver defined in settings below. Process-affecting
+      # only (does not change file content storage), so it does not violate
+      # per-repo content determinism.
+      attributes = ["* merge=mergiraf"];
+
       settings = {
         user = {
           name = "Peïo Thibault";
           email = "peio.thibault@gmail.com";
         };
+
+        init.defaultBranch = "main";
+
+        # ── Tier 0 — stacked-PR survival kit ────────────────────────────
+        rebase = {
+          updateRefs = true;
+          autoStash = true;
+          autoSquash = true;
+          missingCommitsCheck = "error";
+          abbreviateCommands = true;
+          rescheduleFailedExec = true;
+          backend = "merge";
+        };
+        rerere = {
+          enabled = true;
+          autoUpdate = true;
+        };
+        merge = {
+          conflictStyle = "diff3"; # required by mergiraf (zdiff3 confuses its parser)
+          ff = "only";
+          autoStash = true;
+        };
+        pull = {
+          rebase = true;
+          ff = "only";
+          autoStash = true;
+        };
+        push = {
+          autoSetupRemote = true;
+          followTags = true;
+          default = "simple";
+        };
+        branch = {
+          autoSetupRebase = "remote";
+          sort = "-committerdate";
+        };
+        tag.sort = "-version:refname";
+
+        # Named merge driver — dormant unless an attribute references it.
+        # The `attributes` list above activates it for all paths.
+        "merge \"mergiraf\"" = {
+          name = "mergiraf";
+          driver = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L";
+        };
+
+        # ── Tier 2 — daily quality of life ──────────────────────────────
+        fetch = {
+          prune = true;
+          pruneTags = true;
+          parallel = 0;
+          writeCommitGraph = true;
+          fsckObjects = true;
+        };
+        commit.verbose = true;
+        column.ui = "auto";
+        help.autoCorrect = "prompt";
+        log = {
+          date = "iso";
+          abbrevCommit = true;
+          decorate = "full";
+        };
+        diff = {
+          algorithm = "histogram";
+          colorMoved = "zebra";
+          colorMovedWS = "allow-indentation-change";
+          renames = "copies";
+          mnemonicPrefix = true;
+        };
+
+        # ── Tier 3 — hidden gems (deterministic-safe subset only) ───────
+        blame = {
+          markUnblamableLines = true;
+          coloring = "highlightRecent";
+          ignoreRevsFile = ".git-blame-ignore-revs"; # no-op when repo lacks the file
+        };
+        status = {
+          showUntrackedFiles = "all";
+          submoduleSummary = true;
+        };
+        notes.rewriteRef = "refs/notes/commits";
+        worktree.guessRemote = true; # pairs with gwtn/gwtc/gwts
+        safe.bareRepository = "explicit";
+        transfer.fsckObjects = true;
+        receive.fsckObjects = true;
+        advice = {
+          statusHints = false;
+          detachedHead = false;
+          skippedCherryPicks = false;
+        };
+
+        # ── Tier 4 — large-repo / perf (no host-global maintenance daemon) ─
+        feature.manyFiles = true;
+        core = {
+          fsmonitor = true;
+          untrackedCache = true;
+          commitGraph = true;
+        };
+        gc.writeCommitGraph = true;
+        protocol.version = "2";
       };
-      includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
     };
 
     programs.delta = {
@@ -29,6 +135,7 @@
     home.packages = with pkgs; [
       git-lfs
       git-filter-repo
+      mergiraf
     ];
 
     programs.zsh.initContent = lib.mkAfter ''
