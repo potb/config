@@ -125,5 +125,17 @@ in {
       oc-wrapped
       idea-wrapped
     ];
+
+    # opencode 1.14.x has a startup check `if (!exists(Path.data + "opencode.db"))`
+    # that triggers "Performing one time database migration..." every launch.
+    # The actual DB on the stable channel is `opencode-stable.db`; `opencode.db`
+    # is only used as a legacy sentinel. Without it, migrations run on every start.
+    # Touching an empty `opencode.db` satisfies the check; the real DB is untouched.
+    home.activation.ensureOcDbSentinel = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD mkdir -p "$HOME/.local/share/oc/opencode"
+      if [ ! -e "$HOME/.local/share/oc/opencode/opencode.db" ]; then
+        $DRY_RUN_CMD touch "$HOME/.local/share/oc/opencode/opencode.db"
+      fi
+    '';
   };
 }
