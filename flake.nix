@@ -147,8 +147,6 @@
         name: let
           file = modulesDir + "/${name}";
 
-          # Static pass: ONLY for platform imports + existence checks.
-          # `pkgs` must not be touched while computing imports — throw if accessed.
           modStatic = import file {
             inherit lib inputs;
             pkgs = builtins.throw "pkgs used during static import of ${toString file}";
@@ -158,25 +156,18 @@
           staticImports = staticPlatform.imports or [];
           hasHome = modStatic ? home;
         in
-          # NixOS/Darwin module wrapper.
-          # pkgs is captured here and threaded into hmModule so HM never needs
-          # to resolve pkgs from _module.args (avoids infinite recursion with
-          # useGlobalPkgs=true).
           args @ {
             pkgs,
             lib,
             inputs,
             ...
           }: let
-            # HM module: closes over NixOS `pkgs` so HM's module system never
-            # needs to resolve pkgs itself (which would cause infinite recursion).
             hmModule = hmArgs @ {
               lib,
               inputs,
               ...
             }: {
               config = let
-                # Inject NixOS pkgs (== HM pkgs with useGlobalPkgs=true).
                 realArgs =
                   hmArgs
                   // {
@@ -184,12 +175,30 @@
                   };
                 mod = import file realArgs;
                 homeAttr = mod.home or null;
+
+                homeResolved =
+                  if homeAttr == null
+                  then {}
+                  else if builtins.isFunction homeAttr
+                  then homeAttr realArgs
+                  else homeAttr;
+
+                platformKey =
+                  if platform == "nixos"
+                  then "linux"
+                  else "darwin";
+
+                sharedConfig = builtins.removeAttrs homeResolved ["linux" "darwin"];
+
+                platformAttr = homeResolved.${platformKey} or null;
+                platformConfig =
+                  if platformAttr == null
+                  then {}
+                  else if builtins.isFunction platformAttr
+                  then platformAttr realArgs
+                  else platformAttr;
               in
-                if homeAttr == null
-                then {}
-                else if builtins.isFunction homeAttr
-                then homeAttr realArgs
-                else homeAttr;
+                lib.mkMerge [sharedConfig platformConfig];
             };
           in {
             imports = staticImports;
@@ -198,10 +207,6 @@
               platformConfig = mod.${platform} or {};
               platformConfigClean = builtins.removeAttrs platformConfig ["imports"];
             in
-              # Merge platform config with HM wiring.
-              # Use `home-manager.users.potb = { imports = [...]; }` (not
-              # `home-manager.users.potb.imports = [...]`) — the latter is not
-              # a valid NixOS option; `imports` is a submodule directive.
               platformConfigClean
               // lib.optionalAttrs hasHome {
                 home-manager.users.potb = {
@@ -278,15 +283,10 @@
             ./darwin/configuration.nix
             inputs.determinate.darwinModules.default
             inputs.home-manager.darwinModules.home-manager
-            # TODO: Re-enable after VM-based linux builder is bootstrapped
-            # nix-rosetta-builder.darwinModules.default
             nix-homebrew.darwinModules.nix-homebrew
 
             {
               nixpkgs.overlays = darwinAllOverlays;
-
-              # nix-rosetta-builder.enable = true;
-              # nix-rosetta-builder.onDemand = true;
 
               nix-homebrew = {
                 enable = true;

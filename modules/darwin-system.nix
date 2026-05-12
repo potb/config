@@ -3,9 +3,7 @@
   lib,
   ...
 }: {
-  nixos = {};
-  darwin = {};
-  home = lib.optionalAttrs pkgs.stdenv.isDarwin {
+  home.darwin = {
     home.file."Library/Fonts/.home-manager-fonts-version".enable = lib.mkForce false;
     home.file."Applications/Home Manager Apps".enable = lib.mkForce false;
 

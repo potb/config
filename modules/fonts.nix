@@ -1,11 +1,5 @@
-{
-  pkgs,
-  lib,
-  ...
-}: {
-  nixos = {};
-  darwin = {};
-  home = lib.optionalAttrs pkgs.stdenv.isLinux {
+{pkgs, ...}: {
+  home.linux = {
     fonts.fontconfig.enable = true;
 
     home.packages = [

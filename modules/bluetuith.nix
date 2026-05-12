@@ -1,11 +1,3 @@
-{
-  pkgs,
-  lib,
-  ...
-}: {
-  nixos = {};
-  darwin = {};
-  home = lib.optionalAttrs pkgs.stdenv.isLinux {
-    programs.bluetuith.enable = true;
-  };
+{...}: {
+  home.linux.programs.bluetuith.enable = true;
 }
