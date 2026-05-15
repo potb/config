@@ -39,6 +39,7 @@
     export XDG_CACHE_HOME="$HOME/.cache/oc"
     export XDG_STATE_HOME="$HOME/.local/state/oc"
     export OPENCODE_APPNAME=oc
+    export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
     exec -a oc ${pkgs.opencode}/bin/opencode "$@"
   '';
 in {
