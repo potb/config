@@ -118,6 +118,29 @@
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
 
+  ocConfig = {
+    "$schema" = "https://opencode.ai/config.json";
+    mcp = {
+      context7 = {
+        type = "remote";
+        url = "https://mcp.context7.com/mcp";
+        oauth = {};
+      };
+      websearch = {
+        type = "remote";
+        url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
+        enabled = true;
+      };
+    };
+    plugin = let
+      anthropicAuthVersion =
+        (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
+    in [
+      "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
+    ];
+  };
+  ocConfigJson = builtins.toJSON ocConfig;
+
   ohMyOpenagentConfig = {
     "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-opencode.schema.json";
     claude_code = {
@@ -174,6 +197,31 @@ in {
               echo "WARNING: $EXA_SECRET_FILE not found, websearch MCP will not work" >&2
               $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
               $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
+            fi
+    '';
+
+    home.activation.generateOcConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+            EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
+            $DRY_RUN_CMD mkdir -p "$HOME/.config/oc/opencode"
+
+            if [ -f "$EXA_SECRET_FILE" ]; then
+              OC_TEMPLATE=${pkgs.writeText "oc-opencode.json" ocConfigJson} \
+                EXA_SECRET_FILE="$EXA_SECRET_FILE" \
+                OC_OUTPUT_FILE="$HOME/.config/oc/opencode/opencode.json" \
+                ${pkgs.python3}/bin/python - <<'PY'
+      import os
+      from pathlib import Path
+
+      template = Path(os.environ["OC_TEMPLATE"]).read_text()
+      secret = Path(os.environ["EXA_SECRET_FILE"]).read_text().replace("\n", "")
+      output = Path(os.environ["OC_OUTPUT_FILE"])
+      output.write_text(template.replace("__EXA_API_KEY__", secret))
+      PY
+              $DRY_RUN_CMD chmod 600 "$HOME/.config/oc/opencode/opencode.json"
+            else
+              echo "WARNING: $EXA_SECRET_FILE not found, oc websearch MCP will not work" >&2
+              $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oc-opencode.json" ocConfigJson} "$HOME/.config/oc/opencode/opencode.json"
+              $DRY_RUN_CMD chmod 644 "$HOME/.config/oc/opencode/opencode.json"
             fi
     '';
 
