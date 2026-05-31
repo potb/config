@@ -95,6 +95,11 @@
       flake = false;
     };
 
+    caveman = {
+      url = "github:JuliusBrussee/caveman";
+      flake = false;
+    };
+
     gh-copilot-review = {
       url = "github:k1LoW/gh-copilot-review";
       flake = false;

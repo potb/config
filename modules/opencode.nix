@@ -115,6 +115,11 @@
       "oh-my-openagent@${ohMyOpenagentVersion}"
       "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
     ];
+    # Always-on caveman activation. Per https://opencode.ai/docs/rules/#custom-instructions
+    # and https://opencode.ai/docs/config/#instructions, opencode loads every
+    # file in this array into the system prompt on every session. Absolute
+    # store path so we don't need a separate xdg.configFile symlink.
+    instructions = ["${inputs.caveman}/src/rules/caveman-activate.md"];
   };
   opencodeConfigJson = builtins.toJSON opencodeConfig;
 
@@ -138,6 +143,8 @@
     in [
       "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
     ];
+    # Always-on caveman activation — see opencodeConfig.instructions comment.
+    instructions = ["${inputs.caveman}/src/rules/caveman-activate.md"];
   };
   ocConfigJson = builtins.toJSON ocConfig;
 
@@ -241,6 +248,19 @@ in {
       $DRY_RUN_CMD chmod 700 "$HOME/.secrets"
     '';
 
-    xdg.configFile."opencode/command/review-loop.md".source = ./opencode/review-loop.md;
+    # caveman — skill-only install, global, enabled by default.
+    # Just the `caveman` skill from the upstream repo. The always-on
+    # activation rule is loaded via the `instructions` field in
+    # opencodeConfig/ocConfig (see comment there), not via AGENTS.md, so
+    # there is no rule-file symlink to manage here.
+    xdg.configFile = let
+      caveman = inputs.caveman;
+      cavemanFor = prefix: {
+        "${prefix}/skills/caveman".source = "${caveman}/skills/caveman";
+      };
+    in
+      {"opencode/command/review-loop.md".source = ./opencode/review-loop.md;}
+      // (cavemanFor "opencode")
+      // (cavemanFor "oc/opencode");
   };
 }
