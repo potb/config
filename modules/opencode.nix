@@ -114,6 +114,11 @@
     in [
       "oh-my-openagent@${ohMyOpenagentVersion}"
       "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
+      # rtk (Rust Token Killer) — hooks tool.execute.before and rewrites
+      # bash commands (git/ls/cat/grep/cargo/...) to `rtk <cmd>` for
+      # 60-90% input token compression. Requires `rtk` binary on PATH
+      # (provided by modules/dev-tools.nix).
+      "opencode-rtk@0.0.1"
     ];
     # Always-on caveman activation. Per https://opencode.ai/docs/rules/#custom-instructions
     # and https://opencode.ai/docs/config/#instructions, opencode loads every
@@ -142,6 +147,8 @@
         (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
     in [
       "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
+      # rtk — see comment in opencodeConfig.plugin above.
+      "opencode-rtk@0.0.1"
     ];
     # Always-on caveman activation — see opencodeConfig.instructions comment.
     instructions = ["${inputs.caveman}/src/rules/caveman-activate.md"];
