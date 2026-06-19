@@ -29,7 +29,7 @@
   };
 
   # Match system timeout for user services (xdg-document-portal hangs 90s otherwise)
-  systemd.user.extraConfig = ''
-    DefaultTimeoutStopSec=15s
-  '';
+  systemd.user.settings.Manager = {
+    DefaultTimeoutStopSec = "15s";
+  };
 }

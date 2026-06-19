@@ -10,6 +10,13 @@
     lib,
     ...
   }: {
+    # Wipe stale zsh completion dumps on activation so post-switch shells
+    # rebuild against the new nix store paths. Prevents `compinit: function
+    # definition file not found` after `nh os switch`.
+    home.activation.invalidateZcompdump = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      run rm -f $HOME/.zcompdump* ${config.xdg.cacheHome}/zsh/zcompdump* 2>/dev/null || true
+    '';
+
     programs.zsh = {
       enable = true;
       dotDir = "${config.xdg.configHome}/zsh";

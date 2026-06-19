@@ -51,7 +51,7 @@ in {
       defaultEditor = true;
       viAlias = true;
       vimAlias = true;
-      man.enable = false;
+      enableMan = false;
 
       opts = {
         number = true;
@@ -71,10 +71,15 @@ in {
         enable = true;
         extensions.fzf-native.enable = true;
         keymaps = {
-          "<leader>ff" = "find_files";
-          "<leader>fg" = "live_grep";
+          "<leader>ff" = {
+            action = "find_files";
+            options.silent = true;
+          };
+          "<leader>fg" = {
+            action = "live_grep";
+            options.silent = true;
+          };
         };
-        keymapsSilent = true;
       };
 
       plugins.which-key.enable = true;
