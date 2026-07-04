@@ -19,6 +19,15 @@
   #    '';
   agentmemoryVersion =
     (builtins.fromJSON (builtins.readFile "${inputs.agentmemory}/package.json")).version;
+  # Secret env vars must never land in `Environment`/`EnvironmentVariables` —
+  # those get baked into the world-readable nix store. Read at runtime instead,
+  # same pattern as the mcpFooWrapper example above.
+  agentmemoryWrapper = pkgs.writeShellScript "agentmemory-serve" ''
+    if [ -f "$HOME/.secrets/gemini-api-key" ]; then
+      export GEMINI_API_KEY=$(tr -d '\n' < "$HOME/.secrets/gemini-api-key")
+    fi
+    exec ${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion} serve
+  '';
 in {
   nixos = {};
   darwin = {};
@@ -286,11 +295,18 @@ in {
         After = ["network.target"];
       };
       Service = {
-        ExecStart = "${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion} serve";
+        ExecStart = "${agentmemoryWrapper}";
         Restart = "on-failure";
         RestartSec = "5s";
         Environment = [
           "PATH=${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin"
+          "AGENTMEMORY_SLOTS=true"
+          "AGENTMEMORY_REFLECT=true"
+          "GRAPH_EXTRACTION_ENABLED=true"
+          "CONSOLIDATION_ENABLED=true"
+          "AGENTMEMORY_AUTO_COMPRESS=true"
+          "EMBEDDING_PROVIDER=local"
+          "GEMINI_MODEL=gemini-3.1-flash-lite"
         ];
       };
       Install = {
@@ -301,16 +317,20 @@ in {
     launchd.agents.agentmemory = lib.mkIf pkgs.stdenv.isDarwin {
       enable = true;
       config = {
-        ProgramArguments = [
-          "${pkgs.nodejs}/bin/npx"
-          "-y"
-          "@agentmemory/agentmemory@${agentmemoryVersion}"
-          "serve"
-        ];
+        ProgramArguments = ["${agentmemoryWrapper}"];
         RunAtLoad = true;
         KeepAlive = {
           Crashed = true;
           SuccessfulExit = false;
+        };
+        EnvironmentVariables = {
+          AGENTMEMORY_SLOTS = "true";
+          AGENTMEMORY_REFLECT = "true";
+          GRAPH_EXTRACTION_ENABLED = "true";
+          CONSOLIDATION_ENABLED = "true";
+          AGENTMEMORY_AUTO_COMPRESS = "true";
+          EMBEDDING_PROVIDER = "local";
+          GEMINI_MODEL = "gemini-3.1-flash-lite";
         };
         StandardOutPath = "${config.home.homeDirectory}/.local/share/agentmemory/stdout.log";
         StandardErrorPath = "${config.home.homeDirectory}/.local/share/agentmemory/stderr.log";
