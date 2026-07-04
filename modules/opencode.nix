@@ -278,6 +278,24 @@ in {
       formatter = true;
     };
     opencodeConfigJson = builtins.toJSON opencodeConfig;
+
+    # Absolute token caps, NOT percentages. Quality degrades well before a
+    # large context window fills (NoLiMa/RULER benchmarks, Anthropic's own
+    # Sonnet-4.5 1M-context mode scoring worse than its 200K mode on the same
+    # tasks). A "%" limit scales the trigger point up with window size, which
+    # is backwards: the quality ceiling stays roughly constant in absolute
+    # tokens regardless of advertised context size. Fixed thresholds apply
+    # the same whether a model claims 200K or 1M.
+    dcpConfig = {
+      compress = {
+        maxContextLimit = 200000;
+        minContextLimit = 100000;
+        nudgeFrequency = 8;
+        iterationNudgeThreshold = 20;
+        nudgeForce = "soft";
+      };
+    };
+    dcpConfigJson = builtins.toJSON dcpConfig;
   in {
     home.activation.ensureSecretsDir = lib.hm.dag.entryAfter ["writeBoundary"] ''
       $DRY_RUN_CMD mkdir -p "$HOME/.secrets"
@@ -435,6 +453,7 @@ in {
     in
       {
         "opencode/opencode.json".text = opencodeConfigJson;
+        "opencode/dcp.json".text = dcpConfigJson;
         "opencode/plugins/agentmemory-capture.ts".source = ./opencode/plugins/agentmemory-capture.ts;
         "opencode/plugins/rtk.ts".source = ./opencode/plugins/rtk.ts;
         "opencode/commands/remember.md".source = ./opencode/commands/remember.md;
