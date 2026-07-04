@@ -94,7 +94,7 @@ in {
                 high = {
                   disabled = true;
                 };
-                max = {
+                xhigh = {
                   disabled = true;
                 };
               };
@@ -104,13 +104,13 @@ in {
                 low = {
                   disabled = true;
                 };
+                medium = {
+                  disabled = true;
+                };
                 high = {
                   disabled = true;
                 };
                 xhigh = {
-                  disabled = true;
-                };
-                max = {
                   disabled = true;
                 };
               };

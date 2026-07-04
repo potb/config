@@ -15,6 +15,10 @@
       url = "github:NixOS/nixpkgs/master";
     };
 
+    opencode-src = {
+      url = "github:anomalyco/opencode/production";
+    };
+
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
     };

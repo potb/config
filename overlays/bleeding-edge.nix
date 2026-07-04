@@ -4,6 +4,6 @@
     config.allowUnfree = true;
   };
 in {
-  opencode = pkgs-master.opencode;
+  opencode = inputs.opencode-src.packages.${prev.stdenv.hostPlatform.system}.opencode;
   jetbrains = pkgs-master.jetbrains;
 }
