@@ -65,47 +65,84 @@ in {
       };
 
       disabled_providers = ["zen"];
-      enabled_providers = ["anthropic" "google"];
+      enabled_providers = [
+        "anthropic"
+        "google"
+      ];
       provider = {
         anthropic = {
-          whitelist = ["claude-sonnet-5" "claude-opus-4-8" "claude-haiku-4-5"];
+          whitelist = [
+            "claude-sonnet-5"
+            "claude-opus-4-8"
+            "claude-haiku-4-5"
+          ];
           models = {
             claude-sonnet-5 = {
               variants = {
-                low = {disabled = true;};
-                high = {disabled = true;};
-                max = {disabled = true;};
+                low = {
+                  disabled = true;
+                };
+                high = {
+                  disabled = true;
+                };
+                max = {
+                  disabled = true;
+                };
               };
             };
             claude-opus-4-8 = {
               variants = {
-                low = {disabled = true;};
-                high = {disabled = true;};
-                xhigh = {disabled = true;};
-                max = {disabled = true;};
+                low = {
+                  disabled = true;
+                };
+                high = {
+                  disabled = true;
+                };
+                xhigh = {
+                  disabled = true;
+                };
+                max = {
+                  disabled = true;
+                };
               };
             };
             claude-haiku-4-5 = {
               variants = {
-                max = {disabled = true;};
+                max = {
+                  disabled = true;
+                };
               };
             };
           };
         };
         google = {
-          whitelist = ["gemini-3.1-pro-preview" "gemini-3.5-flash" "gemini-3.1-flash-lite"];
+          whitelist = [
+            "gemini-3.1-pro-preview"
+            "gemini-3.5-flash"
+            "gemini-3.1-flash-lite"
+          ];
           models = {
             "gemini-3.5-flash" = {
               variants = {
-                minimal = {disabled = true;};
-                low = {disabled = true;};
-                high = {disabled = true;};
+                minimal = {
+                  disabled = true;
+                };
+                low = {
+                  disabled = true;
+                };
+                high = {
+                  disabled = true;
+                };
               };
             };
             "gemini-3.1-pro-preview" = {
               variants = {
-                low = {disabled = true;};
-                high = {disabled = true;};
+                low = {
+                  disabled = true;
+                };
+                high = {
+                  disabled = true;
+                };
               };
             };
             "gemini-3.1-flash-lite" = {
@@ -153,7 +190,11 @@ in {
         };
         codegraph = {
           type = "local";
-          command = ["codegraph" "serve" "--mcp"];
+          command = [
+            "codegraph"
+            "serve"
+            "--mcp"
+          ];
           enabled = true;
         };
       };
@@ -219,6 +260,7 @@ in {
 
       instructions = [
         "${inputs.caveman}/src/rules/caveman-activate.md"
+        "${inputs.superpowers}/skills/using-superpowers/SKILL.md"
         "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
       ];
 
@@ -274,10 +316,100 @@ in {
     };
 
     xdg.configFile = let
-      caveman = inputs.caveman;
-      cavemanFor = prefix: {
-        "${prefix}/skills/caveman".source = "${caveman}/skills/caveman";
+      mkSkill = name: src: subpath: {
+        name = "opencode/skills/${name}";
+        value.source =
+          if subpath == null
+          then src
+          else "${src}/${subpath}";
       };
+
+      # Exact subset of upstream skills we've chosen to install.
+      # Anything not listed here shows up in the generated
+      # opencode/skills-not-installed.md report below.
+      superpowersSelected = [
+        "brainstorming"
+        "dispatching-parallel-agents"
+        "executing-plans"
+        "finishing-a-development-branch"
+        "receiving-code-review"
+        "requesting-code-review"
+        "subagent-driven-development"
+        "systematic-debugging"
+        "using-git-worktrees"
+        "using-superpowers"
+        "verification-before-completion"
+        "writing-plans"
+        "writing-skills"
+      ];
+
+      mattpocockSelected = [
+        "engineering/codebase-design"
+        "engineering/diagnosing-bugs"
+        "engineering/improve-codebase-architecture"
+        "engineering/prototype"
+        "engineering/tdd"
+        "engineering/to-issues"
+        "engineering/to-prd"
+        "engineering/triage"
+        "productivity/grill-me"
+        "productivity/handoff"
+      ];
+
+      skillFiles = builtins.listToAttrs (
+        (map (n: mkSkill (baseNameOf n) inputs.superpowers "skills/${n}") superpowersSelected)
+        ++ (map (p: mkSkill (baseNameOf p) inputs.mattpocock-skills "skills/${p}") mattpocockSelected)
+        ++ [
+          (mkSkill "caveman" inputs.caveman "skills/caveman")
+          (mkSkill "stop-slop" inputs.stop-slop null) # repo root IS the skill
+        ]
+      );
+
+      # Auto-generated report of upstream skills available but not selected.
+      # Regenerates from the pinned flake inputs on every rebuild/flake update.
+      hasSkill = dir: builtins.pathExists "${dir}/SKILL.md";
+
+      listFlat = src: let
+        base = "${src}/skills";
+        entries = builtins.readDir base;
+      in
+        builtins.filter (n: entries.${n} == "directory" && hasSkill "${base}/${n}") (
+          builtins.attrNames entries
+        );
+
+      listNested = src: let
+        base = "${src}/skills";
+        categories = builtins.readDir base;
+      in
+        lib.concatMap (
+          c:
+            if categories.${c} != "directory"
+            then []
+            else
+              map (n: "${c}/${n}") (
+                builtins.filter (n: hasSkill "${base}/${c}/${n}") (
+                  builtins.attrNames (builtins.readDir "${base}/${c}")
+                )
+              )
+        ) (builtins.attrNames categories);
+
+      spUnused = lib.subtractLists superpowersSelected (listFlat inputs.superpowers);
+      mpUnused = lib.subtractLists mattpocockSelected (listNested inputs.mattpocock-skills);
+
+      section = title: unused:
+        "## ${title}\n\n"
+        + (
+          if unused == []
+          then "- _(all upstream skills installed)_\n"
+          else lib.concatMapStrings (n: "- ${n}\n") unused
+        )
+        + "\n";
+
+      skillsNotInstalledReport =
+        "# Upstream skills available but NOT installed\n\n"
+        + "Auto-generated by Nix from pinned flake inputs. Edit selection in modules/opencode.nix.\n\n"
+        + section "obra/superpowers" spUnused
+        + section "mattpocock/skills" mpUnused;
     in
       {
         "opencode/opencode.json".text = opencodeConfigJson;
@@ -286,7 +418,8 @@ in {
         "opencode/commands/remember.md".source = ./opencode/commands/remember.md;
         "opencode/commands/recall.md".source = ./opencode/commands/recall.md;
         "opencode/explore-usage.md".source = ./opencode/explore-usage.md;
+        "opencode/skills-not-installed.md".text = skillsNotInstalledReport;
       }
-      // (cavemanFor "opencode");
+      // skillFiles;
   };
 }
