@@ -202,8 +202,10 @@ in {
       plugin = let
         anthropicAuthVersion =
           (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
+        dcpVersion = (builtins.fromJSON (builtins.readFile "${inputs.opencode-dcp}/package.json")).version;
       in [
         "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
+        "@tarquinen/opencode-dcp@${dcpVersion}"
         "./plugins/agentmemory-capture.ts"
         "./plugins/rtk.ts"
       ];
