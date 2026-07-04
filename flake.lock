@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "agentmemory": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782674558,
+        "narHash": "sha256-onPLVuEsC9mcM4tBY2/7RIxkOWuj2FKr+mT2ANtrSAc=",
+        "owner": "rohitg00",
+        "repo": "agentmemory",
+        "rev": "93ae9bc04f3ab5042f982aaadf11f1e3f5137531",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rohitg00",
+        "repo": "agentmemory",
+        "type": "github"
+      }
+    },
     "aquamarine": {
       "inputs": {
         "hyprutils": [
@@ -371,22 +387,6 @@
       "original": {
         "owner": "SenchoPens",
         "repo": "fromYaml",
-        "type": "github"
-      }
-    },
-    "gh-copilot-review": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1782263122,
-        "narHash": "sha256-VeHtaWs+T8pQPWOANcvYy0iFhUZCum0Ut1DhMZqUDL8=",
-        "owner": "k1LoW",
-        "repo": "gh-copilot-review",
-        "rev": "78fe189f1561a500dfe29f63d194d677760af042",
-        "type": "github"
-      },
-      "original": {
-        "owner": "k1LoW",
-        "repo": "gh-copilot-review",
         "type": "github"
       }
     },
@@ -1221,12 +1221,12 @@
     },
     "root": {
       "inputs": {
+        "agentmemory": "agentmemory",
         "catppuccin-delta": "catppuccin-delta",
         "caveman": "caveman",
         "determinate": "determinate",
         "disko": "disko",
         "dnscrypt-resolvers": "dnscrypt-resolvers",
-        "gh-copilot-review": "gh-copilot-review",
         "home-manager": "home-manager",
         "homebrew-cask": "homebrew-cask",
         "homebrew-core": "homebrew-core",
@@ -1241,8 +1241,25 @@
         "opencode-anthropic-auth": "opencode-anthropic-auth",
         "opencode-oh-my-openagent": "opencode-oh-my-openagent",
         "qwerty-fr": "qwerty-fr",
+        "rtk": "rtk",
         "schemastore": "schemastore",
         "stylix": "stylix"
+      }
+    },
+    "rtk": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783090264,
+        "narHash": "sha256-k0rsZpPgdLtHMkKYlnLgje1fz6Ay7Z+ha/UAMzFQvqU=",
+        "owner": "rtk-ai",
+        "repo": "rtk",
+        "rev": "31f9d43d81f90d29e89142f3306473e786e59f6c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rtk-ai",
+        "repo": "rtk",
+        "type": "github"
       }
     },
     "schemastore": {

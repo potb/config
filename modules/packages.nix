@@ -16,7 +16,6 @@
 
     programs.gh = {
       enable = true;
-      extensions = [pkgs.ghCopilotReview];
       settings = {
         git_protocol = "ssh";
         prompt = "enabled";

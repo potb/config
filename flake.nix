@@ -99,8 +99,13 @@
       flake = false;
     };
 
-    gh-copilot-review = {
-      url = "github:k1LoW/gh-copilot-review";
+    agentmemory = {
+      url = "github:rohitg00/agentmemory";
+      flake = false;
+    };
+
+    rtk = {
+      url = "github:rtk-ai/rtk";
       flake = false;
     };
 

@@ -17,257 +17,276 @@
   #      export API_KEY=$(tr -d '\n' < "$HOME/.secrets/bar-api-key")
   #      exec command --arg value
   #    '';
-  mcpPostgresWrapper = pkgs.writeShellScript "mcp-postgres-production" ''
-    set -euo pipefail
-    SECRET_FILE="$HOME/.secrets/postgres-url"
-    if [ ! -f "$SECRET_FILE" ]; then
-      echo "ERROR: Secret file not found: $SECRET_FILE" >&2
-      echo "Create it with your postgres connection URL:" >&2
-      echo "  echo 'postgresql://user:pass@host:5432/db' > $SECRET_FILE" >&2
-      echo "  chmod 600 $SECRET_FILE" >&2
-      exit 1
-    fi
-    POSTGRES_URL=$(tr -d '\n' < "$SECRET_FILE")
-    exec ${pkgs.fnm}/bin/fnm exec --using 22 npx -y @modelcontextprotocol/server-postgres "$POSTGRES_URL"
-  '';
-
-  opencodeConfig = {
-    "$schema" = "https://opencode.ai/config.json";
-    mcp = {
-      context7 = {
-        type = "remote";
-        url = "https://mcp.context7.com/mcp";
-        enabled = true;
-      };
-      intercom = {
-        type = "remote";
-        url = "https://mcp.intercom.com/mcp";
-        oauth = {};
-      };
-      linear = {
-        type = "remote";
-        url = "https://mcp.linear.app/mcp";
-        oauth = {};
-      };
-      postgres-production = {
-        type = "local";
-        command = ["${mcpPostgresWrapper}"];
-        enabled = true;
-      };
-      sentry = {
-        type = "remote";
-        url = "https://mcp.sentry.dev/mcp";
-        oauth = {};
-      };
-      websearch = {
-        type = "remote";
-        url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
-        enabled = true;
-      };
-      figma = {
-        type = "remote";
-        url = "https://mcp.figma.com/mcp";
-      };
-      jam = {
-        type = "remote";
-        url = "https://mcp.jam.dev/mcp";
-      };
-    };
-    lsp = {
-      json-ls = let
-        extensions = [
-          ".json"
-          ".jsonc"
-        ];
-        schemaStoreCatalog = builtins.fromJSON (
-          builtins.readFile "${inputs.schemastore}/src/api/json/catalog.json"
-        );
-        matchesExtension = pattern: builtins.any (ext: lib.hasSuffix ext pattern) extensions;
-        schemas =
-          schemaStoreCatalog.schemas
-          |> builtins.filter (
-            schema: schema ? fileMatch && schema ? url && builtins.any matchesExtension schema.fileMatch
-          )
-          |> builtins.map (schema: {
-            inherit (schema) fileMatch url;
-          });
-      in {
-        command = [
-          "vscode-json-language-server"
-          "--stdio"
-        ];
-        inherit extensions;
-        initialization = {
-          provideFormatter = true;
-          inherit schemas;
-          validate = {
-            enable = true;
-          };
-        };
-      };
-    };
-    plugin = let
-      ohMyOpenagentVersion =
-        (builtins.fromJSON (builtins.readFile "${inputs.opencode-oh-my-openagent}/package.json")).version;
-      anthropicAuthVersion =
-        (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
-    in [
-      "oh-my-openagent@${ohMyOpenagentVersion}"
-      "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
-      # rtk (Rust Token Killer) — hooks tool.execute.before and rewrites
-      # bash commands (git/ls/cat/grep/cargo/...) to `rtk <cmd>` for
-      # 60-90% input token compression. Requires `rtk` binary on PATH
-      # (provided by modules/dev-tools.nix).
-      "opencode-rtk@0.0.1"
-    ];
-    # Always-on caveman activation. Per https://opencode.ai/docs/rules/#custom-instructions
-    # and https://opencode.ai/docs/config/#instructions, opencode loads every
-    # file in this array into the system prompt on every session. Absolute
-    # store path so we don't need a separate xdg.configFile symlink.
-    instructions = ["${inputs.caveman}/src/rules/caveman-activate.md"];
-  };
-  opencodeConfigJson = builtins.toJSON opencodeConfig;
-
-  ocConfig = {
-    "$schema" = "https://opencode.ai/config.json";
-    mcp = {
-      context7 = {
-        type = "remote";
-        url = "https://mcp.context7.com/mcp";
-        oauth = {};
-      };
-      websearch = {
-        type = "remote";
-        url = "https://mcp.exa.ai/mcp?exaApiKey=__EXA_API_KEY__";
-        enabled = true;
-      };
-    };
-    plugin = let
-      anthropicAuthVersion =
-        (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
-    in [
-      "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
-      # rtk — see comment in opencodeConfig.plugin above.
-      "opencode-rtk@0.0.1"
-    ];
-    # Always-on caveman activation — see opencodeConfig.instructions comment.
-    instructions = ["${inputs.caveman}/src/rules/caveman-activate.md"];
-  };
-  ocConfigJson = builtins.toJSON ocConfig;
-
-  ohMyOpenagentConfig = {
-    "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/master/assets/oh-my-opencode.schema.json";
-    claude_code = {
-      mcp = false;
-      commands = false;
-      skills = false;
-      agents = false;
-      hooks = false;
-      plugins = false;
-    };
-    browser_automation_engine = {
-      provider = "agent-browser";
-    };
-    git_master = {
-      commit_footer = false;
-      include_co_authored_by = false;
-    };
-  };
-
-  reviewCommandTemplate = builtins.readFile ./opencode/review-command.md;
-  globalOpencodeConfig = {
-    "$schema" = "https://opencode.ai/config.json";
-    command = {
-      review = {
-        description = "4x parallel code review [commit|branch|pr], defaults to uncommitted";
-        subtask = true;
-        template = reviewCommandTemplate;
-      };
-    };
-  };
+  agentmemoryVersion =
+    (builtins.fromJSON (builtins.readFile "${inputs.agentmemory}/package.json")).version;
 in {
   nixos = {};
   darwin = {};
   home = {
-    home.activation.generateOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-            EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
-            $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
+    config,
+    pkgs,
+    lib,
+    ...
+  }: let
+    opencodeConfig = {
+      "$schema" = "https://opencode.ai/config.json";
 
-            if [ -f "$EXA_SECRET_FILE" ]; then
-              OPENCODE_TEMPLATE=${pkgs.writeText "opencode.jsonc" opencodeConfigJson} \
-                EXA_SECRET_FILE="$EXA_SECRET_FILE" \
-                OPENCODE_OUTPUT_FILE="$HOME/.config/opencode/opencode.jsonc" \
-                ${pkgs.python3}/bin/python - <<'PY'
-      import os
-      from pathlib import Path
+      agent = {
+        build = {
+          model = "anthropic/claude-sonnet-5";
+        };
+        plan = {
+          model = "anthropic/claude-opus-4-8";
+        };
+        title = {
+          model = "anthropic/claude-haiku-4-5";
+        };
+        summary = {
+          model = "anthropic/claude-haiku-4-5";
+        };
+        compaction = {
+          model = "anthropic/claude-sonnet-5";
+        };
+        explore = {
+          model = "anthropic/claude-haiku-4-5";
+          permission = {
+            external_directory = {
+              "*" = "ask";
+              "/tmp/**" = "allow";
+              "${config.home.homeDirectory}/.local/share/opencode/repos/**" = "allow";
+              "${config.home.homeDirectory}/.config/opencode/**" = "allow";
+              "${config.home.homeDirectory}/.cache/opencode/**" = "allow";
+            };
+          };
+        };
+        general = {
+          model = "anthropic/claude-sonnet-5";
+        };
+      };
 
-      template = Path(os.environ["OPENCODE_TEMPLATE"]).read_text()
-      secret = Path(os.environ["EXA_SECRET_FILE"]).read_text().replace("\n", "")
-      output = Path(os.environ["OPENCODE_OUTPUT_FILE"])
-      output.write_text(template.replace("__EXA_API_KEY__", secret))
-      PY
-              $DRY_RUN_CMD chmod 600 "$HOME/.config/opencode/opencode.jsonc"
-            else
-              echo "WARNING: $EXA_SECRET_FILE not found, websearch MCP will not work" >&2
-              $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode.jsonc" opencodeConfigJson} "$HOME/.config/opencode/opencode.jsonc"
-              $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/opencode.jsonc"
-            fi
-    '';
+      disabled_providers = ["zen"];
+      enabled_providers = ["anthropic" "google"];
+      provider = {
+        anthropic = {
+          whitelist = ["claude-sonnet-5" "claude-opus-4-8" "claude-haiku-4-5"];
+          models = {
+            claude-sonnet-5 = {
+              variants = {
+                low = {disabled = true;};
+                high = {disabled = true;};
+                max = {disabled = true;};
+              };
+            };
+            claude-opus-4-8 = {
+              variants = {
+                low = {disabled = true;};
+                high = {disabled = true;};
+                xhigh = {disabled = true;};
+                max = {disabled = true;};
+              };
+            };
+            claude-haiku-4-5 = {
+              variants = {
+                max = {disabled = true;};
+              };
+            };
+          };
+        };
+        google = {
+          whitelist = ["gemini-3.1-pro-preview" "gemini-3.5-flash" "gemini-3.1-flash-lite"];
+          models = {
+            "gemini-3.5-flash" = {
+              variants = {
+                minimal = {disabled = true;};
+                low = {disabled = true;};
+                high = {disabled = true;};
+              };
+            };
+            "gemini-3.1-pro-preview" = {
+              variants = {
+                low = {disabled = true;};
+                high = {disabled = true;};
+              };
+            };
+            "gemini-3.1-flash-lite" = {
+              options = {
+                thinkingConfig = {
+                  thinkingLevel = "high";
+                  includeThoughts = true;
+                };
+              };
+            };
+          };
+        };
+      };
 
-    home.activation.generateOcConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-            EXA_SECRET_FILE="$HOME/.secrets/exa-api-key"
-            $DRY_RUN_CMD mkdir -p "$HOME/.config/oc/opencode"
+      mcp = {
+        agentmemory = {
+          type = "local";
+          command = [
+            "${pkgs.fnm}/bin/fnm"
+            "exec"
+            "--using"
+            "22"
+            "npx"
+            "-y"
+            "@agentmemory/mcp"
+          ];
+          environment = {
+            AGENTMEMORY_URL = "http://localhost:3111";
+          };
+          enabled = true;
+        };
+        websearch = {
+          type = "remote";
+          url = "https://mcp.exa.ai/mcp";
+          enabled = true;
+        };
+        linear = {
+          type = "remote";
+          url = "https://mcp.linear.app/mcp";
+          oauth = {};
+        };
+        code-docs = {
+          type = "remote";
+          url = "https://mcp.context7.com/mcp";
+        };
+        codegraph = {
+          type = "local";
+          command = ["codegraph" "serve" "--mcp"];
+          enabled = true;
+        };
+      };
 
-            if [ -f "$EXA_SECRET_FILE" ]; then
-              OC_TEMPLATE=${pkgs.writeText "oc-opencode.json" ocConfigJson} \
-                EXA_SECRET_FILE="$EXA_SECRET_FILE" \
-                OC_OUTPUT_FILE="$HOME/.config/oc/opencode/opencode.json" \
-                ${pkgs.python3}/bin/python - <<'PY'
-      import os
-      from pathlib import Path
+      plugin = let
+        anthropicAuthVersion =
+          (builtins.fromJSON (builtins.readFile "${inputs.opencode-anthropic-auth}/package.json")).version;
+      in [
+        "@ex-machina/opencode-anthropic-auth@${anthropicAuthVersion}"
+        "./plugins/agentmemory-capture.ts"
+        "./plugins/rtk.ts"
+      ];
 
-      template = Path(os.environ["OC_TEMPLATE"]).read_text()
-      secret = Path(os.environ["EXA_SECRET_FILE"]).read_text().replace("\n", "")
-      output = Path(os.environ["OC_OUTPUT_FILE"])
-      output.write_text(template.replace("__EXA_API_KEY__", secret))
-      PY
-              $DRY_RUN_CMD chmod 600 "$HOME/.config/oc/opencode/opencode.json"
-            else
-              echo "WARNING: $EXA_SECRET_FILE not found, oc websearch MCP will not work" >&2
-              $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oc-opencode.json" ocConfigJson} "$HOME/.config/oc/opencode/opencode.json"
-              $DRY_RUN_CMD chmod 644 "$HOME/.config/oc/opencode/opencode.json"
-            fi
-    '';
+      references = {
+        effect = {
+          repository = "Effect-TS/effect";
+          branch = "main";
+          description = "Effect v3 source (production). Inspect for signatures, modules, API examples.";
+        };
+        effect-skills = {
+          repository = "Effect-TS/skills";
+          description = "Official Effect skills/idioms. Style authority for idiomatic Effect code.";
+        };
+      };
 
-    home.activation.generateOhMyOpenagentConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "oh-my-openagent.json" (builtins.toJSON ohMyOpenagentConfig)} "$HOME/.config/opencode/oh-my-openagent.json"
-      $DRY_RUN_CMD chmod 644 "$HOME/.config/opencode/oh-my-openagent.json"
-    '';
+      permission = {
+        external_directory = {
+          "${config.home.homeDirectory}/.local/share/opencode/repos/**" = "allow";
+          "${config.home.homeDirectory}/.config/opencode/**" = "allow";
+          "${config.home.homeDirectory}/.cache/opencode/**" = "allow";
+          "${config.home.homeDirectory}/work/**" = "allow";
+        };
+      };
 
-    home.activation.generateGlobalOpencodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD mkdir -p "$HOME/.opencode"
-      $DRY_RUN_CMD cp --remove-destination ${pkgs.writeText "opencode-global.json" (builtins.toJSON globalOpencodeConfig)} "$HOME/.opencode/opencode.json"
-      $DRY_RUN_CMD chmod 644 "$HOME/.opencode/opencode.json"
-    '';
+      lsp = {
+        typescript = {
+          command = [
+            "${config.home.homeDirectory}/.cache/opencode/packages/typescript-language-server/node_modules/.bin/typescript-language-server"
+            "--stdio"
+          ];
+          extensions = [
+            ".ts"
+            ".tsx"
+            ".js"
+            ".jsx"
+            ".mjs"
+            ".cjs"
+            ".mts"
+            ".cts"
+            ".vue"
+          ];
+          initialization = {
+            plugins = [
+              {
+                name = "@vue/typescript-plugin";
+                location = "${config.home.homeDirectory}/.cache/opencode/packages/@vue/language-server/node_modules/@vue/typescript-plugin";
+                languages = ["vue"];
+              }
+            ];
+          };
+        };
+      };
 
+      instructions = [
+        "${inputs.caveman}/src/rules/caveman-activate.md"
+        "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
+      ];
+
+      formatter = true;
+    };
+    opencodeConfigJson = builtins.toJSON opencodeConfig;
+  in {
     home.activation.ensureSecretsDir = lib.hm.dag.entryAfter ["writeBoundary"] ''
       $DRY_RUN_CMD mkdir -p "$HOME/.secrets"
       $DRY_RUN_CMD chmod 700 "$HOME/.secrets"
     '';
 
-    # caveman — skill-only install, global, enabled by default.
-    # Just the `caveman` skill from the upstream repo. The always-on
-    # activation rule is loaded via the `instructions` field in
-    # opencodeConfig/ocConfig (see comment there), not via AGENTS.md, so
-    # there is no rule-file symlink to manage here.
+    home.packages = [
+      pkgs.codegraph
+      pkgs.rtk
+    ];
+
+    systemd.user.services.agentmemory = lib.mkIf pkgs.stdenv.isLinux {
+      Unit = {
+        Description = "agentmemory persistent context service";
+        After = ["network.target"];
+      };
+      Service = {
+        ExecStart = "${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion} serve";
+        Restart = "on-failure";
+        RestartSec = "5s";
+        Environment = [
+          "PATH=${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin"
+        ];
+      };
+      Install = {
+        WantedBy = ["default.target"];
+      };
+    };
+
+    launchd.agents.agentmemory = lib.mkIf pkgs.stdenv.isDarwin {
+      enable = true;
+      config = {
+        ProgramArguments = [
+          "${pkgs.nodejs}/bin/npx"
+          "-y"
+          "@agentmemory/agentmemory@${agentmemoryVersion}"
+          "serve"
+        ];
+        RunAtLoad = true;
+        KeepAlive = {
+          Crashed = true;
+          SuccessfulExit = false;
+        };
+        StandardOutPath = "${config.home.homeDirectory}/.local/share/agentmemory/stdout.log";
+        StandardErrorPath = "${config.home.homeDirectory}/.local/share/agentmemory/stderr.log";
+      };
+    };
+
     xdg.configFile = let
       caveman = inputs.caveman;
       cavemanFor = prefix: {
         "${prefix}/skills/caveman".source = "${caveman}/skills/caveman";
       };
     in
-      {"opencode/command/review-loop.md".source = ./opencode/review-loop.md;}
-      // (cavemanFor "opencode")
-      // (cavemanFor "oc/opencode");
+      {
+        "opencode/opencode.json".text = opencodeConfigJson;
+        "opencode/plugins/agentmemory-capture.ts".source = ./opencode/plugins/agentmemory-capture.ts;
+        "opencode/plugins/rtk.ts".source = ./opencode/plugins/rtk.ts;
+        "opencode/commands/remember.md".source = ./opencode/commands/remember.md;
+        "opencode/commands/recall.md".source = ./opencode/commands/recall.md;
+        "opencode/explore-usage.md".source = ./opencode/explore-usage.md;
+      }
+      // (cavemanFor "opencode");
   };
 }
