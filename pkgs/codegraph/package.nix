@@ -11,14 +11,18 @@
       "x86_64-linux" = "linux-x64";
       "aarch64-darwin" = "darwin-arm64";
     }
-    .${stdenv.hostPlatform.system}
+    .${
+      stdenv.hostPlatform.system
+    }
     or (throw "unsupported system: ${stdenv.hostPlatform.system}");
   hash =
     {
       "x86_64-linux" = "sha256-ptsNHRP+i+lsqucL0ybvVJejtNPnhjb/glAEaUXDOy0=";
       "aarch64-darwin" = "sha256-g6Ps3FJEarmmfyqYVg64zcyIHYyuqMBbsqmjgjWWBU0=";
     }
-    .${stdenv.hostPlatform.system}
+    .${
+      stdenv.hostPlatform.system
+    }
     or (throw "unsupported system: ${stdenv.hostPlatform.system}");
 in
   stdenv.mkDerivation {

@@ -94,8 +94,28 @@
       flake = false;
     };
 
+    opencode-dcp = {
+      url = "github:Opencode-DCP/opencode-dynamic-context-pruning";
+      flake = false;
+    };
+
     caveman = {
       url = "github:JuliusBrussee/caveman";
+      flake = false;
+    };
+
+    superpowers = {
+      url = "github:obra/superpowers";
+      flake = false;
+    };
+
+    mattpocock-skills = {
+      url = "github:mattpocock/skills";
+      flake = false;
+    };
+
+    stop-slop = {
+      url = "github:hardikpandya/stop-slop";
       flake = false;
     };
 
@@ -197,7 +217,10 @@
                   then "linux"
                   else "darwin";
 
-                sharedConfig = builtins.removeAttrs homeResolved ["linux" "darwin"];
+                sharedConfig = builtins.removeAttrs homeResolved [
+                  "linux"
+                  "darwin"
+                ];
 
                 platformAttr = homeResolved.${platformKey} or null;
                 platformConfig =
@@ -207,7 +230,10 @@
                   then platformAttr realArgs
                   else platformAttr;
               in
-                lib.mkMerge [sharedConfig platformConfig];
+                lib.mkMerge [
+                  sharedConfig
+                  platformConfig
+                ];
             };
           in {
             imports = staticImports;

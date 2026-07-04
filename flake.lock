@@ -878,6 +878,22 @@
         "type": "github"
       }
     },
+    "mattpocock-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783075031,
+        "narHash": "sha256-3muzsPd/1OgGgG+aIpXWUm9R2Lxa1I/geJxmNL8VJAY=",
+        "owner": "mattpocock",
+        "repo": "skills",
+        "rev": "272f99b22574f50e4266791c86b9302682970e23",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mattpocock",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "nh": {
       "inputs": {
         "nixpkgs": [
@@ -1162,6 +1178,22 @@
         "type": "github"
       }
     },
+    "opencode-dcp": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782362897,
+        "narHash": "sha256-MABdjzmoULt+mYEkH01Lo1FfdZciQ4mlI/CLWS3qTmI=",
+        "owner": "Opencode-DCP",
+        "repo": "opencode-dynamic-context-pruning",
+        "rev": "85b6f5ceba144fee9e65eb28dc36cab1b960e418",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Opencode-DCP",
+        "repo": "opencode-dynamic-context-pruning",
+        "type": "github"
+      }
+    },
     "opencode-oh-my-openagent": {
       "flake": false,
       "locked": {
@@ -1231,6 +1263,7 @@
         "homebrew-cask": "homebrew-cask",
         "homebrew-core": "homebrew-core",
         "hy3": "hy3",
+        "mattpocock-skills": "mattpocock-skills",
         "nh": "nh",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",
@@ -1239,11 +1272,14 @@
         "nixpkgs-master": "nixpkgs-master",
         "nixvim": "nixvim",
         "opencode-anthropic-auth": "opencode-anthropic-auth",
+        "opencode-dcp": "opencode-dcp",
         "opencode-oh-my-openagent": "opencode-oh-my-openagent",
         "qwerty-fr": "qwerty-fr",
         "rtk": "rtk",
         "schemastore": "schemastore",
-        "stylix": "stylix"
+        "stop-slop": "stop-slop",
+        "stylix": "stylix",
+        "superpowers": "superpowers"
       }
     },
     "rtk": {
@@ -1278,6 +1314,22 @@
         "type": "github"
       }
     },
+    "stop-slop": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1773773436,
+        "narHash": "sha256-JMqlCRVEAfwG1TLMDpnamznkBfkmX6e2XyETTTH/TSE=",
+        "owner": "hardikpandya",
+        "repo": "stop-slop",
+        "rev": "8da1f030185bdfe8471220585162991eaeb970e9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hardikpandya",
+        "repo": "stop-slop",
+        "type": "github"
+      }
+    },
     "stylix": {
       "inputs": {
         "base16": "base16",
@@ -1308,6 +1360,22 @@
       "original": {
         "owner": "nix-community",
         "repo": "stylix",
+        "type": "github"
+      }
+    },
+    "superpowers": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783029415,
+        "narHash": "sha256-kHdQ9e44doBk2yYW88tMSCqVG8ycYcvJSZlrIziXhpA=",
+        "owner": "obra",
+        "repo": "superpowers",
+        "rev": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "type": "github"
+      },
+      "original": {
+        "owner": "obra",
+        "repo": "superpowers",
         "type": "github"
       }
     },

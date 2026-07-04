@@ -2,10 +2,9 @@
   pkgs,
   lib,
   ...
-}:
-{
-  nixos = { };
-  darwin = { };
+}: {
+  nixos = {};
+  darwin = {};
   home = {
     home.packages = with pkgs; [
       (lib.hiPrio clang)
