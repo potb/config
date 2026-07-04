@@ -1,10 +1,11 @@
 {
+  lib,
   rustPlatform,
   src,
 }:
 rustPlatform.buildRustPackage {
   pname = "rtk";
-  version = "0.27.0";
+  version = (lib.importTOML (src + "/Cargo.toml")).package.version;
 
   inherit src;
 
