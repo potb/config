@@ -58,6 +58,7 @@ in {
         };
         explore = {
           model = "anthropic/claude-haiku-4-5";
+          variant = "high";
           permission = {
             external_directory = {
               "*" = "ask";
