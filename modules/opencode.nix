@@ -58,8 +58,11 @@ in {
         };
         explore = {
           model = "anthropic/claude-haiku-4-5";
-          variant = "high";
+          variant = "max";
           permission = {
+            "codegraph_*" = "allow";
+            "code-analytics_*" = "allow";
+            "code-impact_*" = "allow";
             external_directory = {
               "*" = "ask";
               "/tmp/**" = "allow";
@@ -117,13 +120,7 @@ in {
                 };
               };
             };
-            claude-haiku-4-5 = {
-              variants = {
-                max = {
-                  disabled = true;
-                };
-              };
-            };
+            claude-haiku-4-5 = {};
           };
         };
         google = {
@@ -208,14 +205,14 @@ in {
           ];
           enabled = true;
         };
-        codebase-memory-mcp = {
+        code-analytics = {
           type = "local";
           command = [
             "${pkgs.codebase-memory-mcp}/bin/codebase-memory-mcp"
           ];
           enabled = true;
         };
-        sem = {
+        code-impact = {
           type = "local";
           command = [
             "${pkgs.sem}/bin/sem"
@@ -257,6 +254,12 @@ in {
         };
       };
 
+      tools = {
+        "code-analytics_manage_adr" = false;
+        "code-analytics_detect_changes" = false;
+        "code-analytics_ingest_traces" = false;
+      };
+
       lsp = {
         typescript = {
           command = [
@@ -290,6 +293,7 @@ in {
         "${inputs.caveman}/src/rules/caveman-activate.md"
         "${inputs.superpowers}/skills/using-superpowers/SKILL.md"
         "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
+        "${config.home.homeDirectory}/.config/opencode/code-tools-priority.md"
       ];
 
       formatter = true;
