@@ -71,6 +71,7 @@ in {
         };
         general = {
           model = "anthropic/claude-sonnet-5";
+          variant = "medium";
         };
       };
 
@@ -288,9 +289,12 @@ in {
     # tokens regardless of advertised context size. Fixed thresholds apply
     # the same whether a model claims 200K or 1M.
     dcpConfig = {
+      experimental = {
+        allowSubAgents = true;
+      };
       compress = {
         maxContextLimit = 200000;
-        minContextLimit = 100000;
+        minContextLimit = 150000;
         nudgeFrequency = 8;
         iterationNudgeThreshold = 20;
         nudgeForce = "soft";
