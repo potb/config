@@ -1,3 +1,6 @@
+> If you are the `explore` subagent: skip this file. It's addressed to whoever is
+> calling you, not to you.
+
 ## Delegating to the `explore` subagent
 
 `explore` is a read-only locator, not an analyst. It returns `path:line` + verbatim
