@@ -137,6 +137,14 @@
       url = "github:qwerty-fr/qwerty-fr/v0.7.3";
       flake = false;
     };
+
+    codebase-memory-mcp = {
+      url = "github:DeusData/codebase-memory-mcp";
+    };
+
+    sem = {
+      url = "github:ataraxy-labs/sem";
+    };
   };
 
   outputs = {

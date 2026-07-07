@@ -6,4 +6,7 @@
   rtk = final.callPackage ../pkgs/rtk/package.nix {
     src = inputs.rtk;
   };
+  codebase-memory-mcp =
+    inputs.codebase-memory-mcp.packages.${final.stdenv.hostPlatform.system}.default;
+  sem = inputs.sem.packages.${final.stdenv.hostPlatform.system}.default;
 }

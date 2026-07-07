@@ -208,6 +208,21 @@ in {
           ];
           enabled = true;
         };
+        codebase-memory-mcp = {
+          type = "local";
+          command = [
+            "${pkgs.codebase-memory-mcp}/bin/codebase-memory-mcp"
+          ];
+          enabled = true;
+        };
+        sem = {
+          type = "local";
+          command = [
+            "${pkgs.sem}/bin/sem"
+            "mcp"
+          ];
+          enabled = true;
+        };
       };
 
       plugin = let
@@ -310,6 +325,8 @@ in {
     home.packages = [
       pkgs.codegraph
       pkgs.rtk
+      pkgs.codebase-memory-mcp
+      pkgs.sem
     ];
 
     systemd.user.services.agentmemory = lib.mkIf pkgs.stdenv.isLinux {
