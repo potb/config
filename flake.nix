@@ -15,6 +15,10 @@
       url = "github:NixOS/nixpkgs/master";
     };
 
+    opencode-src = {
+      url = "github:anomalyco/opencode/production";
+    };
+
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
     };
@@ -72,7 +76,6 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     disko = {
@@ -85,9 +88,67 @@
       flake = false;
     };
 
-    opencode-oh-my-opencode = {
-      url = "github:code-yeongyu/oh-my-opencode";
+    opencode-oh-my-openagent = {
+      url = "github:code-yeongyu/oh-my-openagent";
       flake = false;
+    };
+
+    opencode-anthropic-auth = {
+      url = "github:ex-machina-co/opencode-anthropic-auth";
+      flake = false;
+    };
+
+    opencode-dcp = {
+      url = "github:Opencode-DCP/opencode-dynamic-context-pruning";
+      flake = false;
+    };
+
+    caveman = {
+      url = "github:JuliusBrussee/caveman";
+      flake = false;
+    };
+
+    superpowers = {
+      url = "github:obra/superpowers";
+      flake = false;
+    };
+
+    mattpocock-skills = {
+      url = "github:mattpocock/skills";
+      flake = false;
+    };
+
+    stop-slop = {
+      url = "github:hardikpandya/stop-slop";
+      flake = false;
+    };
+
+    agentmemory = {
+      url = "github:rohitg00/agentmemory";
+      flake = false;
+    };
+
+    rtk = {
+      url = "github:rtk-ai/rtk";
+      flake = false;
+    };
+
+    qwerty-fr = {
+      url = "github:qwerty-fr/qwerty-fr/v0.7.3";
+      flake = false;
+    };
+
+    agent-browser = {
+      url = "github:vercel-labs/agent-browser/v0.31.1";
+      flake = false;
+    };
+
+    codebase-memory-mcp = {
+      url = "github:DeusData/codebase-memory-mcp";
+    };
+
+    sem = {
+      url = "github:ataraxy-labs/sem";
     };
   };
 
@@ -132,8 +193,6 @@
         name: let
           file = modulesDir + "/${name}";
 
-          # Static pass: ONLY for platform imports + existence checks.
-          # `pkgs` must not be touched while computing imports — throw if accessed.
           modStatic = import file {
             inherit lib inputs;
             pkgs = builtins.throw "pkgs used during static import of ${toString file}";
@@ -143,25 +202,18 @@
           staticImports = staticPlatform.imports or [];
           hasHome = modStatic ? home;
         in
-          # NixOS/Darwin module wrapper.
-          # pkgs is captured here and threaded into hmModule so HM never needs
-          # to resolve pkgs from _module.args (avoids infinite recursion with
-          # useGlobalPkgs=true).
           args @ {
             pkgs,
             lib,
             inputs,
             ...
           }: let
-            # HM module: closes over NixOS `pkgs` so HM's module system never
-            # needs to resolve pkgs itself (which would cause infinite recursion).
             hmModule = hmArgs @ {
               lib,
               inputs,
               ...
             }: {
               config = let
-                # Inject NixOS pkgs (== HM pkgs with useGlobalPkgs=true).
                 realArgs =
                   hmArgs
                   // {
@@ -169,12 +221,36 @@
                   };
                 mod = import file realArgs;
                 homeAttr = mod.home or null;
+
+                homeResolved =
+                  if homeAttr == null
+                  then {}
+                  else if builtins.isFunction homeAttr
+                  then homeAttr realArgs
+                  else homeAttr;
+
+                platformKey =
+                  if platform == "nixos"
+                  then "linux"
+                  else "darwin";
+
+                sharedConfig = builtins.removeAttrs homeResolved [
+                  "linux"
+                  "darwin"
+                ];
+
+                platformAttr = homeResolved.${platformKey} or null;
+                platformConfig =
+                  if platformAttr == null
+                  then {}
+                  else if builtins.isFunction platformAttr
+                  then platformAttr realArgs
+                  else platformAttr;
               in
-                if homeAttr == null
-                then {}
-                else if builtins.isFunction homeAttr
-                then homeAttr realArgs
-                else homeAttr;
+                lib.mkMerge [
+                  sharedConfig
+                  platformConfig
+                ];
             };
           in {
             imports = staticImports;
@@ -183,10 +259,6 @@
               platformConfig = mod.${platform} or {};
               platformConfigClean = builtins.removeAttrs platformConfig ["imports"];
             in
-              # Merge platform config with HM wiring.
-              # Use `home-manager.users.potb = { imports = [...]; }` (not
-              # `home-manager.users.potb.imports = [...]`) — the latter is not
-              # a valid NixOS option; `imports` is a submodule directive.
               platformConfigClean
               // lib.optionalAttrs hasHome {
                 home-manager.users.potb = {
@@ -228,7 +300,6 @@
           ++ (loadUnifiedModules "nixos" ./modules)
           ++ [
             ./nixos/configuration.nix
-            inputs.determinate.nixosModules.default
             inputs.home-manager.nixosModules.home-manager
             disko.nixosModules.disko
 
@@ -264,15 +335,10 @@
             ./darwin/configuration.nix
             inputs.determinate.darwinModules.default
             inputs.home-manager.darwinModules.home-manager
-            # TODO: Re-enable after VM-based linux builder is bootstrapped
-            # nix-rosetta-builder.darwinModules.default
             nix-homebrew.darwinModules.nix-homebrew
 
             {
               nixpkgs.overlays = darwinAllOverlays;
-
-              # nix-rosetta-builder.enable = true;
-              # nix-rosetta-builder.onDemand = true;
 
               nix-homebrew = {
                 enable = true;

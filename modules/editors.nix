@@ -4,6 +4,13 @@
   ...
 }: let
   fonts = import ../shared/fonts.nix {inherit pkgs;};
+  opencodeBinPath = pkgs.lib.makeBinPath [
+    pkgs.typescript
+    pkgs.typescript-language-server
+    pkgs.pyright
+    pkgs.nixd
+    pkgs.vscode-langservers-extracted
+  ];
   idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
     -Dawt.toolkit.name=WLToolkit
   '';
@@ -22,15 +29,8 @@
     nativeBuildInputs = [pkgs.makeWrapper];
     postBuild = ''
       wrapProgram $out/bin/opencode \
-        --prefix PATH : ${
-        pkgs.lib.makeBinPath [
-          pkgs.nodePackages.typescript
-          pkgs.nodePackages.typescript-language-server
-          pkgs.pyright
-          pkgs.nixd
-          pkgs.nodePackages.vscode-langservers-extracted
-        ]
-      }
+        --prefix PATH : ${opencodeBinPath} \
+        --set-default OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS true
     '';
   };
 in {
@@ -42,7 +42,7 @@ in {
       defaultEditor = true;
       viAlias = true;
       vimAlias = true;
-      man.enable = false;
+      enableMan = false;
 
       opts = {
         number = true;
@@ -62,10 +62,15 @@ in {
         enable = true;
         extensions.fzf-native.enable = true;
         keymaps = {
-          "<leader>ff" = "find_files";
-          "<leader>fg" = "live_grep";
+          "<leader>ff" = {
+            action = "find_files";
+            options.silent = true;
+          };
+          "<leader>fg" = {
+            action = "live_grep";
+            options.silent = true;
+          };
         };
-        keymapsSilent = true;
       };
 
       plugins.which-key.enable = true;

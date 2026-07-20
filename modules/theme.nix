@@ -31,4 +31,8 @@ in {
     ];
     stylix = stylixConfig;
   };
+
+  home = {
+    manual.manpages.enable = false;
+  };
 }

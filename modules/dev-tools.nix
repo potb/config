@@ -24,6 +24,8 @@
 
       awscli2
       stripe-cli
+
+      rtk
     ];
   };
 }
