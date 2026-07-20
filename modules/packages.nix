@@ -56,7 +56,6 @@
         slack
         discord
         jetbrains.datagrip
-        bottles
       ]
       ++ lib.optionals pkgs.stdenv.isDarwin [
         stdenv.cc
