@@ -23,6 +23,7 @@
 
     home.packages = [
       google-chrome
+      pkgs.agent-browser
     ];
   };
 }

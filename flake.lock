@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "agent-browser": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782493159,
+        "narHash": "sha256-uCLzNQ0NAeg1TtA6tcBhTu5VTyjkumsyiEpAhYLPQD0=",
+        "owner": "vercel-labs",
+        "repo": "agent-browser",
+        "rev": "d851d3490cc4faa4a3ffedf020d69c23bf51f8ed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vercel-labs",
+        "ref": "v0.31.1",
+        "repo": "agent-browser",
+        "type": "github"
+      }
+    },
     "agentmemory": {
       "flake": false,
       "locked": {
@@ -1405,6 +1422,7 @@
     },
     "root": {
       "inputs": {
+        "agent-browser": "agent-browser",
         "agentmemory": "agentmemory",
         "catppuccin-delta": "catppuccin-delta",
         "caveman": "caveman",

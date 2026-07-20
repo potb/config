@@ -220,6 +220,16 @@ in {
           ];
           enabled = true;
         };
+        agent-browser = {
+          type = "local";
+          command = [
+            "${pkgs.agent-browser}/bin/agent-browser"
+            "mcp"
+            "--tools"
+            "core,network,state,tabs,debug,react,mobile"
+          ];
+          enabled = true;
+        };
       };
 
       plugin = let

@@ -138,6 +138,11 @@
       flake = false;
     };
 
+    agent-browser = {
+      url = "github:vercel-labs/agent-browser/v0.31.1";
+      flake = false;
+    };
+
     codebase-memory-mcp = {
       url = "github:DeusData/codebase-memory-mcp";
     };
