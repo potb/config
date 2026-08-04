@@ -268,6 +268,7 @@ in {
         "code-analytics_manage_adr" = false;
         "code-analytics_detect_changes" = false;
         "code-analytics_ingest_traces" = false;
+        "code-analytics_check_index_coverage" = false;
       };
 
       lsp = {
