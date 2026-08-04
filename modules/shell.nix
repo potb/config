@@ -10,6 +10,13 @@
     lib,
     ...
   }: {
+    # Keep the jcode launcher ahead of any Cargo-installed binary with the
+    # same name while retaining the conventional user tool paths.
+    home.sessionPath = [
+      "$HOME/.local/bin"
+      "$HOME/.cargo/bin"
+    ];
+
     # Wipe stale zsh completion dumps on activation so post-switch shells
     # rebuild against the new nix store paths. Prevents `compinit: function
     # definition file not found` after `nh os switch`.
@@ -88,6 +95,11 @@
       bash = "${pkgs.bash}/bin/bash";
       rm = "${pkgs.coreutils}/bin/rm";
     in {
+      programs.direnv = {
+        enable = true;
+        nix-direnv.enable = true;
+      };
+
       programs.zsh.antidote.plugins = [
         "ohmyzsh/ohmyzsh path:plugins/systemd"
       ];
