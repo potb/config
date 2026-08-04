@@ -45,7 +45,7 @@ in {
           model = "anthropic/claude-sonnet-5";
         };
         plan = {
-          model = "anthropic/claude-opus-4-8";
+          model = "anthropic/claude-opus-5";
         };
         title = {
           model = "anthropic/claude-haiku-4-5";
@@ -87,7 +87,7 @@ in {
         anthropic = {
           whitelist = [
             "claude-sonnet-5"
-            "claude-opus-4-8"
+            "claude-opus-5"
             "claude-haiku-4-5"
           ];
           models = {
@@ -104,7 +104,7 @@ in {
                 };
               };
             };
-            claude-opus-4-8 = {
+            claude-opus-5 = {
               variants = {
                 low = {
                   disabled = true;
@@ -125,35 +125,10 @@ in {
         };
         google = {
           whitelist = [
-            "gemini-3.1-pro-preview"
-            "gemini-3.5-flash"
-            "gemini-3.1-flash-lite"
+            "gemini-3.6-flash"
           ];
           models = {
-            "gemini-3.5-flash" = {
-              variants = {
-                minimal = {
-                  disabled = true;
-                };
-                low = {
-                  disabled = true;
-                };
-                high = {
-                  disabled = true;
-                };
-              };
-            };
-            "gemini-3.1-pro-preview" = {
-              variants = {
-                low = {
-                  disabled = true;
-                };
-                high = {
-                  disabled = true;
-                };
-              };
-            };
-            "gemini-3.1-flash-lite" = {
+            "gemini-3.6-flash" = {
               options = {
                 thinkingConfig = {
                   thinkingLevel = "high";
@@ -268,6 +243,7 @@ in {
         "code-analytics_manage_adr" = false;
         "code-analytics_detect_changes" = false;
         "code-analytics_ingest_traces" = false;
+        "code-analytics_check_index_coverage" = false;
       };
 
       lsp = {
@@ -304,9 +280,20 @@ in {
         "${inputs.superpowers}/skills/using-superpowers/SKILL.md"
         "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
         "${config.home.homeDirectory}/.config/opencode/code-tools-priority.md"
+        "${config.home.homeDirectory}/.config/opencode/rtk-usage.md"
       ];
 
-      formatter = true;
+      # Built-in .nix formatter shells out to `nixfmt` on PATH; override it to
+      # use alejandra (this flake's `nix fmt` formatter, flake.nix formatter
+      # output) instead, so editor formatting matches `nix fmt` output.
+      formatter = {
+        nixfmt = {
+          command = [
+            "${pkgs.alejandra}/bin/alejandra"
+            "$FILE"
+          ];
+        };
+      };
     };
     opencodeConfigJson = builtins.toJSON opencodeConfig;
 
@@ -495,6 +482,8 @@ in {
         "opencode/commands/remember.md".source = ./opencode/commands/remember.md;
         "opencode/commands/recall.md".source = ./opencode/commands/recall.md;
         "opencode/explore-usage.md".source = ./opencode/explore-usage.md;
+        "opencode/rtk-usage.md".source = ./opencode/rtk-usage.md;
+        "opencode/code-tools-priority.md".source = ./opencode/code-tools-priority.md;
         "opencode/skills-not-installed.md".text = skillsNotInstalledReport;
       }
       // skillFiles;

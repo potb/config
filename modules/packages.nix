@@ -48,7 +48,6 @@
         libnotify
         lm_sensors
         audacity
-        easyeffects
         prismlauncher
         rusty-path-of-building
         vlc
@@ -56,7 +55,6 @@
         slack
         discord
         jetbrains.datagrip
-        bottles
       ]
       ++ lib.optionals pkgs.stdenv.isDarwin [
         stdenv.cc
