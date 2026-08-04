@@ -125,35 +125,10 @@ in {
         };
         google = {
           whitelist = [
-            "gemini-3.1-pro-preview"
-            "gemini-3.5-flash"
-            "gemini-3.1-flash-lite"
+            "gemini-3.6-flash"
           ];
           models = {
-            "gemini-3.5-flash" = {
-              variants = {
-                minimal = {
-                  disabled = true;
-                };
-                low = {
-                  disabled = true;
-                };
-                high = {
-                  disabled = true;
-                };
-              };
-            };
-            "gemini-3.1-pro-preview" = {
-              variants = {
-                low = {
-                  disabled = true;
-                };
-                high = {
-                  disabled = true;
-                };
-              };
-            };
-            "gemini-3.1-flash-lite" = {
+            "gemini-3.6-flash" = {
               options = {
                 thinkingConfig = {
                   thinkingLevel = "high";
