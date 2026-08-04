@@ -111,6 +111,7 @@
     '';
   in {
     home.pointerCursor = {
+      enable = true;
       name = "DMZ-Black";
       package = pkgs.vanilla-dmz;
       size = 24;
