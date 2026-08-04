@@ -283,7 +283,17 @@ in {
         "${config.home.homeDirectory}/.config/opencode/rtk-usage.md"
       ];
 
-      formatter = true;
+      # Built-in .nix formatter shells out to `nixfmt` on PATH; override it to
+      # use alejandra (this flake's `nix fmt` formatter, flake.nix formatter
+      # output) instead, so editor formatting matches `nix fmt` output.
+      formatter = {
+        nixfmt = {
+          command = [
+            "${pkgs.alejandra}/bin/alejandra"
+            "$FILE"
+          ];
+        };
+      };
     };
     opencodeConfigJson = builtins.toJSON opencodeConfig;
 
