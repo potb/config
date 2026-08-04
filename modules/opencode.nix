@@ -280,6 +280,7 @@ in {
         "${inputs.superpowers}/skills/using-superpowers/SKILL.md"
         "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
         "${config.home.homeDirectory}/.config/opencode/code-tools-priority.md"
+        "${config.home.homeDirectory}/.config/opencode/rtk-usage.md"
       ];
 
       formatter = true;
@@ -471,6 +472,7 @@ in {
         "opencode/commands/remember.md".source = ./opencode/commands/remember.md;
         "opencode/commands/recall.md".source = ./opencode/commands/recall.md;
         "opencode/explore-usage.md".source = ./opencode/explore-usage.md;
+        "opencode/rtk-usage.md".source = ./opencode/rtk-usage.md;
         "opencode/skills-not-installed.md".text = skillsNotInstalledReport;
       }
       // skillFiles;
