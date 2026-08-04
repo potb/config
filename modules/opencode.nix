@@ -45,7 +45,7 @@ in {
           model = "anthropic/claude-sonnet-5";
         };
         plan = {
-          model = "anthropic/claude-opus-4-8";
+          model = "anthropic/claude-opus-5";
         };
         title = {
           model = "anthropic/claude-haiku-4-5";
@@ -87,7 +87,7 @@ in {
         anthropic = {
           whitelist = [
             "claude-sonnet-5"
-            "claude-opus-4-8"
+            "claude-opus-5"
             "claude-haiku-4-5"
           ];
           models = {
@@ -104,7 +104,7 @@ in {
                 };
               };
             };
-            claude-opus-4-8 = {
+            claude-opus-5 = {
               variants = {
                 low = {
                   disabled = true;
