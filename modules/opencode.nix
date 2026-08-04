@@ -473,6 +473,7 @@ in {
         "opencode/commands/recall.md".source = ./opencode/commands/recall.md;
         "opencode/explore-usage.md".source = ./opencode/explore-usage.md;
         "opencode/rtk-usage.md".source = ./opencode/rtk-usage.md;
+        "opencode/code-tools-priority.md".source = ./opencode/code-tools-priority.md;
         "opencode/skills-not-installed.md".text = skillsNotInstalledReport;
       }
       // skillFiles;
