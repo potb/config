@@ -170,6 +170,7 @@
           {
             vlc = "vlc.desktop";
             chrome = "google-chrome.desktop";
+            archive = "xarchiver.desktop";
           }
           |> (apps: {
             "audio/*" = [apps.vlc];
@@ -177,6 +178,13 @@
             "x-scheme-handler/http" = [apps.chrome];
             "x-scheme-handler/https" = [apps.chrome];
             "text/html" = [apps.chrome];
+            # Prism Launcher registers itself for application/zip (it opens
+            # modpack zips), and with no other zip handler installed it wins
+            # every plain zip too. `associations.removed` alone doesn't fix
+            # this: it only prunes Prism from the *candidate* list, and with
+            # no candidate left xdg-open falls back to the mimeinfo cache,
+            # which still resolves to Prism. A real default has to be set.
+            "application/zip" = [apps.archive];
           });
         associations.removed = {
           "application/zip" = ["org.prismlauncher.PrismLauncher.desktop"];
