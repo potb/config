@@ -178,6 +178,9 @@
             "x-scheme-handler/https" = [apps.chrome];
             "text/html" = [apps.chrome];
           });
+        associations.removed = {
+          "application/zip" = ["org.prismlauncher.PrismLauncher.desktop"];
+        };
       };
 
       portal = {
