@@ -1,5 +1,12 @@
 {...}: {
-  nixos = {};
+  # Linger, so the user manager (and with it the daemon) starts at boot and
+  # survives logout. Without it a "background" daemon is only alive between
+  # login and logout, which is the exact window the schedules are meant to
+  # outlast.
+  nixos = {
+    users.users.potb.linger = true;
+  };
+
   darwin = {};
 
   # Supervise the jcode daemon so the ambient loop and its scheduled jobs run
@@ -9,10 +16,15 @@
       Unit = {
         Description = "jcode shared daemon (sessions, ambient loop, scheduled jobs)";
 
-        # network-online.target is a system unit and does not exist here, so
-        # ordering against it is silently a no-op. The daemon retries its own
-        # network calls anyway; what it genuinely needs is the session bus,
-        # which notify-send dials.
+        # No network ordering, deliberately. network-online.target is a system
+        # unit, and a user unit cannot order against one, which is why the
+        # usual Wants=/After= pair silently resolves to nothing here. It would
+        # buy nothing anyway: the daemon boots and binds its socket with no
+        # network at all (verified under `unshare -n`), and every call it makes
+        # afterwards already goes through its own reconnect-and-retry path.
+        #
+        # graphical-session.target is likewise avoided, so the daemon survives
+        # logging out of Hyprland rather than being torn down with the session.
         After = ["dbus.service"];
       };
 
