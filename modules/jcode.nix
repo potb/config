@@ -8,8 +8,12 @@
     systemd.user.services.jcode = {
       Unit = {
         Description = "jcode shared daemon (sessions, ambient loop, scheduled jobs)";
-        After = ["network-online.target" "dbus.service"];
-        Wants = ["network-online.target"];
+
+        # network-online.target is a system unit and does not exist here, so
+        # ordering against it is silently a no-op. The daemon retries its own
+        # network calls anyway; what it genuinely needs is the session bus,
+        # which notify-send dials.
+        After = ["dbus.service"];
       };
 
       Service = {
