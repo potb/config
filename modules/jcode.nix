@@ -44,6 +44,18 @@
         # 44 = idle timeout; a supervised daemon should wait for the next client.
         RestartForceExitStatus = "42 44";
 
+        # 1 means the daemon refused to start, and every such refusal is
+        # permanent: overwhelmingly it is losing the flock on
+        # $XDG_RUNTIME_DIR/jcode-daemon.lock to a daemon already serving this
+        # runtime dir (a terminal-launched one, or a client that spawned its
+        # own). Retrying cannot win a lock the incumbent holds for its whole
+        # lifetime, and StartLimitBurst does not catch it: a failed start takes
+        # about a second and RestartSec adds two, so only ~3 attempts fall in
+        # the default 10s window and the unit restarts forever without ever
+        # tripping the limiter. Verified: without this the unit logged
+        # NRestarts=11 in 25s and climbing; with it, one clean failure.
+        RestartPreventExitStatus = "1";
+
         # JCODE_DEBUG_CONTROL disables the daemon's idle exit. Everything else
         # it shells out to (git, gh, notify-send) is already on the systemd
         # user manager's PATH; see systemd.user.sessionVariables below for the
