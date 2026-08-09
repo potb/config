@@ -44,16 +44,22 @@
         # 44 = idle timeout; a supervised daemon should wait for the next client.
         RestartForceExitStatus = "42 44";
 
-        # 1 means the daemon refused to start, and every such refusal is
-        # permanent: overwhelmingly it is losing the flock on
-        # $XDG_RUNTIME_DIR/jcode-daemon.lock to a daemon already serving this
-        # runtime dir (a terminal-launched one, or a client that spawned its
-        # own). Retrying cannot win a lock the incumbent holds for its whole
-        # lifetime, and StartLimitBurst does not catch it: a failed start takes
-        # about a second and RestartSec adds two, so only ~3 attempts fall in
-        # the default 10s window and the unit restarts forever without ever
-        # tripping the limiter. Verified: without this the unit logged
-        # NRestarts=11 in 25s and climbing; with it, one clean failure.
+        # 1 means the daemon refused to start, and the refusals are permanent:
+        # losing the flock on $XDG_RUNTIME_DIR/jcode-daemon.lock to a daemon
+        # already serving this runtime dir (the usual case, from a
+        # terminal-launched one or a client that spawned its own), or an
+        # unusable socket path. Retrying cannot win a lock the incumbent holds
+        # for its whole lifetime, and StartLimitBurst does not catch it: a
+        # failed start takes about a second and RestartSec adds two, so only ~3
+        # attempts fall in the default 10s window and the unit restarts forever
+        # without ever tripping the limiter. Verified: without this the unit
+        # logged NRestarts=11 in 25s and climbing; with it, one clean failure.
+        #
+        # The plausible transient causes were checked and do not exit 1. With
+        # no network at all (`unshare -rn`, the boot-time worry) the daemon
+        # boots and keeps serving, and with no credentials at all it also stays
+        # up rather than bailing, so a slow-starting network or a not-yet-ready
+        # secret cannot wedge the unit here.
         RestartPreventExitStatus = "1";
 
         # JCODE_DEBUG_CONTROL disables the daemon's idle exit. Everything else
