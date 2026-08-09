@@ -73,7 +73,22 @@
     };
 
     # home.sessionPath only reaches shells, via hm-session-vars.sh. Units get
-    # their environment from environment.d, which does expand $PATH.
-    systemd.user.sessionVariables.PATH = "$HOME/.local/bin:$HOME/.cargo/bin:$PATH";
+    # their environment from environment.d, whose files are merged in
+    # lexicographic order by filename across every search directory.
+    #
+    # systemd.user.sessionVariables cannot be used for PATH here: it writes
+    # 10-home-manager.conf, and NixOS ships /etc/environment.d/50-systemd-path.conf
+    # which assigns PATH outright rather than extending it, so the higher number
+    # wins and the home-manager value is silently discarded. Verified by running
+    # the real 30-systemd-environment-d-generator: with the 10- prefix neither
+    # directory appears in the result, with a 90- prefix both do.
+    #
+    # jcode itself is started by absolute path, so this is for what it shells
+    # out to: agent commands and scheduled jobs that invoke `jcode`, plus
+    # cargo-installed tools. git, gh and notify-send already resolve via
+    # /etc/profiles/per-user/potb/bin.
+    xdg.configFile."environment.d/90-user-path.conf".text = ''
+      PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
+    '';
   };
 }
