@@ -1,4 +1,8 @@
-{inputs, ...}: {
+{
+  inputs,
+  lib,
+  ...
+}: {
   # Linger, so the user manager (and with it the daemon) starts at boot and
   # survives logout. Without it a "background" daemon is only alive between
   # login and logout, which is the exact window the schedules are meant to
@@ -11,15 +15,52 @@
 
   # Supervise the jcode daemon so the ambient loop and its scheduled jobs run
   # in the background, instead of only while a terminal happens to be open.
-  home = {config, ...}: {
-    # Spliced into the system prompt on every turn, so it survives compaction
-    # and session restore.
-    home.file.".jcode/prompt-overlay.md".source = ./jcode/prompt-overlay.md;
+  home = {
+    config,
+    lib,
+    pkgs,
+    ...
+  }: let
+    # Seeded, not managed: home.file would install read-only store symlinks, and
+    # these files are edited live. Copy an edit back into this repo to persist it.
+    seedFiles = {
+      ".jcode/prompt-overlay.md" = ./jcode/prompt-overlay.md;
+      ".jcode/skills/garden-memory/SKILL.md" = ./jcode/garden-memory-SKILL.md;
+      ".jcode/skills/caveman/SKILL.md" = "${inputs.caveman}/skills/caveman/SKILL.md";
+      ".jcode/skills/caveman/README.md" = "${inputs.caveman}/skills/caveman/README.md";
+    };
 
-    # From the flake input, not ~/.config/opencode/skills: a link into another
-    # generation dangles once that generation is collected.
-    home.file.".jcode/skills/caveman".source = "${inputs.caveman}/skills/caveman";
-    home.file.".jcode/skills/garden-memory/SKILL.md".source = ./jcode/garden-memory-SKILL.md;
+    seedScript = lib.concatStringsSep "\n" (lib.mapAttrsToList (rel: src: ''
+        seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"}
+      '')
+      seedFiles);
+  in {
+    # Overwrites only while the target still matches what was seeded last time.
+    # Once edited, the live file wins and the nix version lands in <file>.nix-new.
+    home.activation.seedJcodeFiles = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      seed_jcode_file() {
+        dest="$HOME/$1"
+        src="$2"
+        stamp="$(dirname "$dest")/.$(basename "$dest").nix-seeded"
+
+        $DRY_RUN_CMD mkdir -p "$(dirname "$dest")"
+
+        # -L catches a store symlink left by an earlier home.file generation.
+        if [ ! -e "$dest" ] || [ -L "$dest" ] \
+          || ${pkgs.diffutils}/bin/cmp -s "$dest" "$stamp"; then
+          $DRY_RUN_CMD rm -f "$dest"
+          $DRY_RUN_CMD install -m 0644 "$src" "$dest"
+          $DRY_RUN_CMD install -m 0644 "$src" "$stamp"
+        elif ${pkgs.diffutils}/bin/cmp -s "$dest" "$src"; then
+          $DRY_RUN_CMD install -m 0644 "$src" "$stamp"
+        else
+          $DRY_RUN_CMD install -m 0644 "$src" "$dest.nix-new"
+          echo "jcode: kept live edits in $dest (nix version at $dest.nix-new)"
+        fi
+      }
+
+      ${seedScript}
+    '';
 
     systemd.user.services.jcode = {
       Unit = {
