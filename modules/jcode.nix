@@ -1,4 +1,4 @@
-{...}: {
+{inputs, ...}: {
   # Linger, so the user manager (and with it the daemon) starts at boot and
   # survives logout. Without it a "background" daemon is only alive between
   # login and logout, which is the exact window the schedules are meant to
@@ -12,6 +12,15 @@
   # Supervise the jcode daemon so the ambient loop and its scheduled jobs run
   # in the background, instead of only while a terminal happens to be open.
   home = {config, ...}: {
+    # Spliced into the system prompt on every turn, so it survives compaction
+    # and session restore.
+    home.file.".jcode/prompt-overlay.md".source = ./jcode/prompt-overlay.md;
+
+    # From the flake input, not ~/.config/opencode/skills: a link into another
+    # generation dangles once that generation is collected.
+    home.file.".jcode/skills/caveman".source = "${inputs.caveman}/skills/caveman";
+    home.file.".jcode/skills/garden-memory/SKILL.md".source = ./jcode/garden-memory-SKILL.md;
+
     systemd.user.services.jcode = {
       Unit = {
         Description = "jcode shared daemon (sessions, ambient loop, scheduled jobs)";
