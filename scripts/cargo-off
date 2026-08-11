@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # cargo-off — run a cargo command on charon instead of this machine.
 #
-# For clients that this flake does not manage: copy it onto the client's PATH
-# (for example ~/bin/cargo-off) rather than installing it through Nix.
+# For clients this flake does not manage: copy it onto the client's PATH rather
+# than installing it through Nix.
 #
 #   install -m 0755 scripts/cargo-off ~/bin/cargo-off
 #
-# Requires only bash, ssh and rsync locally; the whole toolchain lives on
-# charon (see modules/cargo-offload.nix).
+# Requires only bash, ssh and rsync locally; the toolchain lives on charon (see
+# modules/cargo-offload.nix).
 #
 # Usage:
 #   cargo-off check
@@ -15,16 +15,27 @@
 #   cargo-off test -p jcode-tui
 #   cargo-off build --release --target aarch64-unknown-linux-gnu
 #
-# Source is rsynced to charon and the command runs there; nothing is copied
-# back. Artifacts are Linux binaries and stay on charon by design, so this is
-# for check/clippy/test feedback, not for producing runnable local binaries.
+#   # run something other than cargo in the same synced checkout
+#   CARGO_OFF_CMD='scripts/dev_cargo.sh' cargo-off check --profile selfdev
+#
+# The workspace is rsynced to charon and the command runs there. Nothing is
+# copied back: results are Linux binaries, and this machine is macOS. Use it for
+# check, clippy and test feedback, not to produce a locally runnable binary.
+#
+# A macOS binary specifically cannot be produced on charon at all, because that
+# needs Apple's SDK, which Apple licenses only for use on Apple hardware.
 
 set -euo pipefail
 
 REMOTE="${CARGO_OFF_REMOTE:-potb@172.20.10.10}"
 SSH_KEY="${CARGO_OFF_KEY:-$HOME/.ssh/id_ed25519}"
 
-# One multiplexed connection for the rsync and the command, so a run pays a
+# What to run remotely. Overridable so repository wrappers (jcode's
+# scripts/dev_cargo.sh, which enters a pinned nix devshell) can be offloaded
+# with the same sync logic.
+REMOTE_CMD="${CARGO_OFF_CMD:-cargo}"
+
+# One multiplexed connection for every ssh and rsync below, so a run pays a
 # single TCP and key-exchange round trip.
 CONTROL="$HOME/.ssh/cargo-off-%r@%h:%p"
 SSH_OPTS=(
@@ -67,27 +78,42 @@ if [ -z "$root" ]; then
 fi
 
 project="$(basename "$root")"
-dest="\$HOME/cargo-off/$project"
 
-# rsync only creates the final path component, so the per-project parent has
-# to exist first. Doing it over the shared control socket costs no extra
-# handshake, and unlike rsync's --mkpath it does not require rsync >= 3.2.3 on
-# both ends.
+# Mirror the local layout when charon already has a checkout in the same place.
+# jcode's self-dev machinery locates its repository by path and by git metadata,
+# so a jcode checkout has to land at ~/.jcode/source/jcode rather than in a
+# generic scratch directory.
+case "$root" in
+  "$HOME"/.jcode/source/*) rel="${root#"$HOME"/}" ;;
+  *) rel="cargo-off/$project" ;;
+esac
+
+dest="\$HOME/$rel"
+
+# rsync creates only the final path component, so the parents have to exist.
+# Doing it over the shared control socket costs no extra handshake, and unlike
+# rsync's --mkpath it does not require rsync >= 3.2.3 on both ends.
+#
 # $dest holds a literal $HOME so it expands on charon, whose home directory is
-# not this machine's. That is exactly what SC2029 warns about, and here it is
-# the intent.
+# not this machine's. That is what SC2029 warns about, and here it is intended.
 # shellcheck disable=SC2029
 ssh "${SSH_OPTS[@]}" "$REMOTE" "mkdir -p $dest"
 
-# --delete keeps a removed local file from lingering remotely and silently
+# --delete keeps a locally removed file from lingering remotely and silently
 # satisfying a stale `mod` declaration.
 #
-# target/ is excluded deliberately: it holds host-architecture artifacts that
-# would be useless remotely, and on a large workspace it dwarfs the sources.
-# charon keeps its own target/ in the synced directory, which is what makes
-# the second run incremental.
+# The exclusions are things that must stay host-specific rather than be
+# overwritten by this machine's copy:
+#
+#   target/    host-architecture artifacts, and on a large workspace far bigger
+#              than the sources. charon keeps its own, which is what makes the
+#              second run incremental.
+#   .git/      charon clones the repository itself, so history never crosses the
+#              link. --delete would otherwise erase that clone.
+#   .direnv/   points into charon's own Nix store paths.
 rsync -az --delete \
   --exclude '/target' \
+  --exclude '/target-*' \
   --exclude '/.git' \
   --exclude '/.direnv' \
   --exclude '/result' \
@@ -95,13 +121,16 @@ rsync -az --delete \
   --exclude '/.tmp' \
   --exclude '/tmp' \
   -e "ssh ${SSH_OPTS[*]}" \
-  "$root/" "$REMOTE:cargo-off/$project/"
+  "$root/" "$REMOTE:$rel/"
 
-# Quote each argument so a remote bash -lc sees exactly what the user typed.
+# Quote each argument so the remote shell sees exactly what was typed here.
 remote_args=""
 for arg in "$@"; do
   remote_args+=" $(printf '%q' "$arg")"
 done
 
+# -t so cargo keeps colour and progress rendering, and so an interrupt here
+# reaches the remote process group instead of orphaning a 32-thread build.
+# shellcheck disable=SC2029
 exec ssh "${SSH_OPTS[@]}" -t "$REMOTE" \
-  "cd $dest && exec cargo$remote_args"
+  "cd $dest && exec $REMOTE_CMD$remote_args"

@@ -7,23 +7,19 @@
   crossCC = pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc;
   crossLinker = "${crossCC}/bin/aarch64-unknown-linux-gnu-gcc";
 
-  # An x86_64-hosted rustc that ships std for *both* targets. Plain
-  # pkgs.rustc carries host std only, so `--target aarch64-unknown-linux-gnu`
-  # fails with "can't find crate for `std`" and points at a rustup command that
-  # does not apply to a Nix-provided toolchain.
+  # An x86_64-hosted rustc that ships std for *both* targets. Plain pkgs.rustc
+  # carries host std only, so `--target aarch64-unknown-linux-gnu` fails with
+  # "can't find crate for `std`" and points at a rustup command that does not
+  # apply to a Nix-provided toolchain.
+  #
+  # Offered on PATH rather than pinned through build.rustc, so a checkout that
+  # supplies its own toolchain (jcode enters a pinned nightly devshell) still
+  # wins; see the Cargo config note below.
   crossRustc = pkgs.pkgsCross.aarch64-multiplatform.buildPackages.rustc;
 
-  # The wrapper derivation is bin/ only; the standard libraries live in the
-  # unwrapped output, which is what `rustc --print sysroot` reports.
-  crossSysroot = "${crossRustc.unwrapped}";
-
-  # Deliberately nixpkgs' toolchain rather than rustup: both ship a bin/cargo
-  # and would collide in systemPackages, and a pinned compiler is what makes an
-  # offloaded build reproduce the local one. A checkout that pins a different
-  # toolchain should offload through its own `nix develop` instead.
-  #
-  # crossRustc, not pkgs.rustc, so a bare `rustc --target aarch64-...` on the
-  # PATH behaves like a cargo build does rather than failing on a missing std.
+  # Default toolchain for offloaded jobs that pin nothing themselves.
+  # Deliberately nixpkgs' rather than rustup: both ship a bin/cargo and would
+  # collide in systemPackages.
   rustTools = with pkgs; [
     cargo
     crossRustc
@@ -34,9 +30,10 @@
     crossCC
   ];
 
-  # Native-link and build-script dependencies. mold is the default linker for
-  # host builds because link time dominates incremental rebuilds of large
-  # workspaces, which is the case this whole module exists to speed up.
+  # Native-link and build-script dependencies. mold is present because large
+  # workspaces spend a large share of an incremental rebuild in the linker, but
+  # selecting it is left to each repository: a global host rustflags entry would
+  # override the choice for every workspace on the machine.
   buildTools = with pkgs; [
     clang
     mold
@@ -61,42 +58,31 @@ in {
   darwin = {};
 
   # Cargo has no system-wide config path: it reads $CARGO_HOME/config.toml and
-  # then walks up from the invocation directory. So the cross-linker wiring has
-  # to live in the user's Cargo home, and an offloaded checkout's own
-  # .cargo/config.toml still overrides it.
+  # then walks up from the invocation directory. So this wiring has to live in
+  # the user's Cargo home, where it applies to every offloaded job.
+  #
+  # Deliberately minimal. A repository that pins its own toolchain (jcode pins a
+  # nightly through its flake) must keep winning, and Cargo resolves several of
+  # these keys ahead of anything the environment or PATH says:
+  #
+  #   - build.rustc overrides the compiler on PATH outright, so pinning one here
+  #     silently replaces a checkout's pinned toolchain. Verified on charon: a
+  #     rustc placed first on PATH was never invoked.
+  #   - build.rustc-wrapper likewise forces sccache onto builds that deliberately
+  #     avoid it; jcode's dev_cargo.sh disables sccache for incremental profiles
+  #     because it cannot cache incremental units.
+  #   - build.jobs and a host rustflags entry would similarly override per-repo
+  #     choices for every workspace on the machine.
+  #
+  # What remains is only what a cross build cannot discover for itself.
   home.linux = {
     home.file.".cargo/config.toml".text = ''
       # Managed by potb/config (modules/cargo-offload.nix).
 
-      [target.x86_64-unknown-linux-gnu]
-      linker = "${pkgs.clang}/bin/clang"
-      rustflags = ["-C", "link-arg=-fuse-ld=${pkgs.mold}/bin/mold"]
-
+      # rustc emits aarch64 object code natively; only the linker has to be a
+      # target one, and it has no default Cargo could infer.
       [target.aarch64-unknown-linux-gnu]
       linker = "${crossLinker}"
-
-      # clippy-driver ships in its own store path with no standard library, so
-      # it cannot infer a sysroot from its own location and every cross lint
-      # dies with "can't find crate for `std`". Cargo's [env] table reaches it
-      # because clippy-driver is a process Cargo spawns.
-      [env]
-      SYSROOT = "${crossSysroot}"
-
-      # build.rustc rather than an [env] RUSTC: Cargo picks its own compiler
-      # before applying [env], so setting it there leaves cross builds still
-      # failing on a missing std. Using the dual-std compiler for host builds
-      # as well keeps a target switch from swapping compilers and discarding
-      # the incremental cache.
-      #
-      # sccache is shared across users and checkouts, so repeated offloads of
-      # the same workspace reuse each other's compilations.
-      [build]
-      rustc = "${crossRustc}/bin/rustc"
-      rustc-wrapper = "${pkgs.sccache}/bin/sccache"
-
-      # 32 threads, minus a couple so the box stays usable as a desktop while
-      # a remote job runs.
-      jobs = 30
 
       # The vendored libgit2 fails on private remotes that need the local SSH
       # agent and credential helper; the git CLI already has both.
