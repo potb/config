@@ -15,8 +15,9 @@
 #   cargo-off test -p jcode-tui
 #   cargo-off build --release --target aarch64-unknown-linux-gnu
 #
-#   # run something other than cargo in the same synced checkout
-#   CARGO_OFF_CMD='scripts/dev_cargo.sh' cargo-off check --profile selfdev
+#   # a checkout that ships scripts/dev_cargo.sh uses it automatically;
+#   # bypass that with CARGO_OFF_CMD=cargo
+#   cargo-off build --profile selfdev -p jcode --bin jcode
 #
 # The workspace is rsynced to charon and the command runs there. Nothing is
 # copied back: results are Linux binaries, and this machine is macOS. Use it for
@@ -30,10 +31,22 @@ set -euo pipefail
 REMOTE="${CARGO_OFF_REMOTE:-potb@172.20.10.10}"
 SSH_KEY="${CARGO_OFF_KEY:-$HOME/.ssh/id_ed25519}"
 
-# What to run remotely. Overridable so repository wrappers (jcode's
-# scripts/dev_cargo.sh, which enters a pinned nix devshell) can be offloaded
-# with the same sync logic.
-REMOTE_CMD="${CARGO_OFF_CMD:-cargo}"
+# What to run remotely. Repository wrappers are preferred over bare cargo when
+# the checkout ships one, because they encode build settings that a bare cargo
+# invocation would get wrong: jcode's scripts/dev_cargo.sh enters the pinned
+# nightly devshell, sizes the job count against available memory, selects mold,
+# and validates the linked binary's Nix runtime closure afterwards.
+#
+# Set CARGO_OFF_CMD=cargo to bypass the wrapper deliberately.
+pick_remote_cmd() {
+  if [ -n "${CARGO_OFF_CMD:-}" ]; then
+    printf '%s\n' "$CARGO_OFF_CMD"
+  elif [ -x "$root/scripts/dev_cargo.sh" ]; then
+    printf 'scripts/dev_cargo.sh\n'
+  else
+    printf 'cargo\n'
+  fi
+}
 
 # One multiplexed connection for every ssh and rsync below, so a run pays a
 # single TCP and key-exchange round trip.
@@ -78,6 +91,7 @@ if [ -z "$root" ]; then
 fi
 
 project="$(basename "$root")"
+REMOTE_CMD="$(pick_remote_cmd)"
 
 # Mirror the local layout when charon already has a checkout in the same place.
 # jcode's self-dev machinery locates its repository by path and by git metadata,
