@@ -147,11 +147,15 @@ rsync -az --delete \
 if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
   head_commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || true)"
 
+  # An empty answer means charon has no repository at this path, which is the
+  # normal case for a scratch sync. There is no history to reconcile then, and
+  # warning about it on every run would be noise.
   # shellcheck disable=SC2029
   remote_head="$(ssh "${SSH_OPTS[@]}" "$REMOTE" \
     "git -C $dest rev-parse HEAD 2>/dev/null" 2>/dev/null || true)"
 
-  if [ -n "$head_commit" ] && [ "$head_commit" != "$remote_head" ]; then
+  if [ -n "$head_commit" ] && [ -n "$remote_head" ] &&
+    [ "$head_commit" != "$remote_head" ]; then
     # Pushed to a side branch, never to the branch charon has checked out: a
     # non-bare repository refuses that, and it would also rewrite a real branch.
     if GIT_SSH_COMMAND="ssh ${SSH_OPTS[*]}" \
