@@ -7,13 +7,26 @@
   crossCC = pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc;
   crossLinker = "${crossCC}/bin/aarch64-unknown-linux-gnu-gcc";
 
+  # An x86_64-hosted rustc that ships std for *both* targets. Plain
+  # pkgs.rustc carries host std only, so `--target aarch64-unknown-linux-gnu`
+  # fails with "can't find crate for `std`" and points at a rustup command that
+  # does not apply to a Nix-provided toolchain.
+  crossRustc = pkgs.pkgsCross.aarch64-multiplatform.buildPackages.rustc;
+
+  # The wrapper derivation is bin/ only; the standard libraries live in the
+  # unwrapped output, which is what `rustc --print sysroot` reports.
+  crossSysroot = "${crossRustc.unwrapped}";
+
   # Deliberately nixpkgs' toolchain rather than rustup: both ship a bin/cargo
   # and would collide in systemPackages, and a pinned compiler is what makes an
   # offloaded build reproduce the local one. A checkout that pins a different
   # toolchain should offload through its own `nix develop` instead.
+  #
+  # crossRustc, not pkgs.rustc, so a bare `rustc --target aarch64-...` on the
+  # PATH behaves like a cargo build does rather than failing on a missing std.
   rustTools = with pkgs; [
     cargo
-    rustc
+    crossRustc
     clippy
     rustfmt
     cargo-nextest
@@ -62,9 +75,23 @@ in {
       [target.aarch64-unknown-linux-gnu]
       linker = "${crossLinker}"
 
-      # Shared object cache: repeated offloads of the same workspace, and
-      # different checkouts of it, reuse each other's compilations.
+      # clippy-driver ships in its own store path with no standard library, so
+      # it cannot infer a sysroot from its own location and every cross lint
+      # dies with "can't find crate for `std`". Cargo's [env] table reaches it
+      # because clippy-driver is a process Cargo spawns.
+      [env]
+      SYSROOT = "${crossSysroot}"
+
+      # build.rustc rather than an [env] RUSTC: Cargo picks its own compiler
+      # before applying [env], so setting it there leaves cross builds still
+      # failing on a missing std. Using the dual-std compiler for host builds
+      # as well keeps a target switch from swapping compilers and discarding
+      # the incremental cache.
+      #
+      # sccache is shared across users and checkouts, so repeated offloads of
+      # the same workspace reuse each other's compilations.
       [build]
+      rustc = "${crossRustc}/bin/rustc"
       rustc-wrapper = "${pkgs.sccache}/bin/sccache"
 
       # 32 threads, minus a couple so the box stays usable as a desktop while
