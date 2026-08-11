@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # cargo-off — run a cargo command on charon instead of this machine.
 #
+# For clients that this flake does not manage: copy it onto the client's PATH
+# (for example ~/bin/cargo-off) rather than installing it through Nix.
+#
+#   install -m 0755 scripts/cargo-off ~/bin/cargo-off
+#
+# Requires only bash, ssh and rsync locally; the whole toolchain lives on
+# charon (see modules/cargo-offload.nix).
+#
 # Usage:
 #   cargo-off check
 #   cargo-off clippy --all-targets
@@ -35,11 +43,29 @@ fi
 
 # Anchor on the workspace root, not $PWD: running from inside a member crate
 # must still sync the whole workspace, or path dependencies break remotely.
-if ! root="$(cargo locate-project --workspace --message-format plain 2>/dev/null)"; then
-  echo "cargo-off: not inside a cargo workspace" >&2
+#
+# Found by walking up for the Cargo.toml that declares [workspace], rather than
+# by asking the local cargo: a client that offloads everything has no reason to
+# have a Rust toolchain installed at all.
+root=""
+dir="$PWD"
+while [ "$dir" != "/" ]; do
+  if [ -f "$dir/Cargo.toml" ]; then
+    # Remember the outermost manifest seen, so a plain single-crate package
+    # still resolves once the walk reaches the top.
+    root="$dir"
+    if grep -qE '^\[workspace\]' "$dir/Cargo.toml"; then
+      break
+    fi
+  fi
+  dir="$(dirname "$dir")"
+done
+
+if [ -z "$root" ]; then
+  echo "cargo-off: no Cargo.toml found in $PWD or any parent" >&2
   exit 1
 fi
-root="$(dirname "$root")"
+
 project="$(basename "$root")"
 dest="\$HOME/cargo-off/$project"
 
@@ -47,6 +73,10 @@ dest="\$HOME/cargo-off/$project"
 # to exist first. Doing it over the shared control socket costs no extra
 # handshake, and unlike rsync's --mkpath it does not require rsync >= 3.2.3 on
 # both ends.
+# $dest holds a literal $HOME so it expands on charon, whose home directory is
+# not this machine's. That is exactly what SC2029 warns about, and here it is
+# the intent.
+# shellcheck disable=SC2029
 ssh "${SSH_OPTS[@]}" "$REMOTE" "mkdir -p $dest"
 
 # --delete keeps a removed local file from lingering remotely and silently

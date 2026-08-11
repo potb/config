@@ -73,8 +73,9 @@ in {
     };
 
     users.users.potb.openssh.authorizedKeys.keys = [
-      # nyx (MacBook), ~/.ssh/id_ed25519
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPxwWHxRGidoXjaK6smBfBbHRdNfkLmumxEEN6bJpeD2 potb@nyx"
+      # Peios-MacBook-Pro-2, ~/.ssh/id_ed25519. Not a host this flake manages,
+      # so the key is recorded here rather than derived from a darwin config.
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPxwWHxRGidoXjaK6smBfBbHRdNfkLmumxEEN6bJpeD2 potb@Peios-MacBook-Pro-2"
     ];
   };
 
