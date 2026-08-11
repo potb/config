@@ -17,13 +17,19 @@
   # wins; see the Cargo config note below.
   crossRustc = pkgs.pkgsCross.aarch64-multiplatform.buildPackages.rustc;
 
+  # Clippy has to come from the same cross set. pkgs.clippy resolves its sysroot
+  # to plain pkgs.rustc, which carries host std only, so `cargo clippy --target
+  # aarch64-unknown-linux-gnu` fails on a missing std even when `cargo build`
+  # for that target succeeds. Matching the pair keeps lint and build agreeing.
+  crossClippy = pkgs.pkgsCross.aarch64-multiplatform.buildPackages.clippy;
+
   # Default toolchain for offloaded jobs that pin nothing themselves.
   # Deliberately nixpkgs' rather than rustup: both ship a bin/cargo and would
   # collide in systemPackages.
   rustTools = with pkgs; [
     cargo
     crossRustc
-    clippy
+    crossClippy
     rustfmt
     cargo-nextest
     sccache

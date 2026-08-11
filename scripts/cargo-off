@@ -137,6 +137,40 @@ rsync -az --delete \
   -e "ssh ${SSH_OPTS[*]}" \
   "$root/" "$REMOTE:$rel/"
 
+# Bring charon's HEAD to the same commit. The working tree above is already
+# byte-identical, but git metadata is not, and the build reads it: jcode stamps
+# its binaries from `git`, so without this a remote build reports whichever
+# commit charon happened to clone. Parts of the test suite shell out to git too.
+#
+# Only the objects charon lacks are transferred, a few kilobytes for the usual
+# handful of local commits and nothing at all when it is already in sync.
+if git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
+  head_commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || true)"
+
+  # shellcheck disable=SC2029
+  remote_head="$(ssh "${SSH_OPTS[@]}" "$REMOTE" \
+    "git -C $dest rev-parse HEAD 2>/dev/null" 2>/dev/null || true)"
+
+  if [ -n "$head_commit" ] && [ "$head_commit" != "$remote_head" ]; then
+    # Pushed to a side branch, never to the branch charon has checked out: a
+    # non-bare repository refuses that, and it would also rewrite a real branch.
+    if GIT_SSH_COMMAND="ssh ${SSH_OPTS[*]}" \
+      git -C "$root" push --quiet --force \
+      "$REMOTE:$rel" "HEAD:refs/heads/cargo-off" 2>/dev/null; then
+
+      # --soft moves HEAD and leaves both the working tree and the index alone,
+      # so the rsynced edits survive and do not show up as staged changes.
+      # --hard or a checkout would discard them, and both refuse a dirty tree.
+      # shellcheck disable=SC2029
+      ssh "${SSH_OPTS[@]}" "$REMOTE" \
+        "git -C $dest reset --soft $head_commit" >/dev/null 2>&1 || true
+    else
+      echo "cargo-off: warning: could not push local commits to charon." >&2
+      echo "cargo-off: sources are current; git-derived version strings are not." >&2
+    fi
+  fi
+fi
+
 # Quote each argument so the remote shell sees exactly what was typed here.
 remote_args=""
 for arg in "$@"; do
