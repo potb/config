@@ -26,8 +26,6 @@
     seedFiles = {
       ".jcode/prompt-overlay.md" = ./jcode/prompt-overlay.md;
       ".jcode/skills/garden-memory/SKILL.md" = ./jcode/garden-memory-SKILL.md;
-      ".jcode/skills/caveman/SKILL.md" = "${inputs.caveman}/skills/caveman/SKILL.md";
-      ".jcode/skills/caveman/README.md" = "${inputs.caveman}/skills/caveman/README.md";
     };
 
     seedScript = lib.concatStringsSep "\n" (lib.mapAttrsToList (rel: src: ''

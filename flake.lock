@@ -171,22 +171,6 @@
         "type": "github"
       }
     },
-    "caveman": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786187098,
-        "narHash": "sha256-54NN2TsYVVjWXJn6C+tPgCn1IdpecASJXeaMRpWXcFk=",
-        "owner": "JuliusBrussee",
-        "repo": "caveman",
-        "rev": "11ddc0c9813c8f75365cd5be2f753df08712f154",
-        "type": "github"
-      },
-      "original": {
-        "owner": "JuliusBrussee",
-        "repo": "caveman",
-        "type": "github"
-      }
-    },
     "codebase-memory-mcp": {
       "inputs": {
         "nixpkgs": "nixpkgs"
@@ -1399,7 +1383,6 @@
         "agent-browser": "agent-browser",
         "agentmemory": "agentmemory",
         "catppuccin-delta": "catppuccin-delta",
-        "caveman": "caveman",
         "codebase-memory-mcp": "codebase-memory-mcp",
         "determinate": "determinate",
         "disko": "disko",
