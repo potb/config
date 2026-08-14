@@ -63,6 +63,8 @@
   services.udisks2.enable = true;
   services.pcscd.enable = true;
 
+  services.fwupd.enable = true;
+
   systemd.services.amdgpu-perf-fix = {
     description = "Set AMD GPU to high performance mode";
     wantedBy = ["multi-user.target"];
