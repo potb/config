@@ -276,7 +276,7 @@ in {
       };
 
       instructions = [
-        "${inputs.caveman}/src/rules/caveman-activate.md"
+        "${./jcode/prompt-overlay.md}"
         "${inputs.superpowers}/skills/using-superpowers/SKILL.md"
         "${config.home.homeDirectory}/.config/opencode/explore-usage.md"
         "${config.home.homeDirectory}/.config/opencode/code-tools-priority.md"
@@ -423,7 +423,6 @@ in {
         (map (n: mkSkill (baseNameOf n) inputs.superpowers "skills/${n}") superpowersSelected)
         ++ (map (p: mkSkill (baseNameOf p) inputs.mattpocock-skills "skills/${p}") mattpocockSelected)
         ++ [
-          (mkSkill "caveman" inputs.caveman "skills/caveman")
           (mkSkill "stop-slop" inputs.stop-slop null) # repo root IS the skill
         ]
       );

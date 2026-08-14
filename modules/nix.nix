@@ -12,7 +12,19 @@ in {
       settings = {
         experimental-features = "nix-command flakes pipe-operators";
         warn-dirty = false;
-        max-jobs = "auto";
+
+        # Balance multiple Nix builds across this 32-thread host without
+        # allowing every derivation to consume every core at once.
+        max-jobs = 4;
+        cores = 8;
+
+        # Keep developer shell build closures warm across the daily GC.
+        keep-derivations = true;
+        keep-outputs = true;
+
+        # The upstream 1 MiB default can stall high-throughput substitutes.
+        download-buffer-size = 512 * 1024 * 1024;
+
         trusted-users = [
           "root"
           "@wheel"

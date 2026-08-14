@@ -49,6 +49,10 @@
         lm_sensors
         audacity
         prismlauncher
+        # Real default zip handler (see modules/wayland.nix mimeApps): without
+        # this installed, Prism Launcher is the only application/zip claimant
+        # and wins by default even for plain archives.
+        xarchiver
         rusty-path-of-building
         vlc
         spotify
