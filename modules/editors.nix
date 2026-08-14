@@ -1,9 +1,4 @@
-{
-  pkgs,
-  lib,
-  ...
-}: let
-  fonts = import ../shared/fonts.nix {inherit pkgs;};
+{pkgs, ...}: let
   opencodeBinPath = pkgs.lib.makeBinPath [
     pkgs.typescript
     pkgs.typescript-language-server
@@ -95,25 +90,11 @@ in {
       };
     };
 
-    programs.alacritty = {
+    programs.ghostty = {
       enable = true;
       settings = {
-        font = {
-          normal = {
-            family = lib.mkForce fonts.monospace.name;
-            style = "Regular";
-          };
-          bold = {
-            family = lib.mkForce fonts.monospace.name;
-            style = "Bold";
-          };
-          italic = {
-            family = lib.mkForce fonts.monospace.name;
-            style = "Italic";
-          };
-          size = lib.mkForce fonts.sizes.medium;
-        };
-        general.live_config_reload = true;
+        confirm-close-surface = false;
+        window-decoration = false;
       };
     };
 
