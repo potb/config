@@ -28,6 +28,12 @@
       enable = true;
       dotDir = "${config.xdg.configHome}/zsh";
 
+      # ez-compinit owns completion init: it defers compinit to the first
+      # precmd and reuses a cached dump. Home Manager's own eager
+      # `autoload -U compinit && compinit` ran a second full compinit plus a
+      # compdump rewrite on every shell (~700ms of a ~900ms startup).
+      enableCompletion = false;
+
       antidote.enable = true;
       antidote.plugins = [
         "mattmc3/ez-compinit"
@@ -57,6 +63,10 @@
       ];
 
       initContent = lib.mkBefore ''
+        # Reuse the completion dump for 20 hours instead of auditing and
+        # rewriting it on every shell startup.
+        zstyle ':plugin:ez-compinit' 'use-cache' yes
+
         zstyle ':omz:plugins:eza' 'dirs-first' yes
         zstyle ':omz:plugins:eza' 'git-status' yes
         zstyle ':omz:plugins:eza' 'header' yes
