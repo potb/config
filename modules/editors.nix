@@ -95,6 +95,12 @@ in {
       settings = {
         confirm-close-surface = false;
         window-decoration = false;
+
+        # Ghostty renders SGR 2 (faint) by blending the glyph toward the
+        # background, which washes out styles like Starship's "green dimmed
+        # bold" hostname. Alacritty ignored faint entirely, so keep the
+        # colors at full strength to match.
+        faint-opacity = 1.0;
       };
     };
 
