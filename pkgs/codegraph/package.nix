@@ -34,8 +34,8 @@ in
       inherit hash;
     };
 
-    nativeBuildInputs = lib.optionals stdenv.isLinux [autoPatchelfHook];
-    buildInputs = lib.optionals stdenv.isLinux [stdenv.cc.cc.lib zlib];
+    nativeBuildInputs = lib.optionals stdenv.hostPlatform.isLinux [autoPatchelfHook];
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [stdenv.cc.cc.lib zlib];
 
     dontBuild = true;
 

@@ -330,7 +330,7 @@ in {
       pkgs.sem
     ];
 
-    systemd.user.services.agentmemory = lib.mkIf pkgs.stdenv.isLinux {
+    systemd.user.services.agentmemory = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "agentmemory persistent context service";
         After = ["network.target"];
@@ -355,7 +355,7 @@ in {
       };
     };
 
-    launchd.agents.agentmemory = lib.mkIf pkgs.stdenv.isDarwin {
+    launchd.agents.agentmemory = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
       enable = true;
       config = {
         ProgramArguments = ["${agentmemoryWrapper}"];

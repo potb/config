@@ -18,7 +18,7 @@
         docker-client
         docker-compose
       ]
-      ++ lib.optionals pkgs.stdenv.isDarwin [
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
         colima
         lima
       ];
