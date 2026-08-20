@@ -26,7 +26,7 @@
     if [ -f "$HOME/.secrets/gemini-api-key" ]; then
       export GEMINI_API_KEY=$(tr -d '\n' < "$HOME/.secrets/gemini-api-key")
     fi
-    exec ${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion} serve
+    exec ${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion}
   '';
 in {
   nixos = {};
@@ -339,6 +339,9 @@ in {
         ExecStart = "${agentmemoryWrapper}";
         Restart = "on-failure";
         RestartSec = "5s";
+        RestartSteps = 5;
+        RestartMaxDelaySec = "5min";
+        StartLimitIntervalSec = 0;
         Environment = [
           "PATH=${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin"
           "AGENTMEMORY_SLOTS=true"
