@@ -42,7 +42,7 @@
         lefthook
         _1password-cli
       ]
-      ++ lib.optionals pkgs.stdenv.isLinux [
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
         gcc
         binutils
         libnotify
@@ -60,7 +60,7 @@
         discord
         jetbrains.datagrip
       ]
-      ++ lib.optionals pkgs.stdenv.isDarwin [
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
         stdenv.cc
       ];
 
@@ -68,11 +68,11 @@
       {
         EDITOR = "nvim";
       }
-      // lib.optionalAttrs pkgs.stdenv.isLinux {
+      // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
         NH_FLAKE = "/home/potb/projects/potb/config";
         XDG_DATA_DIRS = "$HOME/Desktop:$XDG_DATA_DIRS";
       }
-      // lib.optionalAttrs pkgs.stdenv.isDarwin {
+      // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
         NH_FLAKE = lib.mkForce "/Users/potb/projects/potb/config";
         BROWSER = lib.mkForce "open -a 'Google Chrome'";
         CC = "${pkgs.stdenv.cc}/bin/cc";

@@ -10,10 +10,15 @@
   networking.nameservers = ["127.0.0.1"];
   networking.firewall.allowedTCPPorts = [4096];
 
-  # CNVi WiFi on Z790 can fail PCI enumeration at boot.
-  # This service rescans PCI, loads iwlwifi, and restarts NetworkManager if no WiFi interface is found.
+  # Both layers are load-bearing; see ./wifi-beacon-loss.md.
+  boot.extraModprobeConfig = ''
+    options iwlwifi power_save=0 uapsd_disable=1
+    options iwlmvm power_scheme=1
+  '';
+  networking.networkmanager.wifi.powersave = false;
+
   systemd.services.wifi-pci-rescan = {
-    description = "Rescan PCI bus for late-initializing CNVi WiFi";
+    description = "Rescan PCI bus for CNVi WiFi that failed enumeration at boot";
     wantedBy = ["multi-user.target"];
     after = [
       "systemd-modules-load.service"
@@ -24,7 +29,6 @@
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "wifi-pci-rescan" ''
-        # If a WiFi interface already exists, nothing to do
         if ${pkgs.iw}/bin/iw dev 2>/dev/null | grep -q Interface; then
           echo "WiFi interface found, skipping PCI rescan"
           exit 0
@@ -34,7 +38,6 @@
         echo 1 > /sys/bus/pci/rescan
         sleep 2
 
-        # Load iwlwifi in case it didn't autobind
         ${pkgs.kmod}/bin/modprobe iwlwifi 2>/dev/null || true
         sleep 1
 

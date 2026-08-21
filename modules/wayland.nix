@@ -293,7 +293,7 @@
         ];
 
         bind = [
-          "$mod, Return, exec, alacritty"
+          "$mod, Return, exec, ghostty"
           "$mod, p, exec, rofi -show drun"
           "$mod, w, exec, google-chrome-stable"
 
