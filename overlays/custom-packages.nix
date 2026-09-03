@@ -9,6 +9,10 @@
   agent-browser = final.callPackage ../pkgs/agent-browser/package.nix {
     src = inputs.agent-browser;
   };
+  tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {
+    src = inputs.tsm-app;
+    version = "1.1.9";
+  };
   codebase-memory-mcp =
     inputs.codebase-memory-mcp.packages.${final.stdenv.hostPlatform.system}.default;
   sem = inputs.sem.packages.${final.stdenv.hostPlatform.system}.default;
