@@ -78,6 +78,17 @@ in
 
     dontWrapQtApps = true;
 
+    postInstall = ''
+      install -Dm644 packaging/tsm-app.desktop \
+        $out/share/applications/tsm-app.desktop
+      substituteInPlace $out/share/applications/tsm-app.desktop \
+        --replace-fail /usr/bin/tsm-app $out/bin/tsm-app
+      for size in 16 32 48 128 256; do
+        install -Dm644 "tsm/ui/assets/tsm_$size.png" \
+          "$out/share/icons/hicolor/''${size}x''${size}/apps/tsm-app.png"
+      done
+    '';
+
     pythonImportsCheck = ["tsm"];
 
     meta = {

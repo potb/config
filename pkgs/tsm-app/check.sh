@@ -72,6 +72,26 @@ run_in_app_env() {
   QT_QPA_PLATFORM=offscreen PYTHONPATH="$sitepaths" "$py" "$script"
 }
 
+desktop_entry_valid() {
+  local out entry
+  out=$(build_path) || return 1
+  entry="$out/share/applications/tsm-app.desktop"
+  test -f "$entry" || { echo "missing $entry"; return 1; }
+  grep -q "^Exec=$out/bin/tsm-app$" "$entry" || {
+    echo "Exec does not point at the store binary:"
+    grep '^Exec=' "$entry"
+    return 1
+  }
+  test -f "$out/share/icons/hicolor/128x128/apps/tsm-app.png" || {
+    echo "missing 128x128 icon"
+    return 1
+  }
+  if command -v desktop-file-validate >/dev/null 2>&1; then
+    desktop-file-validate "$entry" || return 1
+  fi
+  return 0
+}
+
 local_wow_usable() {
   local out result
   out=$(build_path) || return 1
@@ -87,6 +107,7 @@ stage "package builds"       package_builds
 stage "binary present"       binary_present
 stage "imports headless"     imports_headless
 stage "local wow usable"     local_wow_usable
+stage "desktop entry valid"  desktop_entry_valid
 
 if [ $FAILED -eq 0 ]; then
   echo "all stages passed"
