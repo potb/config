@@ -9,22 +9,27 @@ KEEP_GOING=0
 
 FAILED=0
 
+LOG_DIR=$(mktemp -d)
+trap 'rm -rf "$LOG_DIR"' EXIT
+
 stage() {
   local name="$1"
   shift
   local start=$SECONDS
-  local out
-  out=$("$@" 2>&1)
+  local log="$LOG_DIR/${name// /_}.log"
+
+  printf 'RUN   %-24s ' "$name"
+  "$@" > "$log" 2>&1
   local code=$?
   local dur=$((SECONDS - start))
 
   if [ $code -eq 0 ]; then
-    printf 'PASS  %-24s %4ds\n' "$name" "$dur"
+    printf '\rPASS  %-24s %4ds\n' "$name" "$dur"
     return 0
   fi
 
-  printf 'FAIL  %-24s %4ds  (exit %d)\n' "$name" "$dur" "$code"
-  printf '%s\n' "$out" | tail -40 | sed 's/^/      | /'
+  printf '\rFAIL  %-24s %4ds  (exit %d)\n' "$name" "$dur" "$code"
+  tail -40 "$log" | sed 's/^/      | /'
   FAILED=1
   [ $KEEP_GOING -eq 0 ] && exit 1
   return 0
@@ -59,11 +64,29 @@ imports_headless() {
   QT_QPA_PLATFORM=offscreen "$out/bin/tsm-app" --version
 }
 
+run_in_app_env() {
+  local out="$1" script="$2" wrapped py sitepaths
+  wrapped="$out/bin/.tsm-app-wrapped"
+  py=$(sed -n '1s|^#!||p' "$wrapped")
+  sitepaths=$(tr "'" '\n' < "$wrapped" | grep '/site-packages$' | paste -sd:)
+  QT_QPA_PLATFORM=offscreen PYTHONPATH="$sitepaths" "$py" "$script"
+}
+
+local_wow_usable() {
+  local out result
+  out=$(build_path) || return 1
+  run_in_app_env "$out" "$(dirname "$0")/detect_local_wow.py"
+  result=$?
+  [ $result -eq 77 ] && return 0
+  return $result
+}
+
 stage "flake evaluates"      flake_evaluates
 stage "derivation evaluates" derivation_evaluates
 stage "package builds"       package_builds
 stage "binary present"       binary_present
 stage "imports headless"     imports_headless
+stage "local wow usable"     local_wow_usable
 
 if [ $FAILED -eq 0 ]; then
   echo "all stages passed"
