@@ -11,7 +11,7 @@
   };
   tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {
     src = inputs.tsm-app;
-    version = "1.1.9";
+    version = "1.1.15";
   };
   codebase-memory-mcp =
     inputs.codebase-memory-mcp.packages.${final.stdenv.hostPlatform.system}.default;

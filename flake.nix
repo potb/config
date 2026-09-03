@@ -143,7 +143,7 @@
     };
 
     tsm-app = {
-      url = "github:exceptionptr/tsm-app-linux/v1.1.9";
+      url = "github:exceptionptr/tsm-app-linux/v1.1.15";
       flake = false;
     };
 

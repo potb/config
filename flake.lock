@@ -1680,16 +1680,16 @@
     "tsm-app": {
       "flake": false,
       "locked": {
-        "lastModified": 1778784216,
-        "narHash": "sha256-QFLP0XDC59xTjUgp5BJkBkFLRvb2g1zJr8AY3w3+ILM=",
+        "lastModified": 1787834194,
+        "narHash": "sha256-lSqI0+bVlB9lJ0oldDfYzBDdGHUXOOgIK3ONtbx+UfY=",
         "owner": "exceptionptr",
         "repo": "tsm-app-linux",
-        "rev": "055c7d84dd4b14f1e7e431270915297f71242977",
+        "rev": "ac5043015e720f6a3fa529253e905e22cdcb89b4",
         "type": "github"
       },
       "original": {
         "owner": "exceptionptr",
-        "ref": "v1.1.9",
+        "ref": "v1.1.15",
         "repo": "tsm-app-linux",
         "type": "github"
       }
