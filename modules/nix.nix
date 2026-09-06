@@ -78,6 +78,13 @@ in {
           "@admin"
         ];
         builders-use-substitutes = true;
+
+        # Ten cores, four of them performance ones. Left at the default of one
+        # job per core each taking every core, a rebuild that compiles Rust
+        # starves the machine it is running on. Two jobs of four cores keeps
+        # the interface responsive and leaves the efficiency cores for it.
+        max-jobs = 2;
+        cores = 4;
       };
     };
 
