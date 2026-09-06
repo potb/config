@@ -366,6 +366,14 @@
                 # are pinned as inputs of their own.
                 mutableTaps = true;
 
+                # `brew shellenv` puts /opt/homebrew/bin ahead of the Nix
+                # profile in every interactive shell, so a tool this
+                # configuration declares loses to whatever Homebrew happens
+                # to have installed under the same name. The launcher in
+                # /run/current-system/sw/bin is enough to run brew itself.
+                enableZshIntegration = false;
+                enableBashIntegration = false;
+
                 # Homebrew 6.0 refuses to load anything from a tap that has
                 # not been trusted. These are the taps whose formulae and
                 # casks this configuration installs on purpose.
