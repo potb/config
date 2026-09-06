@@ -365,6 +365,19 @@
                 # take those with it, so the rest stay imperative until they
                 # are pinned as inputs of their own.
                 mutableTaps = true;
+
+                # Homebrew 6.0 refuses to load anything from a tap that has
+                # not been trusted. These are the taps whose formulae and
+                # casks this configuration installs on purpose.
+                trust.taps = [
+                  "felixkratz/formulae"
+                  "nikitabobko/tap"
+                  "asmvik/formulae"
+                  "jaisonerick/tap"
+                  "potb/tap"
+                  "rtk-ai/tap"
+                  "hashicorp/tap"
+                ];
               };
 
               home-manager.useGlobalPkgs = true;
