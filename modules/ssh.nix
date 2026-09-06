@@ -27,6 +27,10 @@
   delRules =
     map (net: "${rule "iptables" "-D" net} || true") localNetworks
     ++ map (net: "${rule "ip6tables" "-D" net} || true") localNetworks6;
+  # Neither machine can read the other's public key at evaluation time, so the
+  # two are recorded here and each host authorises the other.
+  charonKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPEvgHXpApOdOWFe5bKuZW4M3adoAvcDqFCaP7bYPkDu potb@charon";
+  nyxKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDBNj+8QbPM+G7odRtOWOWZ/A+UQ6FvnYMnurBgXWXfk potb@nyx";
 in {
   nixos = {
     services.openssh = {
@@ -72,14 +76,67 @@ in {
       extraStopCommands = lib.concatStringsSep "\n" delRules;
     };
 
-    users.users.potb.openssh.authorizedKeys.keys = [
-      # Peios-MacBook-Pro-2, ~/.ssh/id_ed25519. Not a host this flake manages,
-      # so the key is recorded here rather than derived from a darwin config.
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPxwWHxRGidoXjaK6smBfBbHRdNfkLmumxEEN6bJpeD2 potb@Peios-MacBook-Pro-2"
-    ];
+    users.users.potb.openssh.authorizedKeys.keys = [nyxKey];
   };
 
-  darwin = {};
+  darwin = {
+    # Remote Login, so reaching nyx does not depend on someone having clicked
+    # the Sharing panel. macOS keeps its own sshd_config; this appends to it.
+    services.openssh.enable = true;
 
-  home = {};
+    users.users.potb.openssh.authorizedKeys.keys = [charonKey];
+  };
+
+  home = {
+    programs.ssh = {
+      enable = true;
+
+      # Home Manager's own defaults for Host * are on their way out; keep the
+      # ones worth having explicitly rather than inheriting a moving target.
+      enableDefaultConfig = false;
+
+      settings."*" = {
+        AddKeysToAgent = "no";
+        Compression = false;
+        ForwardAgent = false;
+        HashKnownHosts = false;
+        ServerAliveInterval = 0;
+        ServerAliveCountMax = 3;
+        UserKnownHostsFile = "~/.ssh/known_hosts";
+        ControlMaster = "no";
+        ControlPath = "~/.ssh/master-%r@%n:%p";
+        ControlPersist = "no";
+      };
+
+      settings."github.com" = {
+        HostName = "github.com";
+        User = "git";
+        IdentitiesOnly = true;
+      };
+    };
+
+    linux = {
+      programs.ssh.settings = {
+        nyx = {
+          HostName = "Peios-MacBook-Pro-2.local";
+          User = "potb";
+          IdentityFile = "~/.ssh/id_ed25519";
+        };
+
+        "github.com".IdentityFile = "~/.ssh/id_ed25519";
+      };
+    };
+
+    darwin = {
+      programs.ssh.settings = {
+        charon = {
+          HostName = "charon.local";
+          User = "potb";
+          IdentityFile = "~/.ssh/id_ed25519_nyx";
+        };
+
+        "github.com".IdentityFile = "~/.ssh/id_ed25519_nyx";
+      };
+    };
+  };
 }
