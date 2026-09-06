@@ -368,6 +368,10 @@ in {
           SuccessfulExit = false;
         };
         EnvironmentVariables = {
+          # launchd starts agents with a bare PATH, and npx needs to find the
+          # node it was launched with, plus whatever the server shells out to.
+          PATH = "${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+
           AGENTMEMORY_SLOTS = "true";
           AGENTMEMORY_REFLECT = "true";
           GRAPH_EXTRACTION_ENABLED = "true";
