@@ -118,7 +118,7 @@ in {
     linux = {
       programs.ssh.settings = {
         nyx = {
-          HostName = "Peios-MacBook-Pro-2.local";
+          HostName = "nyx.local";
           User = "potb";
           IdentityFile = "~/.ssh/id_ed25519";
         };
