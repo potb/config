@@ -28,6 +28,23 @@
     fi
     exec ${pkgs.nodejs}/bin/npx -y @agentmemory/agentmemory@${agentmemoryVersion}
   '';
+
+  # systemd and launchd both start the service with a minimal PATH, and npx
+  # has to find the node it was built against before anything else.
+  agentmemoryPath = config: "${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin";
+
+  # Shared by both platforms. Kept in one place because the two service
+  # definitions below spell their environments differently, and drifted apart
+  # once already.
+  agentmemorySettings = {
+    AGENTMEMORY_SLOTS = "true";
+    AGENTMEMORY_REFLECT = "true";
+    GRAPH_EXTRACTION_ENABLED = "true";
+    CONSOLIDATION_ENABLED = "true";
+    AGENTMEMORY_AUTO_COMPRESS = "true";
+    EMBEDDING_PROVIDER = "local";
+    GEMINI_MODEL = "gemini-3.1-flash-lite";
+  };
 in {
   nixos = {};
   darwin = {};
@@ -342,16 +359,9 @@ in {
         RestartSteps = 5;
         RestartMaxDelaySec = "5min";
         StartLimitIntervalSec = 0;
-        Environment = [
-          "PATH=${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin"
-          "AGENTMEMORY_SLOTS=true"
-          "AGENTMEMORY_REFLECT=true"
-          "GRAPH_EXTRACTION_ENABLED=true"
-          "CONSOLIDATION_ENABLED=true"
-          "AGENTMEMORY_AUTO_COMPRESS=true"
-          "EMBEDDING_PROVIDER=local"
-          "GEMINI_MODEL=gemini-3.1-flash-lite"
-        ];
+        Environment =
+          ["PATH=${agentmemoryPath config}"]
+          ++ lib.mapAttrsToList (n: v: "${n}=${v}") agentmemorySettings;
       };
       Install = {
         WantedBy = ["default.target"];
@@ -367,19 +377,13 @@ in {
           Crashed = true;
           SuccessfulExit = false;
         };
-        EnvironmentVariables = {
-          # launchd starts agents with a bare PATH, and npx needs to find the
-          # node it was launched with, plus whatever the server shells out to.
-          PATH = "${pkgs.nodejs}/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.homeDirectory}/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-
-          AGENTMEMORY_SLOTS = "true";
-          AGENTMEMORY_REFLECT = "true";
-          GRAPH_EXTRACTION_ENABLED = "true";
-          CONSOLIDATION_ENABLED = "true";
-          AGENTMEMORY_AUTO_COMPRESS = "true";
-          EMBEDDING_PROVIDER = "local";
-          GEMINI_MODEL = "gemini-3.1-flash-lite";
-        };
+        EnvironmentVariables =
+          agentmemorySettings
+          // {
+            # launchd starts agents with only the system directories on PATH,
+            # so npx cannot find the node it needs without this.
+            PATH = "${agentmemoryPath config}:/usr/bin:/bin:/usr/sbin:/sbin";
+          };
         StandardOutPath = "${config.home.homeDirectory}/.local/share/agentmemory/stdout.log";
         StandardErrorPath = "${config.home.homeDirectory}/.local/share/agentmemory/stderr.log";
       };
