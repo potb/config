@@ -3,14 +3,12 @@
     enable = true;
     taps = builtins.attrNames config.nix-homebrew.taps;
     onActivation = {
-      # nyx carried ~190 formulae and 23 casks from its pre-Nix life. The
-      # command-line ones now come from nixpkgs, but "zap" would delete them
-      # all in the same activation that installs their replacements, and
-      # "check" would abort activation while any stray remains. Leave cleanup
-      # off until the nixpkgs versions are confirmed working, then run
-      # `brew bundle cleanup --file=$(nix eval --raw ...)` to review, and
-      # finally switch this to "zap".
-      cleanup = "none";
+      # The command-line tools nyx carried from its pre-Nix life now come
+      # from nixpkgs and resolve ahead of Homebrew's copies, so the originals
+      # are dead weight. `brew bundle cleanup` reports 185 formulae and no
+      # casks; every one of them either has a nixpkgs equivalent already
+      # installed or was only ever a dependency of one that does.
+      cleanup = "zap";
       autoUpdate = false;
       upgrade = false;
     };
@@ -52,11 +50,24 @@
       "font-symbols-only-nerd-font"
     ];
 
-    # Formulae with no nixpkgs equivalent.
+    # Formulae with no nixpkgs equivalent, or that provide a macOS service
+    # this machine already runs from Homebrew's own launchd agents.
     brews = [
-      "borders"
+      "felixkratz/formulae/borders"
+      "felixkratz/formulae/sketchybar"
+      "asmvik/formulae/skhd"
+
+      "jaisonerick/tap/macwifi-cli"
+      "potb/tap/alloydb-auth-proxy"
+
       "precomp"
       "wallpaper"
+
+      # The formula ships the CLI; the tailscale-app cask above carries the
+      # network extension the CLI talks to, and only the app is signed for it.
+      "tailscale"
+
+      "hashicorp/tap/terraform"
     ];
   };
 }
