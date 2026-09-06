@@ -357,7 +357,14 @@
                   "homebrew/homebrew-core" = inputs.homebrew-core;
                   "homebrew/homebrew-cask" = inputs.homebrew-cask;
                 };
-                mutableTaps = false;
+
+                # nyx taps a handful of third-party repositories for software
+                # that exists nowhere else: aerospace, borders, sketchybar,
+                # skhd and a few single-formula taps. Fully declarative taps
+                # would replace the whole directory with the two above and
+                # take those with it, so the rest stay imperative until they
+                # are pinned as inputs of their own.
+                mutableTaps = true;
               };
 
               home-manager.useGlobalPkgs = true;
