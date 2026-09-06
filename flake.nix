@@ -348,6 +348,11 @@
                 enable = true;
                 enableRosetta = true;
                 user = "potb";
+
+                # nyx had Homebrew installed by the official script before this
+                # flake managed it. Without autoMigrate, activation aborts on
+                # the pre-existing /opt/homebrew prefix.
+                autoMigrate = true;
                 taps = {
                   "homebrew/homebrew-core" = inputs.homebrew-core;
                   "homebrew/homebrew-cask" = inputs.homebrew-cask;
