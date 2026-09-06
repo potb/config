@@ -51,8 +51,7 @@
         yt-dlp
 
         ast-grep
-        d2
-        mermaid-cli
+        (d2.override {withImageSupport = false;})
         shellcheck
         shfmt
         tectonic
@@ -61,8 +60,6 @@
         harlequin
         postgresql_18
 
-        firebase-tools
-        gitlab-ci-local
         glab
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
@@ -89,6 +86,10 @@
         # Apple Silicon power and sensor readouts; aarch64-darwin only.
         macmon
         mactop
+
+        mermaid-cli
+        firebase-tools
+        gitlab-ci-local
       ];
 
     home.sessionVariables =
