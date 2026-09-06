@@ -41,6 +41,29 @@
         ffmpeg
         lefthook
         _1password-cli
+
+        age
+        croc
+        hyperfine
+        lnav
+        nmap
+        rsync
+        yt-dlp
+
+        ast-grep
+        d2
+        mermaid-cli
+        shellcheck
+        shfmt
+        tectonic
+
+        duckdb
+        harlequin
+        postgresql_18
+
+        firebase-tools
+        gitlab-ci-local
+        glab
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
         gcc
@@ -62,6 +85,10 @@
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
         stdenv.cc
+
+        # Apple Silicon power and sensor readouts; aarch64-darwin only.
+        macmon
+        mactop
       ];
 
     home.sessionVariables =

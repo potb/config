@@ -21,6 +21,7 @@
 
       nixfmt
       python3Packages.black
+      sccache
 
       awscli2
       stripe-cli

@@ -16,6 +16,7 @@
     home.packages = with pkgs;
       [
         docker-client
+        docker-buildx
         docker-compose
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
