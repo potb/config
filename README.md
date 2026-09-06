@@ -18,7 +18,7 @@ Personal NixOS and nix-darwin configuration for my machines.
 nh os switch .
 
 # macOS (nyx)
-darwin-rebuild switch --flake .#nyx
+darwin-rebuild switch --flake .#nyx    # see Setup for the first run
 ```
 
 ### Format
@@ -61,6 +61,27 @@ After cloning, install git hooks:
 ```bash
 lefthook install
 ```
+
+### Bootstrapping a Mac
+
+Install Determinate Nix first, because the Darwin configuration is written
+against its module rather than nix-darwin's own Nix management:
+
+```bash
+curl -fsSL https://install.determinate.systems/nix | sh -s -- install --determinate
+```
+
+The flake is written with pipe operators, which are still an experimental
+feature and are only enabled by the configuration this command is about to
+install. Pass them through the environment for that first run, since
+`darwin-rebuild` overrides the equivalent command-line flag:
+
+```bash
+sudo env NIX_CONFIG="extra-experimental-features = pipe-operators" \
+  nix run nix-darwin#darwin-rebuild -- switch --flake .#nyx
+```
+
+Afterwards the usual `darwin-rebuild switch --flake .#nyx` is enough.
 
 ## Firmware updates (charon)
 
