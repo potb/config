@@ -7,7 +7,32 @@
 in {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
-  networking.hostName = "nyx";
+  networking = {
+    hostName = "nyx";
+
+    # scutil keeps three names. Bonjour advertises the local one, so charon
+    # reaches this machine at nyx.local once activation renames it.
+    localHostName = "nyx";
+    computerName = "nyx";
+
+    # Matches charon: incoming connections are refused unless something is
+    # listening for them on purpose, and signed software is exempt.
+    applicationFirewall = {
+      enable = true;
+      allowSigned = true;
+      allowSignedApp = true;
+      enableStealthMode = true;
+      blockAllIncoming = false;
+    };
+  };
+
+  # Remote builds and `darwin-rebuild switch` over SSH outlive the ten minute
+  # idle timer this machine shipped with. The display may still sleep.
+  power.sleep = {
+    computer = "never";
+    harddisk = "never";
+    display = 10;
+  };
 
   fonts.packages = [
     fonts.monospace.package
@@ -85,11 +110,33 @@ in {
     loginwindow = {
       GuestEnabled = false;
     };
+    hitoolbox.AppleFnUsageType = "Do Nothing";
+
+    controlcenter = {
+      BatteryShowPercentage = true;
+      Bluetooth = true;
+      Sound = true;
+    };
+
+    menuExtraClock = {
+      Show24Hour = true;
+      ShowDate = 1;
+      ShowDayOfWeek = true;
+      ShowSeconds = false;
+    };
+
+    # Nix writes application bundles to the store, and the quarantine flag on
+    # them produces an "are you sure" dialog for software this configuration
+    # installed on purpose.
+    LaunchServices.LSQuarantine = false;
+
+    screensaver = {
+      askForPassword = true;
+      askForPasswordDelay = 5;
+    };
+
     CustomUserPreferences = {
-      "com.apple.HIToolbox" = {
-        AppleFnUsageType = 0;
-        AppleDictationAutoEnable = false;
-      };
+      "com.apple.HIToolbox".AppleDictationAutoEnable = false;
     };
   };
 
