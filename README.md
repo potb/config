@@ -81,14 +81,40 @@ sudo env NIX_CONFIG="extra-experimental-features = pipe-operators" \
   nix run nix-darwin#darwin-rebuild -- switch --flake .#nyx
 ```
 
-Afterwards `nh darwin switch . -H nyx` is enough. Two files the installers
-wrote have to be moved out of the way the first time, because nix-darwin
-refuses to overwrite content it does not recognise:
+Afterwards `nh darwin switch . -H nyx` is enough. A few files the
+installers or earlier hand-written setup wrote have to be moved out of the way
+the first time, because nix-darwin and Home Manager refuse to overwrite content
+they do not recognise.
+
+Determinate Nix leaves `/etc/nix/nix.custom.conf` behind with only its own
+comment header. The Determinate nix-darwin module generates that same file from
+`determinateNix.customSettings`, so nix-darwin stops the first activation until
+the old copy has been preserved:
 
 ```bash
-sudo mv /etc/nix/nix.custom.conf{,.before-nix-darwin}
-sudo mv /etc/paths.d/homebrew{,.before-nix-darwin}   # shadows the Nix profile
+sudo mv /etc/nix/nix.custom.conf /etc/nix/nix.custom.conf.before-nix-darwin
 ```
+
+The standalone Homebrew installer leaves `/etc/paths.d/homebrew`, which macOS
+`path_helper` reads before the Nix profile path. If it stays there, tools this
+flake declares can still resolve to Homebrew copies with the same name:
+
+```bash
+sudo mv /etc/paths.d/homebrew /etc/paths.d/homebrew.before-nix-darwin
+```
+
+A hand-written `~/.ssh/config` gets the same treatment once Home Manager owns
+SSH client configuration. Move it aside before switching so the generated host
+blocks from `modules/ssh.nix` can be installed without clobbering local content:
+
+```bash
+mv ~/.ssh/config ~/.ssh/config.before-home-manager
+```
+
+Other Determinate installer shell files in `/etc`, such as `/etc/zshrc`,
+`/etc/zshenv`, `/etc/zprofile`, and `/etc/bashrc`, do not need this treatment.
+nix-darwin already knows their installer hashes and replaces them during
+activation.
 
 Secrets are read from `~/.secrets` at runtime rather than through the
 configuration, so they never reach the world-readable Nix store. Copy the
