@@ -81,7 +81,22 @@ sudo env NIX_CONFIG="extra-experimental-features = pipe-operators" \
   nix run nix-darwin#darwin-rebuild -- switch --flake .#nyx
 ```
 
-Afterwards the usual `darwin-rebuild switch --flake .#nyx` is enough.
+Afterwards `nh darwin switch . -H nyx` is enough. Two files the installers
+wrote have to be moved out of the way the first time, because nix-darwin
+refuses to overwrite content it does not recognise:
+
+```bash
+sudo mv /etc/nix/nix.custom.conf{,.before-nix-darwin}
+sudo mv /etc/paths.d/homebrew{,.before-nix-darwin}   # shadows the Nix profile
+```
+
+Secrets are read from `~/.secrets` at runtime rather than through the
+configuration, so they never reach the world-readable Nix store. Copy the
+ones the machine needs across:
+
+```bash
+scp ~/.secrets/gemini-api-key nyx:~/.secrets/
+```
 
 ## Firmware updates (charon)
 
