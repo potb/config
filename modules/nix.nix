@@ -10,7 +10,11 @@ in {
   nixos = {
     nix = {
       settings = {
-        experimental-features = "nix-command flakes pipe-operators";
+        experimental-features = [
+          "nix-command"
+          "flakes"
+          "pipe-operators"
+        ];
         warn-dirty = false;
 
         # Balance multiple Nix builds across this 32-thread host without
