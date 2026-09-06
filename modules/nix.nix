@@ -96,5 +96,14 @@ in {
     nixpkgs.config.allowUnfree = true;
   };
 
-  home = {};
+  home = {
+    # nh reads a flake path per command from the environment. Letting its own
+    # module emit those keeps the variable names in one place, and the
+    # per-command ones mean `nh os switch` and `nh darwin switch` need no
+    # argument on the machine they apply to.
+    programs.nh.enable = true;
+
+    linux.programs.nh.osFlake = "/home/potb/projects/potb/config";
+    darwin.programs.nh.darwinFlake = "/Users/potb/projects/potb/config";
+  };
 }
