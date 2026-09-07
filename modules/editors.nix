@@ -100,6 +100,10 @@ in {
         confirm-close-surface = false;
         window-decoration = false;
 
+        # On macOS Ghostty keeps running after the last window closes. Quit
+        # with the last window instead, like on Linux.
+        quit-after-last-window-closed = true;
+
         # Ghostty renders SGR 2 (faint) by blending the glyph toward the
         # background, which washes out styles like Starship's "green dimmed
         # bold" hostname. Alacritty ignored faint entirely, so keep the
