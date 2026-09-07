@@ -2,26 +2,7 @@
   pkgs,
   lib,
   ...
-}: let
-  colimaProfile = pkgs.writeText "colima.yaml" ''
-    cpu: 4
-    memory: 8
-    disk: 60
-    runtime: docker
-    arch: aarch64
-    vmType: vz
-    rosetta: true
-    mountType: virtiofs
-    mounts:
-      - location: ~
-        writable: true
-    autoActivate: true
-    network:
-      address: false
-      dns: []
-      dnsHosts: {}
-  '';
-in {
+}: {
   nixos = {
     boot.binfmt.emulatedSystems = ["aarch64-linux"];
 
@@ -31,7 +12,28 @@ in {
 
   darwin = {};
 
-  home = {
+  home = {config, ...}: let
+    # lima resolves mount locations itself and rejects a bare `~`, so the home
+    # directory has to arrive already expanded.
+    colimaProfile = pkgs.writeText "colima.yaml" ''
+      cpu: 4
+      memory: 8
+      disk: 60
+      runtime: docker
+      arch: aarch64
+      vmType: vz
+      rosetta: true
+      mountType: virtiofs
+      mounts:
+        - location: ${config.home.homeDirectory}
+          writable: true
+      autoActivate: true
+      network:
+        address: false
+        dns: []
+        dnsHosts: {}
+    '';
+  in {
     home.packages = with pkgs;
       [
         docker-client
