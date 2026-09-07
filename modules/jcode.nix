@@ -23,10 +23,19 @@
   }: let
     # Seeded, not managed: home.file would install read-only store symlinks, and
     # these files are edited live. Copy an edit back into this repo to persist it.
-    seedFiles = {
-      ".jcode/prompt-overlay.md" = ./jcode/prompt-overlay.md;
-      ".jcode/skills/garden-memory/SKILL.md" = ./jcode/garden-memory-SKILL.md;
-    };
+    #
+    # ./jcode is mirrored into ~/.jcode wholesale rather than listed file by
+    # file, so adding a skill means dropping jcode/skills/<name>/SKILL.md into
+    # the tree with no change to this module. listFilesRecursive yields only
+    # regular files, so nested layouts need no extra handling here, and the
+    # seed function below already creates missing parent directories.
+    seedRoot = ./jcode;
+
+    seedFiles = lib.listToAttrs (map (path: let
+        rel = lib.removePrefix "${toString seedRoot}/" (toString path);
+      in
+        lib.nameValuePair ".jcode/${rel}" path)
+      (lib.filesystem.listFilesRecursive seedRoot));
 
     seedScript = lib.concatStringsSep "\n" (lib.mapAttrsToList (rel: src: ''
         seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"}
