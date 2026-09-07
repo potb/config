@@ -119,13 +119,52 @@ in {
   };
 
   home.darwin = {config, ...}: let
-    rulesDir = "${config.xdg.configHome}/karabiner/assets/complex_modifications";
+    karabinerDir = "${config.xdg.configHome}/karabiner";
+
+    # Listing a rule under assets only offers it in the UI, so the profile
+    # has to carry a copy of it to be in effect. Karabiner owns this file and
+    # rewrites it whenever its settings change, which rules out both a store
+    # symlink and home.file, so the rule is merged into whatever is there and
+    # matched by description to stay idempotent.
+    mergeRule = pkgs.writeShellScript "karabiner-merge-aerospace-rule" ''
+      set -euo pipefail
+
+      config="${karabinerDir}/karabiner.json"
+      rule=${karabinerRule}
+
+      if [ ! -e "$config" ]; then
+        ${lib.getExe pkgs.jq} -n --slurpfile rule "$rule" '{
+          profiles: [{
+            name: "Default profile",
+            selected: true,
+            virtual_hid_keyboard: {keyboard_type_v2: "ansi"},
+            complex_modifications: {rules: $rule[0].rules},
+          }],
+        }' > "$config"
+        exit 0
+      fi
+
+      merged=$(${lib.getExe pkgs.jq} --slurpfile rule "$rule" '
+        .profiles |= map(
+          .complex_modifications.rules = (
+            ((.complex_modifications.rules // []) | map(select(
+              .description as $existing
+              | ($rule[0].rules | map(.description) | index($existing)) == null
+            )))
+            + $rule[0].rules
+          )
+        )
+      ' "$config")
+
+      if [ "$merged" != "$(cat "$config")" ]; then
+        printf '%s\n' "$merged" > "$config"
+      fi
+    '';
   in {
-    # Karabiner rewrites files under this directory whenever its own UI is
-    # used, so the rule is copied in rather than symlinked to the store.
     home.activation.karabinerLeftOptionModifier = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      run mkdir -p ${rulesDir}
-      run install -m 644 ${karabinerRule} ${rulesDir}/aerospace.json
+      run mkdir -p ${karabinerDir}/assets/complex_modifications
+      run install -m 644 ${karabinerRule} ${karabinerDir}/assets/complex_modifications/aerospace.json
+      run ${mergeRule}
     '';
   };
 }
