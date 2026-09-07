@@ -29,6 +29,14 @@
     # the tree with no change to this module. listFilesRecursive yields only
     # regular files, so nested layouts need no extra handling here, and the
     # seed function below already creates missing parent directories.
+    #
+    # Two consequences of walking a directory instead of naming files. A new
+    # file must be git-added before it is visible: a flake copies only tracked
+    # files into the store, so an untracked skill evaluates away silently
+    # rather than failing (verified, and it is also why .DS_Store cannot leak
+    # in, being gitignored). And deleting a file here does not delete the
+    # seeded copy, since the walk can only enumerate what exists; remove
+    # ~/.jcode/skills/<name> by hand when retiring a skill.
     seedRoot = ./jcode;
 
     seedFiles = lib.listToAttrs (map (path: let
