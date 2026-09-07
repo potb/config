@@ -32,6 +32,12 @@
       "google-drive"
       "granola"
       "hammerspoon"
+      # AeroSpace's modifier depends on this; see modules/aerospace.nix.
+      # nix-darwin has a module for it, but that one still installs the
+      # pre-15 launchd agents, which Karabiner renamed and moved into a
+      # bundled agents app, so activation stops on a missing plist
+      # (nix-darwin#1132).
+      "karabiner-elements"
       "linear"
       "linearmouse"
       "notion"

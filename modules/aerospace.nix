@@ -116,8 +116,6 @@ in {
       width = 4.0;
       hidpi = true;
     };
-
-    services.karabiner-elements.enable = true;
   };
 
   home.darwin = {config, ...}: let
