@@ -45,8 +45,12 @@
     "${mod}-backspace" = "close";
     "${mod}-f" = "fullscreen";
     "${mod}-space" = "layout floating tiling";
-    "${mod}-h" = "split horizontal";
-    "${mod}-v" = "split vertical";
+    # AeroSpace refuses to load a config that pairs `split` with the flatten
+    # normalization enabled above, because flattening undoes the container
+    # the split creates. Setting the orientation of the container the window
+    # already sits in survives normalization and arranges the same way.
+    "${mod}-h" = "layout h_tiles";
+    "${mod}-v" = "layout v_tiles";
     "${mod}-t" = "layout tiles accordion";
     "${mod}-s" = "layout horizontal vertical";
     "${mod}-tab" = "workspace-back-and-forth";
