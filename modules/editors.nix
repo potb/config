@@ -105,6 +105,14 @@ in {
         # bold" hostname. Alacritty ignored faint entirely, so keep the
         # colors at full strength to match.
         faint-opacity = 1.0;
+
+        # Ghostty advertises TERM=xterm-ghostty, which ssh forwards verbatim to
+        # hosts that have no such terminfo entry. Readline then cannot emit a
+        # clear, so Ctrl-L (and anything else needing a capability lookup) dies
+        # on a remote shell. ssh-terminfo installs the entry on first connect;
+        # ssh-env downgrades TERM to xterm-256color for hosts where installing
+        # it fails, such as a read-only or non-interactive login.
+        shell-integration-features = "cursor,no-sudo,title,ssh-env,ssh-terminfo,path";
       };
     };
 

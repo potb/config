@@ -2,6 +2,18 @@
   nixos = {
     programs.zsh.enable = true;
     programs.nix-ld.enable = true;
+
+    # Home Manager's sessionPath below only reaches shells it writes rc files
+    # for, so ~/.local/bin is set system-wide as well and every shell agrees.
+    environment.localBinInPath = true;
+  };
+
+  darwin = {
+    # nix-darwin has no localBinInPath. extraInit lands after the systemPath
+    # export in set-environment, so prefixing here has the same effect.
+    environment.extraInit = ''
+      export PATH="$HOME/.local/bin:$PATH"
+    '';
   };
 
   home = {

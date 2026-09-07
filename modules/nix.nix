@@ -78,6 +78,13 @@ in {
           "@admin"
         ];
         builders-use-substitutes = true;
+
+        # Ten cores, four of them performance ones. Left at the default of one
+        # job per core each taking every core, a rebuild that compiles Rust
+        # starves the machine it is running on. Two jobs of four cores keeps
+        # the interface responsive and leaves the efficiency cores for it.
+        max-jobs = 2;
+        cores = 4;
       };
     };
 
@@ -89,5 +96,14 @@ in {
     nixpkgs.config.allowUnfree = true;
   };
 
-  home = {};
+  home = {
+    # nh reads a flake path per command from the environment. Letting its own
+    # module emit those keeps the variable names in one place, and the
+    # per-command ones mean `nh os switch` and `nh darwin switch` need no
+    # argument on the machine they apply to.
+    programs.nh.enable = true;
+
+    linux.programs.nh.osFlake = "/home/potb/projects/potb/config";
+    darwin.programs.nh.darwinFlake = "/Users/potb/projects/potb/config";
+  };
 }

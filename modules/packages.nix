@@ -36,11 +36,30 @@
         tokei
         bottom
         htop
-        nh
         act
         ffmpeg
         lefthook
         _1password-cli
+
+        age
+        croc
+        hyperfine
+        lnav
+        nmap
+        rsync
+        yt-dlp
+
+        ast-grep
+        (d2.override {withImageSupport = false;})
+        shellcheck
+        shfmt
+        tectonic
+
+        duckdb
+        harlequin
+        postgresql_18
+
+        glab
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
         gcc
@@ -62,6 +81,16 @@
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
         stdenv.cc
+
+        # Apple Silicon power and sensor readouts; aarch64-darwin only.
+        macmon
+        mactop
+
+        mermaid-cli
+        firebase-tools
+        gitlab-ci-local
+        google-cloud-sdk
+        terraform
       ];
 
     home.sessionVariables =
@@ -69,11 +98,9 @@
         EDITOR = "nvim";
       }
       // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-        NH_FLAKE = "/home/potb/projects/potb/config";
         XDG_DATA_DIRS = "$HOME/Desktop:$XDG_DATA_DIRS";
       }
       // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
-        NH_FLAKE = lib.mkForce "/Users/potb/projects/potb/config";
         BROWSER = lib.mkForce "open -a 'Google Chrome'";
         CC = "${pkgs.stdenv.cc}/bin/cc";
         CXX = "${pkgs.stdenv.cc}/bin/c++";
