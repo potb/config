@@ -359,18 +359,20 @@
                 };
 
                 # nyx taps a handful of third-party repositories for software
-                # that exists nowhere else: aerospace, borders, sketchybar,
-                # skhd and a few single-formula taps. Fully declarative taps
-                # would replace the whole directory with the two above and
-                # take those with it, so the rest stay imperative until they
-                # are pinned as inputs of their own.
+                # that exists nowhere else: aerospace, the AlloyDB proxy and
+                # a few single-formula taps. Fully declarative taps would
+                # replace the whole directory with the two above and take
+                # those with it, so the rest stay imperative until they are
+                # pinned as inputs of their own.
                 mutableTaps = true;
 
                 # `brew shellenv` puts /opt/homebrew/bin ahead of the Nix
                 # profile in every interactive shell, so a tool this
                 # configuration declares loses to whatever Homebrew happens
                 # to have installed under the same name. The launcher in
-                # /run/current-system/sw/bin is enough to run brew itself.
+                # /run/current-system/sw/bin is enough to run brew itself,
+                # and darwin/modules/homebrew.nix appends the prefix to
+                # PATH so brew-only formulae still resolve.
                 enableZshIntegration = false;
                 enableBashIntegration = false;
 
@@ -378,13 +380,11 @@
                 # not been trusted. These are the taps whose formulae and
                 # casks this configuration installs on purpose.
                 trust.taps = [
-                  "felixkratz/formulae"
                   "nikitabobko/tap"
                   "asmvik/formulae"
                   "jaisonerick/tap"
                   "potb/tap"
                   "rtk-ai/tap"
-                  "hashicorp/tap"
                 ];
               };
 

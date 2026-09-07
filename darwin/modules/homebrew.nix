@@ -1,4 +1,14 @@
-{config, ...}: {
+{
+  config,
+  lib,
+  ...
+}: {
+  # Last on PATH, so a formula never shadows the nixpkgs tool of the same
+  # name. nix-homebrew's shell integration is off for the opposite reason:
+  # `brew shellenv` prepends this directory. Without an entry here, the
+  # formulae below have no way to resolve at all.
+  environment.systemPath = lib.mkAfter ["/opt/homebrew/bin"];
+
   homebrew = {
     enable = true;
     taps = builtins.attrNames config.nix-homebrew.taps;
@@ -27,11 +37,9 @@
       "datagrip"
       "discord"
       "ghostty"
-      "gcloud-cli"
       "google-chrome"
       "google-drive"
       "granola"
-      "hammerspoon"
       # AeroSpace's modifier depends on this; see modules/aerospace.nix.
       # nix-darwin has a module for it, but that one still installs the
       # pre-15 launchd agents, which Karabiner renamed and moved into a
@@ -58,14 +66,6 @@
     # Formulae with no nixpkgs equivalent, or that provide a macOS service
     # this machine already runs from Homebrew's own launchd agents.
     brews = [
-      # sketchybar has no configuration here and the native menu bar stays
-      # visible, so it draws an empty second bar. Left installed because a
-      # useful configuration is worth writing, and it costs nothing idle.
-      {
-        name = "felixkratz/formulae/sketchybar";
-        start_service = true;
-      }
-
       "jaisonerick/tap/macwifi-cli"
       "potb/tap/alloydb-auth-proxy"
 
@@ -75,8 +75,6 @@
       # The formula ships the CLI; the tailscale-app cask above carries the
       # network extension the CLI talks to, and only the app is signed for it.
       "tailscale"
-
-      "hashicorp/tap/terraform"
     ];
   };
 }

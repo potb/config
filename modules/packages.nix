@@ -89,6 +89,8 @@
         mermaid-cli
         firebase-tools
         gitlab-ci-local
+        google-cloud-sdk
+        terraform
       ];
 
     home.sessionVariables =
