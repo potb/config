@@ -114,7 +114,17 @@
         # it shells out to (git, gh, notify-send) is already on the systemd
         # user manager's PATH; see systemd.user.sessionVariables below for the
         # two user bin dirs that are not.
-        Environment = ["JCODE_DEBUG_CONTROL=1"];
+        #
+        # TERM is set because the user manager passes none, and bash
+        # substitutes "dumb" when it is unset, which every command the agent
+        # runs then inherits: `tput` exits 2 with "No value for $TERM", `clear`
+        # prints "TERM environment variable not set.", and colour probes
+        # downgrade. An interactive TUI is unaffected, since it snapshots the
+        # real TERM from the client that attached rather than the unit's.
+        Environment = [
+          "JCODE_DEBUG_CONTROL=1"
+          "TERM=xterm-256color"
+        ];
 
         # Signal the daemon only; its children are the in-flight turn's
         # subprocesses, which it winds down itself.
