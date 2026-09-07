@@ -21,7 +21,6 @@
     casks = [
       "1password"
       "1password-cli"
-      "aerospace"
       "aldente"
       "claude"
       "claude-code"
@@ -53,19 +52,13 @@
     # Formulae with no nixpkgs equivalent, or that provide a macOS service
     # this machine already runs from Homebrew's own launchd agents.
     brews = [
-      # These three run as Homebrew's own launchd agents, and macOS grants
-      # Accessibility to a specific binary path, so moving them to the
-      # nix-darwin service modules of the same name means granting the
-      # permission again. Worth doing, but not silently.
-      {
-        name = "felixkratz/formulae/borders";
-        start_service = true;
-      }
+      # sketchybar has no configuration here and the native menu bar stays
+      # visible, so it draws an empty second bar. Left installed because a
+      # useful configuration is worth writing, and it costs nothing idle.
       {
         name = "felixkratz/formulae/sketchybar";
         start_service = true;
       }
-      "asmvik/formulae/skhd"
 
       "jaisonerick/tap/macwifi-cli"
       "potb/tap/alloydb-auth-proxy"
