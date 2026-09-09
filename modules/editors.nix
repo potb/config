@@ -98,6 +98,11 @@ in {
         else pkgs.ghostty;
       settings = {
         confirm-close-surface = false;
+
+        # Stylix only sets the family, which resolves to Regular (400). Retina
+        # is FiraCode's 450 weight: slightly heavier than Regular without
+        # reaching Medium.
+        font-style = "Retina";
         window-decoration = false;
 
         # On macOS Ghostty keeps running after the last window closes. Quit
