@@ -45,8 +45,15 @@
         lib.nameValuePair ".jcode/${rel}" path)
       (lib.filesystem.listFilesRecursive seedRoot));
 
+    # Hooks are spawned by jcode as programs rather than sourced, so they need
+    # the exec bit the default 0644 seed mode would strip.
+    seedMode = rel:
+      if lib.hasPrefix ".jcode/hooks/" rel
+      then "0755"
+      else "0644";
+
     seedScript = lib.concatStringsSep "\n" (lib.mapAttrsToList (rel: src: ''
-        seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"}
+        seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"} ${seedMode rel}
       '')
       seedFiles);
   in {
@@ -56,6 +63,7 @@
       seed_jcode_file() {
         dest="$HOME/$1"
         src="$2"
+        mode="$3"
         stamp="$(dirname "$dest")/.$(basename "$dest").nix-seeded"
 
         $DRY_RUN_CMD mkdir -p "$(dirname "$dest")"
@@ -64,7 +72,7 @@
         if [ ! -e "$dest" ] || [ -L "$dest" ] \
           || ${pkgs.diffutils}/bin/cmp -s "$dest" "$stamp"; then
           $DRY_RUN_CMD rm -f "$dest"
-          $DRY_RUN_CMD install -m 0644 "$src" "$dest"
+          $DRY_RUN_CMD install -m "$mode" "$src" "$dest"
           $DRY_RUN_CMD install -m 0644 "$src" "$stamp"
         elif ${pkgs.diffutils}/bin/cmp -s "$dest" "$src"; then
           $DRY_RUN_CMD install -m 0644 "$src" "$stamp"

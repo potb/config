@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""Block new code comments from jcode edit tools.
+
+Reads the tool input JSON on stdin, extracts only the text the call would add,
+and reports any comment that is not an exempt directive. Exit 2 blocks the call
+and returns stderr to the model; every other outcome allows it.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+
+EDIT_TOOLS = {"edit", "multiedit", "write", "apply_patch", "patch"}
+
+# Extensions whose comments are checked, grouped by lexer family.
+SLASH_STAR = {
+    "c", "h", "cc", "cpp", "hpp", "cxx", "m", "mm", "java", "kt", "kts", "scala",
+    "swift", "go", "rs", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts",
+    "css", "scss", "less", "php", "dart", "zig", "sol", "gradle", "proto",
+}
+HASH = {
+    "py", "rb", "sh", "bash", "zsh", "fish", "pl", "pm", "r", "jl", "nix", "tf",
+    "toml", "yaml", "yml", "ini", "cfg", "conf", "just", "mk", "dockerfile",
+    "gitignore", "env",
+}
+
+DIRECTIVE = re.compile(
+    r"^(?:@|#!)|^(?:type:|noqa|pyright:|ruff:|mypy:|pylint:|flake8:|pyre:|pytype:"
+    r"|eslint-|prettier-ignore|ts-ignore|ts-expect-error|biome-ignore|clippy:"
+    r"|rustfmt:|safety:|cbindgen:|codegen|nolint|go:|#\[|shellcheck|nosec"
+    r"|allow\(|deny\(|warn\(|forbid\(|region\b|endregion\b|language=|istanbul )",
+    re.IGNORECASE,
+)
+BDD = re.compile(r"^(given|when|then|arrange|act|assert|when ?& ?then)\b[:.]?$", re.IGNORECASE)
+URL_ONLY = re.compile(r"^<?https?://\S+>?$")
+SEPARATOR = re.compile(r"^[-=*_#/~\s]*$")
+
+
+def ext_of(path: str) -> str:
+    base = os.path.basename(path).lower()
+    if "." not in base:
+        return base
+    return base.rsplit(".", 1)[1]
+
+
+def strip_markers(text: str) -> str:
+    text = text.strip()
+    for marker in ("///", "//!", "/**", "/*!", "/*", "*/", "//", "#|", "#"):
+        if text.startswith(marker):
+            text = text[len(marker) :]
+            break
+    return text.strip().lstrip("*").strip()
+
+
+def is_exempt(raw: str) -> bool:
+    body = strip_markers(raw)
+    if not body:
+        return True
+    if SEPARATOR.match(raw.strip()):
+        return True
+    if DIRECTIVE.match(body) or DIRECTIVE.match(raw.strip()):
+        return True
+    if BDD.match(body):
+        return True
+    return bool(URL_ONLY.match(body))
+
+
+def scan(text: str, ext: str) -> list[str]:
+    """Return raw comment texts found in `text`, skipping strings."""
+    if ext in HASH:
+        return scan_hash(text)
+    if ext in SLASH_STAR:
+        return scan_slash(text)
+    return []
+
+
+def scan_hash(text: str) -> list[str]:
+    found, quote, i, n = [], None, 0, len(text)
+    while i < n:
+        ch = text[i]
+        if quote:
+            if ch == "\\":
+                i += 2
+                continue
+            if text.startswith(quote, i):
+                i += len(quote)
+                quote = None
+                continue
+            i += 1
+            continue
+        if text.startswith(('"""', "'''"), i):
+            quote = text[i : i + 3]
+            i += 3
+            continue
+        if ch in "\"'":
+            quote = ch
+            i += 1
+            continue
+        if ch == "#":
+            end = text.find("\n", i)
+            end = n if end == -1 else end
+            found.append(text[i:end])
+            i = end
+            continue
+        i += 1
+    return found
+
+
+def scan_slash(text: str) -> list[str]:
+    found, quote, i, n = [], None, 0, len(text)
+    while i < n:
+        ch = text[i]
+        if quote:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in "\"'`":
+            quote = ch
+            i += 1
+            continue
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end == -1 else end
+            found.append(text[i:end])
+            i = end
+            continue
+        if text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            end = n if end == -1 else end + 2
+            found.append(text[i:end])
+            i = end
+            continue
+        i += 1
+    return found
+
+
+def added_texts(tool: str, payload: dict) -> list[tuple[str, str]]:
+    """Return (path, added text) pairs for the call."""
+    path = payload.get("file_path") or payload.get("path") or ""
+    if tool == "write":
+        return [(path, payload.get("content", ""))]
+    if tool == "edit":
+        return [(path, payload.get("new_string", ""))]
+    if tool == "multiedit":
+        return [(path, e.get("new_string", "")) for e in payload.get("edits", [])]
+    if tool in ("apply_patch", "patch"):
+        return patch_adds(payload.get("patch_text", ""))
+    return []
+
+
+def patch_adds(patch: str) -> list[tuple[str, str]]:
+    out, current, buf = [], "", []
+    for line in patch.splitlines():
+        header = re.match(r"^(?:\*\*\* (?:Add|Update) File: |\+\+\+ (?:b/)?)(.+)$", line)
+        if header:
+            if buf:
+                out.append((current, "\n".join(buf)))
+                buf = []
+            current = header.group(1).strip()
+            continue
+        if line.startswith("+") and not line.startswith("+++"):
+            buf.append(line[1:])
+    if buf:
+        out.append((current, "\n".join(buf)))
+    return out
+
+
+def main() -> int:
+    tool = os.environ.get("JCODE_HOOK_TOOL_NAME", "").lower()
+    if tool not in EDIT_TOOLS:
+        return 0
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+
+    offenders: list[str] = []
+    for path, text in added_texts(tool, payload):
+        ext = ext_of(path)
+        if ext in ("md", "mdx", "rst", "txt"):
+            continue
+        for raw in scan(text, ext):
+            if not is_exempt(raw):
+                first = raw.strip().splitlines()[0][:120]
+                offenders.append(f"{os.path.basename(path) or path}: {first}")
+
+    if not offenders:
+        return 0
+
+    listed = "\n".join(f"  - {o}" for o in list(dict.fromkeys(offenders))[:10])
+    sys.stderr.write(
+        "blocked: this edit adds code comments.\n"
+        "House rule: code carries no explanatory comments, including doc comments.\n"
+        "Put the explanation in the repo docs (docs/, README, or the module's "
+        "existing doc page) and make the code self-describing through names and "
+        "structure instead.\n"
+        "Offending comments:\n" + listed + "\n"
+        "Retry the same edit with the comments removed. Lint or type directives "
+        "(eslint-disable, ts-expect-error, noqa, #[allow(...)]) are allowed.\n"
+    )
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
