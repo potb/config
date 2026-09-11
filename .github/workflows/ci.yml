@@ -49,6 +49,7 @@ jobs:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+            extra-experimental-features = pipe-operators
       - run: nix fmt .
       - id: changed
         run: |
@@ -87,6 +88,7 @@ jobs:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+            extra-experimental-features = pipe-operators
       - uses: cachix/cachix-action@v16
         with:
           name: potb
