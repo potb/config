@@ -58,6 +58,19 @@ in {
       };
     };
 
+    systemd.services.podman-neko = {
+      after = ["network-online.target"];
+      wants = ["network-online.target"];
+      serviceConfig = {
+        Restart = "on-failure";
+        RestartSec = 30;
+      };
+      unitConfig = {
+        StartLimitIntervalSec = 600;
+        StartLimitBurst = 10;
+      };
+    };
+
     systemd.tmpfiles.rules = [
       "d /var/lib/neko 0750 root root - -"
       "d /var/lib/neko/profile 0777 root root - -"

@@ -29,7 +29,7 @@ in {
 
       environment = {
         OPENCLAW_NO_RESPAWN = "1";
-        NODE_COMPILE_CACHE = "/var/tmp/openclaw-compile-cache";
+        NODE_COMPILE_CACHE = "/var/lib/openclaw/compile-cache";
         OPENCLAW_WORKSPACE_DIR = workspace;
       };
 
@@ -165,13 +165,12 @@ in {
       TimeoutStartSec = "90";
       ReadWritePaths = [
         "/var/lib/openclaw"
-        "/var/tmp/openclaw-compile-cache"
       ];
       MemoryMax = "2G";
     };
 
     systemd.tmpfiles.rules = [
-      "d /var/tmp/openclaw-compile-cache 0750 openclaw openclaw - -"
+      "d /var/lib/openclaw/compile-cache 0750 openclaw openclaw - -"
       "d ${workspace} 0750 openclaw openclaw - -"
       "d ${workspace}/memory 0750 openclaw openclaw - -"
     ];
