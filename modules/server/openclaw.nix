@@ -47,6 +47,7 @@ in {
         coreutils
         gnused
         gnugrep
+        tailscale
       ];
 
       config = {
@@ -138,7 +139,14 @@ in {
 
         memory.backend = "builtin";
 
-        plugins.load.paths = map toString runtimePlugins;
+        plugins = {
+          load.paths = map toString runtimePlugins;
+
+          entries = {
+            discord.enabled = true;
+            exa.enabled = true;
+          };
+        };
       };
     };
 
