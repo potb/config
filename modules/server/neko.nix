@@ -112,6 +112,7 @@ in {
           "--cap-add=SYS_ADMIN"
           "--memory=3g"
           "--memory-swap=3g"
+          "--hostname=neko"
         ];
       };
     };
@@ -160,11 +161,21 @@ in {
       after = ["podman-neko.service"];
       bindsTo = ["podman-neko.service"];
 
-      path = with pkgs; [podman socat];
+      path = with pkgs; [podman socat iproute2 coreutils];
 
       script = ''
-        netns=$(podman inspect neko --format '{{.NetworkSettings.SandboxKey}}')
-        exec ${pkgs.iproute2}/bin/ip netns exec "$(basename "$netns")" \
+        netns=$(basename "$(podman inspect neko --format '{{.NetworkSettings.SandboxKey}}')")
+
+        attempt=0
+        while [ "$attempt" -lt 90 ]; do
+          if ip netns exec "$netns" socat -T1 /dev/null TCP:127.0.0.1:${toString cdpPort} 2>/dev/null; then
+            break
+          fi
+          attempt=$((attempt + 1))
+          sleep 2
+        done
+
+        exec ip netns exec "$netns" \
           socat TCP-LISTEN:${toString bridgePort},fork,reuseaddr \
           TCP:127.0.0.1:${toString cdpPort}
       '';
@@ -178,6 +189,13 @@ in {
     systemd.services.podman-neko = {
       after = ["network-online.target"];
       wants = ["network-online.target"];
+
+      preStart = ''
+        rm -f /var/lib/neko/profile/SingletonLock \
+              /var/lib/neko/profile/SingletonCookie \
+              /var/lib/neko/profile/SingletonSocket
+      '';
+
       serviceConfig = {
         Restart = "on-failure";
         RestartSec = 30;
