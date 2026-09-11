@@ -1,0 +1,56 @@
+{config, ...}: let
+  bootstrapFiles = [
+    "SOUL.md"
+    "AGENTS.md"
+    "USER.md"
+    "TOOLS.md"
+  ];
+
+  mkBootstrapSecret = name: {
+    name = "workspace/${name}";
+    value = {
+      sopsFile = ../../secrets/workspace + "/${name}";
+      format = "binary";
+      owner = "openclaw";
+      group = "openclaw";
+      mode = "0440";
+      restartUnits = ["openclaw-gateway.service"];
+    };
+  };
+in {
+  nixos = {
+    sops = {
+      defaultSopsFile = ../../secrets/new-horizons.yaml;
+      age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
+
+      secrets =
+        {
+          tailscale-authkey = {};
+
+          potb-password-hash = {
+            neededForUsers = true;
+          };
+
+          openclaw-env = {
+            owner = "openclaw";
+            group = "openclaw";
+            mode = "0400";
+            restartUnits = ["openclaw-gateway.service"];
+          };
+
+          neko-env = {
+            mode = "0400";
+            restartUnits = ["podman-neko.service"];
+          };
+
+          restic-password = {mode = "0400";};
+        }
+        // builtins.listToAttrs (map mkBootstrapSecret bootstrapFiles);
+    };
+
+    services.tailscale.authKeyFile = config.sops.secrets.tailscale-authkey.path;
+  };
+
+  darwin = {};
+  home = {};
+}

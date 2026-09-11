@@ -3,7 +3,7 @@
   lib,
   ...
 }: let
-  fonts = import ../shared/fonts.nix {inherit pkgs;};
+  fonts = import ../../shared/fonts.nix {inherit pkgs;};
 in {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 

@@ -3,10 +3,7 @@
     users.users.potb = {
       isNormalUser = true;
       description = "Peïo Thibault";
-      extraGroups = [
-        "wheel"
-        "i2c"
-      ];
+      extraGroups = ["wheel"];
       shell = pkgs.zsh;
     };
   };

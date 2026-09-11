@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Decrypt the repository's age identity into the user's sops key location.
+#
+# The identity in secrets/age-identity.txt.age is protected by a passphrase, so
+# a fresh machine needs nothing but this repository and that passphrase to edit
+# secrets. See docs/secrets.md.
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+encrypted="$repo_root/secrets/age-identity.txt.age"
+
+if [ ! -f "$encrypted" ]; then
+  echo "missing $encrypted" >&2
+  exit 1
+fi
+
+case "$(uname -s)" in
+  Darwin) default_dir="$HOME/Library/Application Support/sops/age" ;;
+  *) default_dir="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age" ;;
+esac
+
+target="${SOPS_AGE_KEY_FILE:-$default_dir/keys.txt}"
+
+if [ -f "$target" ]; then
+  printf 'overwrite existing %s? [y/N] ' "$target" >&2
+  read -r reply
+  case "$reply" in
+    [yY]) ;;
+    *) echo "aborted" >&2; exit 1 ;;
+  esac
+fi
+
+key_dir=$(dirname "$target")
+mkdir -p "$key_dir"
+case "$key_dir" in
+  "$HOME"/*) chmod 700 "$key_dir" ;;
+esac
+
+umask 077
+age -d -o "$target" "$encrypted"
+chmod 600 "$target"
+
+echo "identity written to $target" >&2
+echo "public key: $(grep 'public key:' "$target" | sed 's/.*: //')" >&2

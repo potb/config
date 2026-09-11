@@ -1,0 +1,185 @@
+# new-horizons
+
+Headless NixOS host for the OpenClaw assistant `hal`.
+
+The name follows the convention in this repository: servers take the names of
+probes that targeted Pluto, personal machines take Pluto's moons, and agents
+take the names of fictional AIs.
+
+## The machine
+
+netcup KVM guest, 4 vCPU, 7 GB RAM, one 160 GB virtio disk, **legacy BIOS**.
+Public IP 185.163.119.202, tailnet address 100.125.71.113.
+
+Partitions, laid out by disko:
+
+| Partition | Label      | Purpose                     |
+| --------- | ---------- | --------------------------- |
+| vda1      | `biosboot` | 1 MiB BIOS boot (GRUB core) |
+| vda2      | `swap`     | 4 GiB                       |
+| vda3      | `nixos`    | rest, ext4, mounted at `/`  |
+
+BIOS rather than UEFI is why this host takes GRUB while charon takes
+systemd-boot.
+
+## Access
+
+`potb` over SSH with the nyx key. Root login and password authentication are
+both disabled; fail2ban watches the public port with the tailnet exempted.
+
+The account password lives in sops as a yescrypt hash and is applied through
+`hashedPasswordFile`, with `users.mutableUsers = false` so the hash is
+authoritative. Wheel escalates without a prompt, which matters because a
+key-only login has no password to type at a sudo prompt.
+
+If both the key and the tailnet are ever unavailable, the netcup VNC console is
+the way back in.
+
+## Services
+
+| Service            | What it does                                            |
+| ------------------ | ------------------------------------------------------- |
+| `openclaw-gateway` | the agent, loopback on 18789                            |
+| `tailscaled`       | tailnet membership                                      |
+| `tailscale-serve`  | publishes the gateway and browser inside the tailnet     |
+| `podman-neko`      | Neko, a browser a human and the agent share             |
+| `neko-cdp-bridge`  | relays Neko's debugging port out of its netns           |
+| `restic`           | nightly backup of agent state and browser profile       |
+| `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
+
+Nothing listens on a public port except SSH.
+
+## Discord
+
+Three channels under a `hal` category:
+
+| Channel   | Type  | Purpose                                              |
+| --------- | ----- | ---------------------------------------------------- |
+| `#hal`    | text  | ordinary conversation                                |
+| `#work`   | forum | one thread per topic, created by posting to the parent |
+| `#notify` | text  | the only place the agent notifies                    |
+
+Mute the first two and leave notifications on for `#notify`; the workspace
+rules tell the agent to keep anything that can wait out of it.
+
+The guild allowlist names those three channels, and DMs are restricted to the
+operator.
+
+## Access from the tailnet
+
+| URL                                             | What              |
+| ----------------------------------------------- | ----------------- |
+| `https://new-horizons.taile99a6c.ts.net`        | OpenClaw Control UI |
+| `https://new-horizons.taile99a6c.ts.net:8443`   | Neko browser      |
+
+Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
+the only thing answering on the public address.
+
+The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
+80 from the tailnet. Log in with the member password from `neko-env`. Media
+rides a single TCP port, 52100, also published through Serve, so watching the
+session from a phone needs no UDP.
+
+## Secrets
+
+sops-nix, decrypting with the host's own SSH key converted to age. The
+workspace bootstrap files are encrypted the same way and are bind-mounted into
+the workspace from `/run/secrets`, so the agent's instructions appear neither
+in this public repository nor in the world-readable Nix store. Outside the
+service's mount namespace those paths are empty placeholder files.
+
+Editing from a new machine needs only this repository and the passphrase:
+
+```
+./scripts/sops-unlock
+sops secrets/new-horizons.yaml
+```
+
+## Deploying a change
+
+```
+ssh potb@185.163.119.202
+cd /tmp/cfg && git pull
+sudo nixos-rebuild switch --flake .#new-horizons
+```
+
+`nix flake check` validates the generated OpenClaw config against the gateway's
+own JSON schema, which catches unknown keys, missing required keys and bad enum
+values before they reach the server. The schema is committed at
+`checks/openclaw-config-schema.json.gz` so the check also runs on macOS, where
+the Linux gateway cannot be built; on Linux a second check fails if that copy
+has drifted. Refresh it with `./scripts/update-openclaw-schema.sh` after
+bumping the gateway.
+
+## Things that cost time once
+
+- The VM prefers its virtual DVD over the disk. After an install, detach the
+  ISO in the netcup panel, and note that a boot-order change needs a power
+  cycle rather than a reboot.
+- The installer image runs entirely in RAM. Without swap enabled, evaluating
+  this configuration gets the builder OOM-killed, so enable the swap partition
+  and point `TMPDIR` at the target disk before building.
+- `services.tailscale.authKeyParameters` appends a query string to the key and
+  the unit interpolates the file's contents directly, so setting any parameter
+  turns a valid key into one the control plane rejects.
+- Chromium binds its debugging port to loopback inside the container whatever
+  `--remote-debugging-address` says, hence the bridge.
+- Neko's image hardcodes its Chromium command in supervisord, so
+  `NEKO_CHROME_FLAGS` is ignored and the unit file has to be replaced.
+- Neko's image also ships a Chromium enterprise policy with
+  `DeveloperToolsAvailability: 2`, which makes the browser answer every
+  `Target.attachToTarget` with `Not allowed`. Nothing else looks wrong:
+  `/json/list` still lists pages and per-page sockets still upgrade, but
+  Playwright sees zero pages and the agent reports `No pages available in the
+  connected browser`. We mount our own policy file instead. To tell this apart
+  from a transport problem, attach by hand rather than trusting the target list:
+
+  ```
+  curl -s http://127.0.0.1:9222/json/list | jq -r '.[0].type'
+  ```
+
+  A populated list with a failing attach means policy, not networking.
+- Neko defaults to advertising `127.0.0.1` for WebRTC. The stream then plays
+  only on the server itself and every remote client shows a black screen, so
+  the tailnet address is written into an environment file at boot. Verify with
+  the ICE candidate rather than the page load: it must carry the tailnet IP.
+- Published container ports bypass the NixOS firewall, because podman DNATs in
+  `ip nat` prerouting ahead of the `nixos-fw` input chain. Binding a port to
+  `0.0.0.0` in `virtualisation.oci-containers` therefore exposes it publicly
+  even with `allowedTCPPorts = []`. Bind to `127.0.0.1` and let Serve publish it.
+- Chromium records the hostname it started on in the singleton lock inside its
+  profile, and podman hands the container a fresh random hostname on every run.
+  After a reboot Chromium then refuses to start with "The profile appears to be
+  in use by another Chromium process on another computer" and never opens its
+  debugging port, while Neko keeps serving the desktop, so the only symptom is
+  the agent losing the browser. The container hostname is pinned and a stale
+  lock is cleared before start. After any reboot, confirm the browser came back
+  rather than only checking that the units are active:
+
+  ```
+  sudo podman exec neko supervisorctl status chromium
+  curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
+  ```
+- OpenClaw validates workspace context files with `lstat` and rejects anything
+  that is a symlink or has more than one hard link. sops-nix creates symlinks
+  when given a `path`, so the persona files were silently reported as
+  `missing` and never reached the system prompt, while still looking correct
+  in `ls`. They are bind-mounted over placeholder files instead. Check the
+  agent's own view rather than the directory listing:
+
+  ```
+  sudo nsenter -t $(systemctl show -p MainPID --value openclaw-gateway) -m -- \
+    stat -c '%n %F nlink=%h size=%s' /var/lib/openclaw/workspace/SOUL.md
+  ```
+
+- Memory search defaults to OpenAI embeddings. With only an OpenRouter key the
+  index cannot be built and recall stays paused, which the agent reports as
+  its memory being unavailable. `models.providers.<id>.api` must be
+  `openai-completions` for an OpenAI-compatible endpoint: `openai-compatible`
+  looks plausible, appears in prose in the upstream memory documentation, and
+  is not in the schema. An invalid `models` block makes the gateway drop its
+  bundled plugins rather than fail loudly, so the first visible symptom is
+  unrelated commands disappearing.
+- The CLI reads `~/.openclaw` unless `OPENCLAW_CONFIG_PATH` is set. Running
+  `openclaw memory status` without it reports on a config the service does not
+  use, which looks exactly like a broken deployment.

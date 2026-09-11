@@ -57,6 +57,7 @@
   };
   hardware.keyboard.zsa.enable = true;
   hardware.i2c.enable = true;
+  users.users.potb.extraGroups = ["i2c"];
 
   services.xserver.videoDrivers = ["amdgpu"];
   services.gvfs.enable = true;

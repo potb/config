@@ -6,6 +6,16 @@
     pkgs.nixd
     pkgs.vscode-langservers-extracted
   ];
+  opencode-wrapped = pkgs.symlinkJoin {
+    name = "opencode";
+    paths = [pkgs.opencode];
+    nativeBuildInputs = [pkgs.makeWrapper];
+    postBuild = ''
+      wrapProgram $out/bin/opencode \
+        --prefix PATH : ${opencodeBinPath} \
+        --set-default OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS true
+    '';
+  };
   idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
     -Dawt.toolkit.name=WLToolkit
   '';
@@ -18,78 +28,11 @@
         --set-default IDEA_VM_OPTIONS ${idea-vmoptions}
     '';
   };
-  opencode-wrapped = pkgs.symlinkJoin {
-    name = "opencode";
-    paths = [pkgs.opencode];
-    nativeBuildInputs = [pkgs.makeWrapper];
-    postBuild = ''
-      wrapProgram $out/bin/opencode \
-        --prefix PATH : ${opencodeBinPath} \
-        --set-default OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS true
-    '';
-  };
 in {
   nixos = {};
   darwin = {};
+
   home = {
-    programs.nixvim = {
-      enable = true;
-      defaultEditor = true;
-      viAlias = true;
-      vimAlias = true;
-      enableMan = false;
-
-      opts = {
-        number = true;
-        relativenumber = true;
-        clipboard = "unnamedplus";
-      };
-
-      colorschemes.catppuccin = {
-        enable = true;
-        settings.flavour = "latte";
-      };
-
-      plugins.web-devicons.enable = true;
-      plugins.treesitter.enable = true;
-
-      plugins.telescope = {
-        enable = true;
-        extensions.fzf-native.enable = true;
-        keymaps = {
-          "<leader>ff" = {
-            action = "find_files";
-            options.silent = true;
-          };
-          "<leader>fg" = {
-            action = "live_grep";
-            options.silent = true;
-          };
-        };
-      };
-
-      plugins.which-key.enable = true;
-
-      plugins.lsp = {
-        enable = true;
-        keymaps = {
-          silent = true;
-          lspBuf = {
-            "gd" = "definition";
-            "gr" = "references";
-            "K" = "hover";
-            "<leader>rn" = "rename";
-          };
-        };
-        servers = {
-          nil_ls.enable = true;
-          lua_ls.enable = true;
-          ts_ls.enable = true;
-          pyright.enable = true;
-        };
-      };
-    };
-
     programs.ghostty = {
       enable = true;
       package =
@@ -126,8 +69,8 @@ in {
     };
 
     home.packages = [
-      opencode-wrapped
       idea-wrapped
+      opencode-wrapped
     ];
   };
 }
