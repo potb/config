@@ -23,5 +23,6 @@ result-*
 .serena
 .sisyphus
 .omo
-docs
+docs/*
+!docs/new-horizons.md
 *.log
