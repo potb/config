@@ -23,13 +23,37 @@
   }: let
     # Seeded, not managed: home.file would install read-only store symlinks, and
     # these files are edited live. Copy an edit back into this repo to persist it.
-    seedFiles = {
-      ".jcode/prompt-overlay.md" = ./jcode/prompt-overlay.md;
-      ".jcode/skills/garden-memory/SKILL.md" = ./jcode/garden-memory-SKILL.md;
-    };
+    #
+    # ./jcode is mirrored into ~/.jcode wholesale rather than listed file by
+    # file, so adding a skill means dropping jcode/skills/<name>/SKILL.md into
+    # the tree with no change to this module. listFilesRecursive yields only
+    # regular files, so nested layouts need no extra handling here, and the
+    # seed function below already creates missing parent directories.
+    #
+    # Two consequences of walking a directory instead of naming files. A new
+    # file must be git-added before it is visible: a flake copies only tracked
+    # files into the store, so an untracked skill evaluates away silently
+    # rather than failing (verified, and it is also why .DS_Store cannot leak
+    # in, being gitignored). And deleting a file here does not delete the
+    # seeded copy, since the walk can only enumerate what exists; remove
+    # ~/.jcode/skills/<name> by hand when retiring a skill.
+    seedRoot = ./jcode;
+
+    seedFiles = lib.listToAttrs (map (path: let
+        rel = lib.removePrefix "${toString seedRoot}/" (toString path);
+      in
+        lib.nameValuePair ".jcode/${rel}" path)
+      (lib.filesystem.listFilesRecursive seedRoot));
+
+    # Hooks are spawned by jcode as programs rather than sourced, so they need
+    # the exec bit the default 0644 seed mode would strip.
+    seedMode = rel:
+      if lib.hasPrefix ".jcode/hooks/" rel
+      then "0755"
+      else "0644";
 
     seedScript = lib.concatStringsSep "\n" (lib.mapAttrsToList (rel: src: ''
-        seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"}
+        seed_jcode_file ${lib.escapeShellArg rel} ${lib.escapeShellArg "${src}"} ${seedMode rel}
       '')
       seedFiles);
   in {
@@ -39,6 +63,7 @@
       seed_jcode_file() {
         dest="$HOME/$1"
         src="$2"
+        mode="$3"
         stamp="$(dirname "$dest")/.$(basename "$dest").nix-seeded"
 
         $DRY_RUN_CMD mkdir -p "$(dirname "$dest")"
@@ -47,7 +72,7 @@
         if [ ! -e "$dest" ] || [ -L "$dest" ] \
           || ${pkgs.diffutils}/bin/cmp -s "$dest" "$stamp"; then
           $DRY_RUN_CMD rm -f "$dest"
-          $DRY_RUN_CMD install -m 0644 "$src" "$dest"
+          $DRY_RUN_CMD install -m "$mode" "$src" "$dest"
           $DRY_RUN_CMD install -m 0644 "$src" "$stamp"
         elif ${pkgs.diffutils}/bin/cmp -s "$dest" "$src"; then
           $DRY_RUN_CMD install -m 0644 "$src" "$stamp"

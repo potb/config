@@ -98,7 +98,16 @@ in {
         else pkgs.ghostty;
       settings = {
         confirm-close-surface = false;
+
+        # Stylix only sets the family, which resolves to Regular (400). Retina
+        # is FiraCode's 450 weight: slightly heavier than Regular without
+        # reaching Medium.
+        font-style = "Retina";
         window-decoration = false;
+
+        # On macOS Ghostty keeps running after the last window closes. Quit
+        # with the last window instead, like on Linux.
+        quit-after-last-window-closed = true;
 
         # Ghostty renders SGR 2 (faint) by blending the glyph toward the
         # background, which washes out styles like Starship's "green dimmed
