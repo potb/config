@@ -30,6 +30,10 @@ in {
         {
           tailscale-authkey = {};
 
+          potb-password-hash = {
+            neededForUsers = true;
+          };
+
           openclaw-env = {
             owner = "openclaw";
             group = "openclaw";
@@ -48,7 +52,6 @@ in {
     };
 
     services.tailscale.authKeyFile = config.sops.secrets.tailscale-authkey.path;
-    services.tailscale.authKeyParameters.ephemeral = false;
   };
 
   darwin = {};

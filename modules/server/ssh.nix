@@ -36,8 +36,6 @@ in {
 
     users.users.potb.openssh.authorizedKeys.keys = [nyxKey];
     users.users.root.openssh.authorizedKeys.keys = lib.mkForce [];
-
-    security.sudo.wheelNeedsPassword = false;
   };
 
   darwin = {};
