@@ -27,8 +27,6 @@
   documentation.nixos.enable = false;
 
   nix.settings = {
-    substituters = ["https://cache.garnix.io"];
-    trusted-public-keys = ["cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="];
     max-jobs = lib.mkForce 2;
     cores = lib.mkForce 2;
   };
