@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  nekoImage = "ghcr.io/m1k1o/neko/chromium:3.1.0";
+  nekoImage = "ghcr.io/m1k1o/neko/chromium:3.1.5";
 
   chromeFlags = builtins.concatStringsSep " " [
     "--remote-debugging-port=9223"

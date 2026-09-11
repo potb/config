@@ -4,27 +4,18 @@
   lib,
   ...
 }: let
-  serveConfig = {
-    TCP = {
-      "443" = {HTTPS = true;};
-      "8443" = {HTTPS = true;};
-    };
-    Web = {
-      "\${TS_CERT_DOMAIN}:443".Handlers."/" = {
-        Proxy = "http://127.0.0.1:18789";
-      };
-      "\${TS_CERT_DOMAIN}:8443".Handlers."/" = {
-        Proxy = "http://127.0.0.1:8080";
-      };
-    };
-    AllowFunnel = {
-      "\${TS_CERT_DOMAIN}:443" = false;
-      "\${TS_CERT_DOMAIN}:8443" = false;
-    };
-  };
+  tailscale = lib.getExe config.services.tailscale.package;
 
-  serveConfigFile =
-    (pkgs.formats.json {}).generate "tailscale-serve.json" serveConfig;
+  serve = pkgs.writeShellScript "tailscale-serve-setup" ''
+    set -euo pipefail
+
+    ${tailscale} serve reset
+
+    ${tailscale} serve --bg --https 443 http://127.0.0.1:18789
+    ${tailscale} serve --bg --https 8443 http://127.0.0.1:8080
+
+    ${tailscale} serve status
+  '';
 in {
   nixos = {
     systemd.services.tailscale-serve = {
@@ -33,16 +24,22 @@ in {
       after = [
         "tailscaled.service"
         "tailscaled-autoconnect.service"
+        "openclaw-gateway.service"
       ];
       wants = ["tailscaled.service"];
 
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = "${lib.getExe config.services.tailscale.package} serve --config ${serveConfigFile}";
-        ExecStop = "${lib.getExe config.services.tailscale.package} serve reset";
+        ExecStart = serve;
+        ExecStop = "${tailscale} serve reset";
         Restart = "on-failure";
-        RestartSec = 10;
+        RestartSec = 30;
+      };
+
+      unitConfig = {
+        StartLimitIntervalSec = 600;
+        StartLimitBurst = 10;
       };
     };
   };
