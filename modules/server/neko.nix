@@ -10,7 +10,7 @@
 
   mediaPort = 52100;
 
-  nekoAddressEnv = "/run/neko/address.env";
+  nekoAddressEnv = "/var/lib/neko/address.env";
 
   chromiumPolicies = pkgs.writeText "neko-chromium-policies.json" (builtins.toJSON {
     AllowFileSelectionDialogs = false;
@@ -128,7 +128,7 @@ in {
 
       serviceConfig = {
         Type = "oneshot";
-        RemainAfterExit = true;
+        RemainAfterExit = false;
       };
 
       script = ''
