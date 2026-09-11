@@ -12,6 +12,35 @@
 
   nekoAddressEnv = "/run/neko/address.env";
 
+  chromiumPolicies = pkgs.writeText "neko-chromium-policies.json" (builtins.toJSON {
+    AllowFileSelectionDialogs = false;
+    AutofillAddressEnabled = false;
+    AutofillCreditCardEnabled = false;
+    AutoplayAllowed = true;
+    BookmarkBarEnabled = false;
+    BrowserAddPersonEnabled = false;
+    BrowserGuestModeEnabled = false;
+    BrowserLabsEnabled = false;
+    BrowserSignin = 0;
+    CommandLineFlagSecurityWarningsEnabled = false;
+    DefaultNotificationsSetting = 2;
+    DefaultPopupsSetting = 2;
+    DeveloperToolsAvailability = 0;
+    DownloadRestrictions = 3;
+    EditBookmarksEnabled = false;
+    ExtensionInstallBlocklist = ["*"];
+    FullscreenAllowed = true;
+    IncognitoModeAvailability = 1;
+    PasswordManagerEnabled = false;
+    PromptForDownloadLocation = false;
+    SyncDisabled = true;
+    URLBlocklist = [
+      "file://*"
+      "chrome://policy"
+    ];
+    VideoCaptureAllowed = true;
+  });
+
   supervisordChromium = pkgs.writeText "neko-chromium.conf" ''
     [program:chromium]
     environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
@@ -75,6 +104,7 @@ in {
           "/var/lib/neko/profile:/home/neko/.config/chromium"
           "/var/lib/neko/downloads:/home/neko/Downloads"
           "${supervisordChromium}:/etc/neko/supervisord/chromium.conf:ro"
+          "${chromiumPolicies}:/etc/chromium/policies/managed/policies.json:ro"
         ];
 
         extraOptions = [
