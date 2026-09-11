@@ -131,7 +131,7 @@ in {
           enabled = true;
           defaultProfile = "neko";
           profiles.neko = {
-            cdpUrl = "ws://127.0.0.1:9223";
+            cdpUrl = "ws://127.0.0.1:9222";
             attachOnly = true;
             color = "#d84a31";
           };

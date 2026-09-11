@@ -6,6 +6,7 @@
   nekoImage = "ghcr.io/m1k1o/neko/chromium:3.1.5";
 
   cdpPort = 9223;
+  bridgePort = 9222;
 
   supervisordChromium = pkgs.writeText "neko-chromium.conf" ''
     [program:chromium]
@@ -60,7 +61,7 @@ in {
 
         ports = [
           "127.0.0.1:8080:8080"
-          "127.0.0.1:${toString cdpPort}:${toString cdpPort}"
+          "127.0.0.1:${toString bridgePort}:${toString bridgePort}"
           "127.0.0.1:52000-52100:52000-52100/udp"
         ];
 
@@ -76,6 +77,27 @@ in {
           "--memory=3g"
           "--memory-swap=3g"
         ];
+      };
+    };
+
+    systemd.services.neko-cdp-bridge = {
+      description = "Forward the Neko CDP port off the container's loopback";
+      wantedBy = ["multi-user.target"];
+      after = ["podman-neko.service"];
+      bindsTo = ["podman-neko.service"];
+
+      path = with pkgs; [podman socat];
+
+      script = ''
+        netns=$(podman inspect neko --format '{{.NetworkSettings.SandboxKey}}')
+        exec ${pkgs.iproute2}/bin/ip netns exec "$(basename "$netns")" \
+          socat TCP-LISTEN:${toString bridgePort},fork,reuseaddr \
+          TCP:127.0.0.1:${toString cdpPort}
+      '';
+
+      serviceConfig = {
+        Restart = "always";
+        RestartSec = 10;
       };
     };
 
