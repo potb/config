@@ -95,6 +95,11 @@ jobs:
       - name: Build NixOS configuration
         if: matrix.system == 'nixos'
         run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
+      - name: Build server configuration
+        if: matrix.system == 'nixos'
+        run: nix build .#nixosConfigurations.new-horizons.config.system.build.toplevel
+      - name: Run flake checks
+        run: nix flake check
       - name: Build Darwin configuration
         if: matrix.system == 'darwin'
         run: nix build .#darwinConfigurations.nyx.system

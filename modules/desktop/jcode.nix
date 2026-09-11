@@ -40,10 +40,10 @@
     seedRoot = ./jcode;
 
     seedFiles = lib.listToAttrs (map (path: let
-        rel = lib.removePrefix "${toString seedRoot}/" (toString path);
-      in
-        lib.nameValuePair ".jcode/${rel}" path)
-      (lib.filesystem.listFilesRecursive seedRoot));
+      rel = lib.removePrefix "${toString seedRoot}/" (toString path);
+    in
+      lib.nameValuePair ".jcode/${rel}" path)
+    (lib.filesystem.listFilesRecursive seedRoot));
 
     # Hooks are spawned by jcode as programs rather than sourced, so they need
     # the exec bit the default 0644 seed mode would strip.
