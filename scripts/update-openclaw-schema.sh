@@ -4,19 +4,28 @@ set -euo pipefail
 root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 out="$root/checks/openclaw-config-schema.json.gz"
 
+flake_attr() {
+  printf '%s#%s' "$root" "$1"
+}
+
 schema=$(nix build --no-link --print-out-paths \
-  "$root#nixosConfigurations.new-horizons.config.services.openclaw-gateway.package" \
-  2>/dev/null)
+  "$(flake_attr nixosConfigurations.new-horizons.config.services.openclaw-gateway.package)")
 
-mkdir -p "$root/checks"
+python=$(nix build --no-link --print-out-paths \
+  "$(flake_attr nixosConfigurations.new-horizons.pkgs.python3)")
 
-HOME=$(mktemp -d) "$schema/bin/openclaw" config schema |
-  python3 -c '
+pack=$(cat <<'PY'
 import gzip, json, sys
 data = json.load(sys.stdin)
 body = json.dumps(data, separators=(",", ":"), sort_keys=True).encode()
 with gzip.GzipFile(sys.argv[1], "wb", compresslevel=9, mtime=0) as handle:
     handle.write(body)
-' "$out"
+PY
+)
+
+mkdir -p "$root/checks"
+
+HOME=$(mktemp -d) "$schema/bin/openclaw" config schema |
+  "$python/bin/python3" -c "$pack" "$out"
 
 echo "wrote $out"
