@@ -77,6 +77,12 @@ in {
             skipBootstrap = true;
             contextInjection = "continuation-skip";
 
+            memorySearch = {
+              enabled = true;
+              provider = "openrouter-embeddings";
+              model = "voyageai/voyage-4-lite";
+            };
+
             sandbox.mode = "off";
           };
         };
@@ -144,6 +150,19 @@ in {
         };
 
         memory.backend = "builtin";
+
+        models.providers.openrouter-embeddings = {
+          api = "openai-compatible";
+          baseUrl = "https://openrouter.ai/api/v1";
+          apiKey = "\${OPENROUTER_API_KEY}";
+
+          models = [
+            {
+              id = "voyageai/voyage-4-lite";
+              name = "Voyage 4 Lite";
+            }
+          ];
+        };
 
         plugins = {
           load.paths = map toString runtimePlugins;
