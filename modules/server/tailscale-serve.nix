@@ -13,6 +13,7 @@
 
     ${tailscale} serve --bg --https 443 http://127.0.0.1:18789
     ${tailscale} serve --bg --https 8443 http://127.0.0.1:8080
+    ${tailscale} serve --bg --tcp 52100 tcp://127.0.0.1:52100
 
     ${tailscale} serve status
   '';

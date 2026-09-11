@@ -8,6 +8,10 @@
   cdpPort = 9223;
   bridgePort = 9222;
 
+  mediaPort = 52100;
+
+  nekoAddressEnv = "/run/neko/address.env";
+
   supervisordChromium = pkgs.writeText "neko-chromium.conf" ''
     [program:chromium]
     environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
@@ -52,17 +56,19 @@ in {
         environment = {
           NEKO_DESKTOP_SCREEN = "1920x1080@30";
           NEKO_MEMBER_PROVIDER = "multiuser";
-          NEKO_WEBRTC_NAT1TO1 = "127.0.0.1";
-          NEKO_WEBRTC_EPR = "52000-52100";
+          NEKO_WEBRTC_TCPMUX = toString mediaPort;
           NEKO_WEBRTC_ICELITE = "true";
         };
 
-        environmentFiles = [config.sops.secrets.neko-env.path];
+        environmentFiles = [
+          config.sops.secrets.neko-env.path
+          nekoAddressEnv
+        ];
 
         ports = [
           "127.0.0.1:8080:8080"
           "127.0.0.1:${toString bridgePort}:${toString bridgePort}"
-          "127.0.0.1:52000-52100:52000-52100/udp"
+          "127.0.0.1:${toString mediaPort}:${toString mediaPort}"
         ];
 
         volumes = [
@@ -78,6 +84,44 @@ in {
           "--memory-swap=3g"
         ];
       };
+    };
+
+    systemd.services.neko-address = {
+      description = "Resolve the tailnet address Neko advertises to WebRTC clients";
+      wantedBy = ["multi-user.target"];
+      before = ["podman-neko.service"];
+      requiredBy = ["podman-neko.service"];
+      after = ["tailscaled.service"];
+      wants = ["tailscaled.service"];
+
+      path = with pkgs; [tailscale coreutils];
+
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+
+      script = ''
+        mkdir -p "$(dirname ${nekoAddressEnv})"
+
+        address=""
+        attempt=0
+        while [ "$attempt" -lt 60 ]; do
+          address=$(tailscale ip -4 2>/dev/null || true)
+          if [ -n "$address" ]; then
+            break
+          fi
+          attempt=$((attempt + 1))
+          sleep 2
+        done
+
+        if [ -z "$address" ]; then
+          echo "no tailnet address available" >&2
+          exit 1
+        fi
+
+        printf 'NEKO_WEBRTC_NAT1TO1=%s\n' "$address" > ${nekoAddressEnv}
+      '';
     };
 
     systemd.services.neko-cdp-bridge = {
