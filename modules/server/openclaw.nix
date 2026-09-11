@@ -89,13 +89,11 @@ in {
           };
           applicationId = "1547996770380943360";
 
-          dms = {
-            policy = "allowlist";
-            allow = ["104696030611673088"];
-          };
+          dmPolicy = "allowlist";
+          allowFrom = ["104696030611673088"];
 
           guilds."1393729424398090362" = {
-            allow = true;
+            requireMention = false;
           };
         };
 
@@ -115,6 +113,11 @@ in {
 
           fs.workspaceOnly = true;
           exec.applyPatch.workspaceOnly = true;
+
+          web.search = {
+            enabled = true;
+            provider = "exa";
+          };
         };
 
         browser = {
@@ -126,12 +129,7 @@ in {
           };
         };
 
-        memory.enabled = true;
-
-        search = {
-          provider = "exa";
-          exa.apiKey = "\${EXA_API_KEY}";
-        };
+        memory.backend = "builtin";
       };
     };
 
