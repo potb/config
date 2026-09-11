@@ -80,7 +80,7 @@
     inputs,
     ...
   }: let
-    fonts = import ../shared/fonts.nix {inherit pkgs;};
+    fonts = import ../../shared/fonts.nix {inherit pkgs;};
 
     hy3PluginConf = let
       hy3 = inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3;

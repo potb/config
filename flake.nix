@@ -198,6 +198,17 @@
         |> map (name: import (overlaysDir + "/${name}") {inherit inputs lib;})
       else [];
 
+    staticArgs = file: let
+      unavailable = name:
+        builtins.throw "${name} read during static import of ${toString file}; move that read inside the nixos, darwin or home attribute";
+    in {
+      inherit lib inputs;
+      pkgs = unavailable "pkgs";
+      config = unavailable "config";
+      options = unavailable "options";
+      modulesPath = unavailable "modulesPath";
+    };
+
     loadUnifiedModules = platform: modulesDir:
       builtins.readDir modulesDir
       |> builtins.attrNames
@@ -206,10 +217,7 @@
         name: let
           file = modulesDir + "/${name}";
 
-          modStatic = import file {
-            inherit lib inputs;
-            pkgs = builtins.throw "pkgs used during static import of ${toString file}";
-          };
+          modStatic = import file (staticArgs file);
 
           staticPlatform = modStatic.${platform} or {};
           staticImports = staticPlatform.imports or [];

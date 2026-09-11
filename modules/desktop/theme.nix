@@ -4,7 +4,7 @@
   inputs,
   ...
 }: let
-  fonts = import ../shared/fonts.nix {inherit pkgs;};
+  fonts = import ../../shared/fonts.nix {inherit pkgs;};
   stylixConfig =
     "${pkgs.base16-schemes}/share/themes/catppuccin-latte.yaml"
     |> (theme: {

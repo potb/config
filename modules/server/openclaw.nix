@@ -2,8 +2,11 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
 }: let
+  openclawPkgs = inputs.nix-openclaw.packages.${pkgs.stdenv.hostPlatform.system};
+
   workspace = "/var/lib/openclaw/workspace";
 
   bootstrapFiles = [
@@ -16,7 +19,7 @@ in {
   nixos = {
     services.openclaw-gateway = {
       enable = true;
-      package = pkgs.openclaw;
+      package = openclawPkgs.openclaw;
       port = 18789;
       user = "openclaw";
       group = "openclaw";
