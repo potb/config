@@ -91,6 +91,7 @@ in {
 
           dmPolicy = "allowlist";
           allowFrom = ["104696030611673088"];
+          groupPolicy = "allowlist";
 
           guilds."1393729424398090362" = {
             requireMention = false;
@@ -126,6 +127,7 @@ in {
           profiles.neko = {
             cdpUrl = "ws://127.0.0.1:9223";
             attachOnly = true;
+            color = "#d84a31";
           };
         };
 

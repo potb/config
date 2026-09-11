@@ -379,6 +379,25 @@
           deadnix --fail --no-lambda-pattern-names --no-lambda-arg
           touch $out
         '';
+
+      openclaw-config = let
+        pkgs = nixpkgs.legacyPackages.${system};
+        gateway = self.nixosConfigurations.new-horizons.config.services.openclaw-gateway;
+        generated = pkgs.writeText "openclaw-config.json" (builtins.toJSON gateway.config);
+      in
+        pkgs.runCommand "openclaw-config-check"
+        {
+          nativeBuildInputs = [
+            pkgs.python3
+            gateway.package
+          ];
+        }
+        ''
+          export HOME=$TMPDIR
+          openclaw config schema > schema.json
+          python3 ${./scripts/validate-openclaw-config.py} ${generated} schema.json
+          touch $out
+        '';
     });
 
     nixosConfigurations = {
