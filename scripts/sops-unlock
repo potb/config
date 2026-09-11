@@ -30,8 +30,11 @@ if [ -f "$target" ]; then
   esac
 fi
 
-mkdir -p "$(dirname "$target")"
-chmod 700 "$(dirname "$target")"
+key_dir=$(dirname "$target")
+mkdir -p "$key_dir"
+case "$key_dir" in
+  "$HOME"/*) chmod 700 "$key_dir" ;;
+esac
 
 umask 077
 age -d -o "$target" "$encrypted"
