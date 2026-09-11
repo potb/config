@@ -34,5 +34,7 @@
   services.xserver.enable = false;
   services.printing.enable = false;
 
+  services.qemuGuest.enable = true;
+
   system.stateVersion = "26.05";
 }
