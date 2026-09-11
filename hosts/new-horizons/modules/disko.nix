@@ -7,7 +7,8 @@
         content = {
           type = "gpt";
           partitions = {
-            boot = {
+            biosboot = {
+              label = "biosboot";
               size = "1M";
               type = "EF02";
               priority = 1;
@@ -17,7 +18,7 @@
               size = "4G";
               content = {
                 type = "swap";
-                randomEncryption = false;
+                discardPolicy = "once";
               };
             };
             root = {
@@ -27,6 +28,7 @@
                 type = "filesystem";
                 format = "ext4";
                 mountpoint = "/";
+                extraArgs = ["-L" "nixos"];
               };
             };
           };
