@@ -147,6 +147,19 @@ bumping the gateway.
   `ip nat` prerouting ahead of the `nixos-fw` input chain. Binding a port to
   `0.0.0.0` in `virtualisation.oci-containers` therefore exposes it publicly
   even with `allowedTCPPorts = []`. Bind to `127.0.0.1` and let Serve publish it.
+- Chromium records the hostname it started on in the singleton lock inside its
+  profile, and podman hands the container a fresh random hostname on every run.
+  After a reboot Chromium then refuses to start with "The profile appears to be
+  in use by another Chromium process on another computer" and never opens its
+  debugging port, while Neko keeps serving the desktop, so the only symptom is
+  the agent losing the browser. The container hostname is pinned and a stale
+  lock is cleared before start. After any reboot, confirm the browser came back
+  rather than only checking that the units are active:
+
+  ```
+  sudo podman exec neko supervisorctl status chromium
+  curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
+  ```
 - OpenClaw validates workspace context files with `lstat` and rejects anything
   that is a symlink or has more than one hard link. sops-nix creates symlinks
   when given a `path`, so the persona files were silently reported as
