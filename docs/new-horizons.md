@@ -78,9 +78,10 @@ the only thing answering on the public address.
 ## Secrets
 
 sops-nix, decrypting with the host's own SSH key converted to age. The
-workspace bootstrap files are encrypted the same way and are written straight
-into the workspace, so the agent's instructions appear neither in this public
-repository nor in the world-readable Nix store.
+workspace bootstrap files are encrypted the same way and are bind-mounted into
+the workspace from `/run/secrets`, so the agent's instructions appear neither
+in this public repository nor in the world-readable Nix store. Outside the
+service's mount namespace those paths are empty placeholder files.
 
 Editing from a new machine needs only this repository and the passphrase:
 
@@ -97,9 +98,13 @@ cd /tmp/cfg && git pull
 sudo nixos-rebuild switch --flake .#new-horizons
 ```
 
-`nix flake check` validates the generated OpenClaw config against the schema the
-packaged gateway prints, which catches unknown keys, missing required keys and
-bad enum values before they become a crash loop on the server.
+`nix flake check` validates the generated OpenClaw config against the gateway's
+own JSON schema, which catches unknown keys, missing required keys and bad enum
+values before they reach the server. The schema is committed at
+`checks/openclaw-config-schema.json.gz` so the check also runs on macOS, where
+the Linux gateway cannot be built; on Linux a second check fails if that copy
+has drifted. Refresh it with `./scripts/update-openclaw-schema.sh` after
+bumping the gateway.
 
 ## Things that cost time once
 
@@ -116,3 +121,26 @@ bad enum values before they become a crash loop on the server.
   `--remote-debugging-address` says, hence the bridge.
 - Neko's image hardcodes its Chromium command in supervisord, so
   `NEKO_CHROME_FLAGS` is ignored and the unit file has to be replaced.
+- OpenClaw validates workspace context files with `lstat` and rejects anything
+  that is a symlink or has more than one hard link. sops-nix creates symlinks
+  when given a `path`, so the persona files were silently reported as
+  `missing` and never reached the system prompt, while still looking correct
+  in `ls`. They are bind-mounted over placeholder files instead. Check the
+  agent's own view rather than the directory listing:
+
+  ```
+  sudo nsenter -t $(systemctl show -p MainPID --value openclaw-gateway) -m -- \
+    stat -c '%n %F nlink=%h size=%s' /var/lib/openclaw/workspace/SOUL.md
+  ```
+
+- Memory search defaults to OpenAI embeddings. With only an OpenRouter key the
+  index cannot be built and recall stays paused, which the agent reports as
+  its memory being unavailable. `models.providers.<id>.api` must be
+  `openai-completions` for an OpenAI-compatible endpoint: `openai-compatible`
+  looks plausible, appears in prose in the upstream memory documentation, and
+  is not in the schema. An invalid `models` block makes the gateway drop its
+  bundled plugins rather than fail loudly, so the first visible symptom is
+  unrelated commands disappearing.
+- The CLI reads `~/.openclaw` unless `OPENCLAW_CONFIG_PATH` is set. Running
+  `openclaw memory status` without it reports on a config the service does not
+  use, which looks exactly like a broken deployment.
