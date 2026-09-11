@@ -183,3 +183,4 @@ bumping the gateway.
 - The CLI reads `~/.openclaw` unless `OPENCLAW_CONFIG_PATH` is set. Running
   `openclaw memory status` without it reports on a config the service does not
   use, which looks exactly like a broken deployment.
+
