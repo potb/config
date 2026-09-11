@@ -75,6 +75,11 @@ operator.
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
 
+The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
+80 from the tailnet. Log in with the member password from `neko-env`. Media
+rides a single TCP port, 52100, also published through Serve, so watching the
+session from a phone needs no UDP.
+
 ## Secrets
 
 sops-nix, decrypting with the host's own SSH key converted to age. The
@@ -121,6 +126,27 @@ bumping the gateway.
   `--remote-debugging-address` says, hence the bridge.
 - Neko's image hardcodes its Chromium command in supervisord, so
   `NEKO_CHROME_FLAGS` is ignored and the unit file has to be replaced.
+- Neko's image also ships a Chromium enterprise policy with
+  `DeveloperToolsAvailability: 2`, which makes the browser answer every
+  `Target.attachToTarget` with `Not allowed`. Nothing else looks wrong:
+  `/json/list` still lists pages and per-page sockets still upgrade, but
+  Playwright sees zero pages and the agent reports `No pages available in the
+  connected browser`. We mount our own policy file instead. To tell this apart
+  from a transport problem, attach by hand rather than trusting the target list:
+
+  ```
+  curl -s http://127.0.0.1:9222/json/list | jq -r '.[0].type'
+  ```
+
+  A populated list with a failing attach means policy, not networking.
+- Neko defaults to advertising `127.0.0.1` for WebRTC. The stream then plays
+  only on the server itself and every remote client shows a black screen, so
+  the tailnet address is written into an environment file at boot. Verify with
+  the ICE candidate rather than the page load: it must carry the tailnet IP.
+- Published container ports bypass the NixOS firewall, because podman DNATs in
+  `ip nat` prerouting ahead of the `nixos-fw` input chain. Binding a port to
+  `0.0.0.0` in `virtualisation.oci-containers` therefore exposes it publicly
+  even with `allowedTCPPorts = []`. Bind to `127.0.0.1` and let Serve publish it.
 - OpenClaw validates workspace context files with `lstat` and rejects anything
   that is a symlink or has more than one hard link. sops-nix creates symlinks
   when given a `path`, so the persona files were silently reported as
