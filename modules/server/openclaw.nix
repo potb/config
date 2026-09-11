@@ -7,6 +7,11 @@
 }: let
   openclawPkgs = inputs.nix-openclaw.packages.${pkgs.stdenv.hostPlatform.system};
 
+  runtimePlugins = [
+    openclawPkgs."openclaw-runtime-plugin-exa"
+    openclawPkgs."openclaw-runtime-plugin-discord"
+  ];
+
   workspace = "/var/lib/openclaw/workspace";
 
   bootstrapFiles = [
@@ -132,6 +137,8 @@ in {
         };
 
         memory.backend = "builtin";
+
+        plugins.load.paths = map toString runtimePlugins;
       };
     };
 
