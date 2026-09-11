@@ -5,13 +5,34 @@
 }: let
   nekoImage = "ghcr.io/m1k1o/neko/chromium:3.1.5";
 
-  chromeFlags = builtins.concatStringsSep " " [
-    "--remote-debugging-port=9223"
-    "--remote-debugging-address=0.0.0.0"
-    "--remote-allow-origins=*"
-    "--no-first-run"
-    "--disable-features=Translate"
-  ];
+  cdpPort = 9223;
+
+  supervisordChromium = pkgs.writeText "neko-chromium.conf" ''
+    [program:chromium]
+    environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
+    command=/usr/bin/chromium
+      --no-sandbox
+      --window-position=0,0
+      --display=%(ENV_DISPLAY)s
+      --user-data-dir=/home/neko/.config/chromium
+      --no-first-run
+      --start-maximized
+      --force-dark-mode
+      --disable-gpu
+      --disable-software-rasterizer
+      --disable-dev-shm-usage
+      --remote-debugging-port=${toString cdpPort}
+      --remote-debugging-address=0.0.0.0
+      --remote-allow-origins=*
+    stopsignal=INT
+    autorestart=true
+    priority=800
+    user=%(ENV_USER)s
+    stdout_logfile=/var/log/neko/chromium.log
+    stdout_logfile_maxbytes=100MB
+    stdout_logfile_backups=10
+    redirect_stderr=true
+  '';
 in {
   nixos = {
     virtualisation.podman = {
@@ -33,20 +54,20 @@ in {
           NEKO_WEBRTC_NAT1TO1 = "127.0.0.1";
           NEKO_WEBRTC_EPR = "52000-52100";
           NEKO_WEBRTC_ICELITE = "true";
-          NEKO_CHROME_FLAGS = chromeFlags;
         };
 
         environmentFiles = [config.sops.secrets.neko-env.path];
 
         ports = [
           "127.0.0.1:8080:8080"
-          "127.0.0.1:9223:9223"
+          "127.0.0.1:${toString cdpPort}:${toString cdpPort}"
           "127.0.0.1:52000-52100:52000-52100/udp"
         ];
 
         volumes = [
           "/var/lib/neko/profile:/home/neko/.config/chromium"
           "/var/lib/neko/downloads:/home/neko/Downloads"
+          "${supervisordChromium}:/etc/neko/supervisord/chromium.conf:ro"
         ];
 
         extraOptions = [
