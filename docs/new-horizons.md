@@ -49,6 +49,32 @@ the way back in.
 
 Nothing listens on a public port except SSH.
 
+## Discord
+
+Three channels under a `hal` category:
+
+| Channel   | Type  | Purpose                                              |
+| --------- | ----- | ---------------------------------------------------- |
+| `#hal`    | text  | ordinary conversation                                |
+| `#work`   | forum | one thread per topic, created by posting to the parent |
+| `#notify` | text  | the only place the agent notifies                    |
+
+Mute the first two and leave notifications on for `#notify`; the workspace
+rules tell the agent to keep anything that can wait out of it.
+
+The guild allowlist names those three channels, and DMs are restricted to the
+operator.
+
+## Access from the tailnet
+
+| URL                                             | What              |
+| ----------------------------------------------- | ----------------- |
+| `https://new-horizons.taile99a6c.ts.net`        | OpenClaw Control UI |
+| `https://new-horizons.taile99a6c.ts.net:8443`   | Neko browser      |
+
+Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
+the only thing answering on the public address.
+
 ## Secrets
 
 sops-nix, decrypting with the host's own SSH key converted to age. The
