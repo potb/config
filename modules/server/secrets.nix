@@ -1,6 +1,4 @@
 {config, ...}: let
-  workspace = "/var/lib/openclaw/workspace";
-
   bootstrapFiles = [
     "SOUL.md"
     "AGENTS.md"
@@ -13,7 +11,6 @@
     value = {
       sopsFile = ../../secrets/workspace + "/${name}";
       format = "binary";
-      path = "${workspace}/${name}";
       owner = "openclaw";
       group = "openclaw";
       mode = "0440";

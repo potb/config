@@ -187,14 +187,25 @@ in {
       ReadWritePaths = [
         "/var/lib/openclaw"
       ];
+      BindReadOnlyPaths =
+        map (
+          name: "${config.sops.secrets."workspace/${name}".path}:${workspace}/${name}"
+        )
+        bootstrapFiles;
       MemoryMax = "2G";
     };
 
-    systemd.tmpfiles.rules = [
-      "d /var/lib/openclaw/compile-cache 0750 openclaw openclaw - -"
-      "d ${workspace} 0750 openclaw openclaw - -"
-      "d ${workspace}/memory 0750 openclaw openclaw - -"
-    ];
+    systemd.tmpfiles.rules =
+      [
+        "d /var/lib/openclaw/compile-cache 0750 openclaw openclaw - -"
+        "d ${workspace} 0750 openclaw openclaw - -"
+        "d ${workspace}/memory 0750 openclaw openclaw - -"
+      ]
+      ++ lib.concatMap (name: [
+        "r ${workspace}/${name} - - - - -"
+        "f ${workspace}/${name} 0440 openclaw openclaw - -"
+      ])
+      bootstrapFiles;
   };
 
   darwin = {};
