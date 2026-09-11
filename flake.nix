@@ -1,5 +1,5 @@
 {
-  description = "NixOS and nix-darwin configuration for charon and nyx";
+  description = "NixOS and nix-darwin configuration for charon, nyx and new-horizons";
 
   nixConfig = {
     extra-substituters = ["https://potb.cachix.org"];
@@ -85,6 +85,15 @@
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nix-openclaw = {
+      url = "github:openclaw/nix-openclaw";
     };
 
     schemastore = {
@@ -273,11 +282,81 @@
       );
 
     sharedOverlays = loadOverlays ./overlays;
-    darwinOverlays = loadOverlays ./darwin/overlays;
-    nixosOverlays = loadOverlays ./nixos/overlays;
+    nixosAllOverlays = sharedOverlays;
+    darwinAllOverlays = sharedOverlays;
 
-    darwinAllOverlays = sharedOverlays ++ darwinOverlays;
-    nixosAllOverlays = sharedOverlays ++ nixosOverlays;
+    # Module sets a host can opt into. `common` is everything a machine needs
+    # to be usable over a terminal, and is the only set a headless server
+    # takes. The others layer on top.
+    moduleSets = {
+      common = ./modules/common;
+      desktop = ./modules/desktop;
+      server = ./modules/server;
+      darwin-only = ./modules/darwin-only;
+    };
+
+    # A host names the module sets it wants instead of inheriting whatever
+    # happens to live in a directory. Adding a machine means adding an entry
+    # here and a directory under ./hosts.
+    mkHost = {
+      hostname,
+      system,
+      platform,
+      sets ? ["common"],
+      extraModules ? [],
+      homeDirectory,
+    }: let
+      unified = builtins.concatLists (
+        map (name: loadUnifiedModules platform moduleSets.${name}) sets
+      );
+
+      hostModules =
+        if builtins.pathExists (./hosts + "/${hostname}/modules")
+        then loadModulesFromDir (./hosts + "/${hostname}/modules")
+        else [];
+
+      hostConfiguration = ./hosts + "/${hostname}/configuration.nix";
+
+      builder =
+        if platform == "nixos"
+        then nixpkgs.lib.nixosSystem
+        else nix-darwin.lib.darwinSystem;
+
+      homeManagerModule =
+        if platform == "nixos"
+        then inputs.home-manager.nixosModules.home-manager
+        else inputs.home-manager.darwinModules.home-manager;
+
+      overlays =
+        if platform == "nixos"
+        then nixosAllOverlays
+        else darwinAllOverlays;
+    in
+      builder {
+        specialArgs = {inherit inputs outputs;};
+        modules =
+          unified
+          ++ hostModules
+          ++ lib.optional (builtins.pathExists hostConfiguration) hostConfiguration
+          ++ [
+            homeManagerModule
+            {
+              nixpkgs.overlays = overlays;
+              networking.hostName = lib.mkDefault hostname;
+
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.sharedModules = [
+                inputs.nixvim.homeModules.nixvim
+              ];
+              home-manager.extraSpecialArgs = {inherit inputs;};
+              home-manager.backupFileExtension = "backup";
+              home-manager.users.potb.home.homeDirectory =
+                nixpkgs.lib.mkForce homeDirectory;
+            }
+          ]
+          ++ extraModules;
+      };
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
@@ -294,112 +373,101 @@
         '';
     });
 
-    nixosConfigurations = let
-      nixosModules = loadModulesFromDir ./nixos/modules;
-    in {
-      charon = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs outputs;};
-        modules =
-          nixosModules
-          ++ (loadUnifiedModules "nixos" ./modules)
-          ++ [
-            ./nixos/configuration.nix
-            inputs.home-manager.nixosModules.home-manager
-            disko.nixosModules.disko
+    nixosConfigurations = {
+      charon = mkHost {
+        hostname = "charon";
+        system = "x86_64-linux";
+        platform = "nixos";
+        sets = [
+          "common"
+          "desktop"
+        ];
+        homeDirectory = "/home/potb";
+        extraModules = [
+          disko.nixosModules.disko
+        ];
+      };
 
-            {
-              nixpkgs.overlays = nixosAllOverlays;
-
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.sharedModules = [
-                inputs.nixvim.homeModules.nixvim
-              ];
-              home-manager.extraSpecialArgs = {
-                inherit inputs;
-              };
-
-              home-manager.backupFileExtension = "backup";
-
-              home-manager.users.potb.home.homeDirectory = nixpkgs.lib.mkForce "/home/potb";
-            }
-          ];
+      # Headless VPS hosting the OpenClaw assistant. Takes `common` for a
+      # working shell and `server` for everything the agent needs; no desktop
+      # set, so nothing pulls in a graphical stack.
+      new-horizons = mkHost {
+        hostname = "new-horizons";
+        system = "x86_64-linux";
+        platform = "nixos";
+        sets = [
+          "common"
+          "server"
+        ];
+        homeDirectory = "/home/potb";
+        extraModules = [
+          disko.nixosModules.disko
+          inputs.sops-nix.nixosModules.sops
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+        ];
       };
     };
 
-    darwinConfigurations = let
-      darwinModules = loadModulesFromDir ./darwin/modules;
-    in {
-      nyx = nix-darwin.lib.darwinSystem {
-        specialArgs = {inherit inputs outputs;};
-        modules =
-          darwinModules
-          ++ (loadUnifiedModules "darwin" ./modules)
-          ++ [
-            ./darwin/configuration.nix
-            inputs.determinate.darwinModules.default
-            inputs.home-manager.darwinModules.home-manager
-            nix-homebrew.darwinModules.nix-homebrew
+    darwinConfigurations = {
+      nyx = mkHost {
+        hostname = "nyx";
+        system = "aarch64-darwin";
+        platform = "darwin";
+        sets = [
+          "common"
+          "desktop"
+          "darwin-only"
+        ];
+        homeDirectory = "/Users/potb";
+        extraModules = [
+          inputs.determinate.darwinModules.default
+          nix-homebrew.darwinModules.nix-homebrew
+          {
+            nix-homebrew = {
+              enable = true;
+              enableRosetta = true;
+              user = "potb";
 
-            {
-              nixpkgs.overlays = darwinAllOverlays;
-
-              nix-homebrew = {
-                enable = true;
-                enableRosetta = true;
-                user = "potb";
-
-                # nyx had Homebrew installed by the official script before this
-                # flake managed it. Without autoMigrate, activation aborts on
-                # the pre-existing /opt/homebrew prefix.
-                autoMigrate = true;
-                taps = {
-                  "homebrew/homebrew-core" = inputs.homebrew-core;
-                  "homebrew/homebrew-cask" = inputs.homebrew-cask;
-                };
-
-                # nyx taps a handful of third-party repositories for software
-                # that exists nowhere else: aerospace, the AlloyDB proxy and
-                # a few single-formula taps. Fully declarative taps would
-                # replace the whole directory with the two above and take
-                # those with it, so the rest stay imperative until they are
-                # pinned as inputs of their own.
-                mutableTaps = true;
-
-                # `brew shellenv` puts /opt/homebrew/bin ahead of the Nix
-                # profile in every interactive shell, so a tool this
-                # configuration declares loses to whatever Homebrew happens
-                # to have installed under the same name. The launcher in
-                # /run/current-system/sw/bin is enough to run brew itself,
-                # and darwin/modules/homebrew.nix appends the prefix to
-                # PATH so brew-only formulae still resolve.
-                enableZshIntegration = false;
-                enableBashIntegration = false;
-
-                # Homebrew 6.0 refuses to load anything from a tap that has
-                # not been trusted. These are the taps whose formulae and
-                # casks this configuration installs on purpose.
-                trust.taps = [
-                  "nikitabobko/tap"
-                  "asmvik/formulae"
-                  "jaisonerick/tap"
-                  "potb/tap"
-                  "rtk-ai/tap"
-                ];
+              # nyx had Homebrew installed by the official script before this
+              # flake managed it. Without autoMigrate, activation aborts on
+              # the pre-existing /opt/homebrew prefix.
+              autoMigrate = true;
+              taps = {
+                "homebrew/homebrew-core" = inputs.homebrew-core;
+                "homebrew/homebrew-cask" = inputs.homebrew-cask;
               };
 
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.sharedModules = [
-                inputs.nixvim.homeModules.nixvim
+              # nyx taps a handful of third-party repositories for software
+              # that exists nowhere else: aerospace, the AlloyDB proxy and
+              # a few single-formula taps. Fully declarative taps would
+              # replace the whole directory with the two above and take
+              # those with it, so the rest stay imperative until they are
+              # pinned as inputs of their own.
+              mutableTaps = true;
+
+              # `brew shellenv` puts /opt/homebrew/bin ahead of the Nix
+              # profile in every interactive shell, so a tool this
+              # configuration declares loses to whatever Homebrew happens
+              # to have installed under the same name. The launcher in
+              # /run/current-system/sw/bin is enough to run brew itself,
+              # and hosts/nyx/modules/homebrew.nix appends the prefix to
+              # PATH so brew-only formulae still resolve.
+              enableZshIntegration = false;
+              enableBashIntegration = false;
+
+              # Homebrew 6.0 refuses to load anything from a tap that has
+              # not been trusted. These are the taps whose formulae and
+              # casks this configuration installs on purpose.
+              trust.taps = [
+                "nikitabobko/tap"
+                "asmvik/formulae"
+                "jaisonerick/tap"
+                "potb/tap"
+                "rtk-ai/tap"
               ];
-              home-manager.extraSpecialArgs = {
-                inherit inputs;
-              };
-
-              home-manager.users.potb.home.homeDirectory = nixpkgs.lib.mkForce "/Users/potb";
-            }
-          ];
+            };
+          }
+        ];
       };
     };
   };
