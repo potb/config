@@ -152,7 +152,7 @@ in {
         memory.backend = "builtin";
 
         models.providers.openrouter-embeddings = {
-          api = "openai-compatible";
+          api = "openai-completions";
           baseUrl = "https://openrouter.ai/api/v1";
           apiKey = "\${OPENROUTER_API_KEY}";
 

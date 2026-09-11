@@ -383,21 +383,43 @@
       openclaw-config = let
         pkgs = nixpkgs.legacyPackages.${system};
         gateway = self.nixosConfigurations.new-horizons.config.services.openclaw-gateway;
-        generated = pkgs.writeText "openclaw-config.json" (builtins.toJSON gateway.config);
+        generated = pkgs.writeText "openclaw-config.json" (
+          builtins.unsafeDiscardStringContext (builtins.toJSON gateway.config)
+        );
       in
         pkgs.runCommand "openclaw-config-check"
         {
           nativeBuildInputs = [
             pkgs.python3
-            gateway.package
           ];
         }
         ''
-          export HOME=$TMPDIR
-          openclaw config schema > schema.json
+          gzip -dc ${./checks/openclaw-config-schema.json.gz} > schema.json
           python3 ${./scripts/validate-openclaw-config.py} ${generated} schema.json
           touch $out
         '';
+
+      openclaw-schema-current = let
+        pkgs = nixpkgs.legacyPackages.${system};
+        gateway = self.nixosConfigurations.new-horizons.config.services.openclaw-gateway;
+      in
+        if system != gateway.package.stdenv.hostPlatform.system
+        then pkgs.runCommand "openclaw-schema-current-skipped" {} "touch $out"
+        else
+          pkgs.runCommand "openclaw-schema-current-check"
+          {
+            nativeBuildInputs = [
+              pkgs.python3
+              gateway.package
+            ];
+          }
+          ''
+            export HOME=$TMPDIR
+            openclaw config schema > live.json
+            gzip -dc ${./checks/openclaw-config-schema.json.gz} > pinned.json
+            python3 ${./scripts/compare-openclaw-schema.py} pinned.json live.json
+            touch $out
+          '';
     });
 
     nixosConfigurations = {
