@@ -2,10 +2,6 @@
 
 Headless NixOS host for the OpenClaw assistant `hal`.
 
-The name follows the convention in this repository: servers take the names of
-probes that targeted Pluto, personal machines take Pluto's moons, and agents
-take the names of fictional AIs.
-
 ## The machine
 
 netcup KVM guest, 4 vCPU, 7 GB RAM, one 160 GB virtio disk, **legacy BIOS**.
