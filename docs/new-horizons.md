@@ -160,6 +160,28 @@ bumping the gateway.
   sudo podman exec neko supervisorctl status chromium
   curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
   ```
+
+- sops-nix installs secrets into a fresh `/run/secrets.d/<n>` on every
+  activation and moves the `/run/secrets` symlink, but bind mounts inside a
+  running service stay pinned to the generation that existed when it started.
+  Once the old generation is removed those mounts point at deleted inodes,
+  which still read the stale text, so an edited `SOUL.md` would never reach the
+  agent while `ls` and every unit still looked correct. `restartUnits` does not
+  cover this, because it fires on content change and the staleness comes from
+  the generation roll. An activation snippet compares what the service reads
+  against the installed secret and restarts it on mismatch. To check by hand:
+
+  ```
+  pid=$(systemctl show -p MainPID --value openclaw-gateway)
+  sudo nsenter -t "$pid" -m -- cmp \
+    /var/lib/openclaw/workspace/SOUL.md /run/secrets/workspace/SOUL.md
+  ```
+
+- Activation snippets all run inside one shared shell script, so calling `exit`
+  in a snippet ends the whole activation. The remaining steps, including
+  repointing `/run/current-system`, are skipped while
+  `switch-to-configuration` still exits zero and prints its usual success line.
+  Guard with a conditional rather than an early `exit`.
 - OpenClaw validates workspace context files with `lstat` and rejects anything
   that is a symlink or has more than one hard link. sops-nix creates symlinks
   when given a `path`, so the persona files were silently reported as
