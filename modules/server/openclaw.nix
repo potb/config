@@ -81,6 +81,7 @@ in {
               enabled = true;
               provider = "openrouter-embeddings";
               model = "voyageai/voyage-4-lite";
+              sync.intervalMinutes = 60;
             };
 
             sandbox.mode = "off";
@@ -173,6 +174,29 @@ in {
           };
         };
       };
+    };
+
+    systemd.services.openclaw-gateway = {
+      after = ["sops-nix.service"];
+      wants = ["sops-nix.service"];
+    };
+
+    system.activationScripts.openclaw-rebind-secrets = {
+      deps = ["setupSecrets"];
+      text = ''
+        unit=openclaw-gateway.service
+        live=${config.sops.secrets."workspace/SOUL.md".path}
+        seen=${workspace}/SOUL.md
+
+        if systemctl is-active --quiet "$unit"; then
+          pid=$(systemctl show -p MainPID --value "$unit")
+
+          if ! ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- \
+            ${pkgs.diffutils}/bin/cmp -s "$seen" "$live"; then
+            systemctl restart "$unit"
+          fi
+        fi
+      '';
     };
 
     systemd.services.openclaw-gateway.serviceConfig = {

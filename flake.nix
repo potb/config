@@ -162,6 +162,7 @@
 
     sem = {
       url = "github:ataraxy-labs/sem";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
