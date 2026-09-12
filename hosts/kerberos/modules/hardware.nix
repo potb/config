@@ -20,6 +20,7 @@
   };
 
   hardware.asahi.enable = true;
+  hardware.asahi.peripheralFirmwareDirectory = "/boot/vendorfw";
 
   hardware.bluetooth = {
     enable = true;
