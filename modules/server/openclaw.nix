@@ -184,18 +184,16 @@ in {
       deps = ["setupSecrets"];
       text = ''
         unit=openclaw-gateway.service
-
-        if ! systemctl is-active --quiet "$unit"; then
-          exit 0
-        fi
-
-        pid=$(systemctl show -p MainPID --value "$unit")
         live=${config.sops.secrets."workspace/SOUL.md".path}
         seen=${workspace}/SOUL.md
 
-        if ! ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- \
-          ${pkgs.diffutils}/bin/cmp -s "$seen" "$live"; then
-          systemctl restart "$unit"
+        if systemctl is-active --quiet "$unit"; then
+          pid=$(systemctl show -p MainPID --value "$unit")
+
+          if ! ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- \
+            ${pkgs.diffutils}/bin/cmp -s "$seen" "$live"; then
+            systemctl restart "$unit"
+          fi
         fi
       '';
     };
