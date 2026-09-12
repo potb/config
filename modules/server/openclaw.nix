@@ -183,20 +183,22 @@ in {
 
     system.activationScripts.openclaw-rebind-secrets = {
       deps = ["setupSecrets"];
-      text = ''
-        unit=openclaw-gateway.service
-        live=${config.sops.secrets."workspace/SOUL.md".path}
-        seen=${workspace}/SOUL.md
-
-        if systemctl is-active --quiet "$unit"; then
-          pid=$(systemctl show -p MainPID --value "$unit")
-
-          if ! ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- \
-            ${pkgs.diffutils}/bin/cmp -s "$seen" "$live"; then
-            systemctl restart "$unit"
-          fi
-        fi
-      '';
+      text = lib.concatStringsSep "\n" ([
+          "unit=openclaw-gateway.service"
+          "systemctl=${config.systemd.package}/bin/systemctl"
+          ""
+          ''if "$systemctl" is-active --quiet "$unit"; then''
+          ''  pid=$("$systemctl" show -p MainPID --value "$unit")''
+          "  stale=0"
+        ]
+        ++ map (
+          name: ''  ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- ${pkgs.diffutils}/bin/cmp -s ${workspace}/${name} ${config.sops.secrets."workspace/${name}".path} || stale=1''
+        )
+        bootstrapFiles
+        ++ [
+          ''  [ "$stale" = 0 ] || "$systemctl" restart "$unit"''
+          "fi"
+        ]);
     };
 
     systemd.services.openclaw-gateway.serviceConfig = {
