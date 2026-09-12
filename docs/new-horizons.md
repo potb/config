@@ -100,6 +100,11 @@ operator.
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
 
+The Control UI opens from any tailnet device without a token, because Serve
+authenticates it with tailnet identity headers. The HTTP API is separate and
+still demands the token, which is `OPENCLAW_GATEWAY_TOKEN` in `openclaw-env`:
+requests to `/api/*` answer `401` without it even from inside the tailnet.
+
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
 80 from the tailnet. Media rides a single TCP port, 52100, also published
 through Serve, so watching the session from a phone needs no UDP.
