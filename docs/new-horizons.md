@@ -166,6 +166,19 @@ wrong tailnet gives a name that does not resolve, a missing port gives nothing
 listening, an empty display name gives a login error rather than a hint, and
 skipping the control request gives a picture that ignores the keyboard.
 
+The remote route is worth knowing when it misbehaves, because a browser
+running on the server never uses it. Neko offers exactly one candidate to a
+client that is not local, the tailnet address on TCP 52100, so media travels
+phone to Serve to container with no loopback fallback to mask a problem:
+
+```
+tailscale status | grep new-horizons
+curl -o /dev/null -w '%{http_code}\n' https://new-horizons.taile99a6c.ts.net:8443/
+```
+
+If the page loads but the picture never appears, the media port is the link to
+suspect rather than the UI.
+
 ## Secrets
 
 sops-nix, decrypting with the host's own SSH key converted to age. The
