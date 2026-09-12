@@ -12,6 +12,10 @@
 
   nekoAddressEnv = "/var/lib/neko/address.env";
 
+  screenWidth = 1080;
+  screenHeight = 1920;
+  screenRate = 30;
+
   chromiumPolicies = pkgs.writeText "neko-chromium-policies.json" (builtins.toJSON {
     AllowFileSelectionDialogs = false;
     AutofillAddressEnabled = false;
@@ -51,6 +55,7 @@
       --user-data-dir=/home/neko/.config/chromium
       --no-first-run
       --start-maximized
+      --window-size=${toString screenWidth},${toString screenHeight}
       --force-dark-mode
       --disable-gpu
       --disable-software-rasterizer
@@ -83,7 +88,7 @@ in {
         autoStart = true;
 
         environment = {
-          NEKO_DESKTOP_SCREEN = "1080x1920@30";
+          NEKO_DESKTOP_SCREEN = "${toString screenWidth}x${toString screenHeight}@${toString screenRate}";
           NEKO_MEMBER_PROVIDER = "multiuser";
           NEKO_WEBRTC_TCPMUX = toString mediaPort;
           NEKO_WEBRTC_ICELITE = "true";
