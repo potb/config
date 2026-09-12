@@ -133,6 +133,29 @@ Editing from a new machine needs only this repository and the passphrase:
 sops secrets/new-horizons.yaml
 ```
 
+## Rebuilding on new hardware
+
+The host decrypts with its own SSH key, so a replacement machine has a
+different key and cannot read the existing secrets. Give it access rather
+than re-generating the secrets:
+
+```
+ssh-keyscan <new-address> | grep ed25519 | cut -d' ' -f2-3 | ssh-to-age
+```
+
+Put that public key in `.sops.yaml` under the host anchor, then re-encrypt to
+the new recipient list and commit:
+
+```
+./scripts/sops-unlock
+sops updatekeys secrets/new-horizons.yaml
+sops updatekeys secrets/workspace/*.md
+```
+
+Everything else follows from this repository, so recovery needs the
+passphrase and nothing from the old machine. The agent's own state, its
+sessions and memory, lives only in the backups.
+
 ## Deploying a change
 
 ```
