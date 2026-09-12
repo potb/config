@@ -99,9 +99,17 @@ The bot's invite granted `ADMINISTRATOR` in the guild, so the token in
 `openclaw-env` can ban members, delete channels and edit roles, not merely
 post in those three channels. The allowlist constrains what the agent chooses
 to do, not what the credential permits. If the token ever leaks, rotate it in
-the Discord developer portal and `sops secrets/new-horizons.yaml`, and
-consider re-inviting with only the permissions it needs: reading and sending
-messages, and managing threads for the forum.
+the Discord developer portal and `sops secrets/new-horizons.yaml`.
+
+Re-inviting with only what the agent uses is a kick and a fresh invite, no
+config change:
+
+```
+https://discord.com/oauth2/authorize?client_id=1547996770380943360&scope=bot%20applications.commands&permissions=309237763136
+```
+
+That bitfield covers viewing channels, sending messages, threads for the forum,
+reading history, reactions, attachments and embeds, and nothing destructive.
 
 ## Access from the tailnet
 
