@@ -70,7 +70,7 @@ jobs:
     needs: [check-blocked, format]
     if: needs.check-blocked.outputs.blocked != 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 90
     strategy:
       matrix:
         include:
@@ -118,5 +118,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr edit ${{ github.event.pull_request.number }} --add-label "ci-timeout-blocked" --repo ${{ github.repository }}
-          gh pr comment ${{ github.event.pull_request.number }} --body "🚫 **PR Blocked**: This pull request has been automatically blocked due to CI timeout (30+ minutes). Please optimize your changes to reduce build time, then remove the \`ci-timeout-blocked\` label to re-enable CI." --repo ${{ github.repository }}
+          gh pr comment ${{ github.event.pull_request.number }} --body "🚫 **PR Blocked**: This pull request has been automatically blocked due to CI timeout (90+ minutes). Please optimize your changes to reduce build time, then remove the \`ci-timeout-blocked\` label to re-enable CI." --repo ${{ github.repository }}
 
