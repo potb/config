@@ -278,6 +278,11 @@ megabytes.
     stat -c '%n %F nlink=%h size=%s' /var/lib/openclaw/workspace/SOUL.md
   ```
 
+  A non-zero size and a regular file is what matters. The link count reads `0`
+  rather than `1` once a later activation has replaced the secrets generation
+  the mount points at, which is harmless: the requirement is at most one link,
+  and the content is still the installed secret.
+
 - Memory search defaults to OpenAI embeddings. With only an OpenRouter key the
   index cannot be built and recall stays paused, which the agent reports as
   its memory being unavailable. `models.providers.<id>.api` must be
