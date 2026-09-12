@@ -49,6 +49,7 @@ jobs:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+            extra-experimental-features = pipe-operators
       - run: nix fmt .
       - id: changed
         run: |
@@ -65,7 +66,7 @@ jobs:
           git push origin HEAD:${{ github.head_ref }}
 
   build:
-    name: build
+    name: build (${{ matrix.label }})
     needs: [check-blocked, format]
     if: needs.check-blocked.outputs.blocked != 'true'
     runs-on: ${{ matrix.os }}
@@ -75,8 +76,16 @@ jobs:
         include:
           - os: ubuntu-latest
             system: nixos
+            label: charon
+            attribute: nixosConfigurations.charon.config.system.build.toplevel
+          - os: ubuntu-latest
+            system: nixos
+            label: new-horizons
+            attribute: nixosConfigurations.new-horizons.config.system.build.toplevel
           - os: macos-latest
             system: darwin
+            label: nyx
+            attribute: darwinConfigurations.nyx.system
     steps:
       - uses: actions/checkout@v5
         with:
@@ -87,22 +96,16 @@ jobs:
           nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
+            extra-experimental-features = pipe-operators
       - uses: cachix/cachix-action@v16
         with:
           name: potb
           authToken: ${{ secrets.CACHIX_TOKEN }}
           pushFilter: '(WebStorm|webstorm|-source(?:-|$))'
-      - name: Build NixOS configuration
-        if: matrix.system == 'nixos'
-        run: nix build .#nixosConfigurations.charon.config.system.build.toplevel
-      - name: Build server configuration
-        if: matrix.system == 'nixos'
-        run: nix build .#nixosConfigurations.new-horizons.config.system.build.toplevel
+      - name: Build configuration
+        run: nix build .#${{ matrix.attribute }}
       - name: Run flake checks
         run: nix flake check
-      - name: Build Darwin configuration
-        if: matrix.system == 'darwin'
-        run: nix build .#darwinConfigurations.nyx.system
 
   handle-timeout:
     name: Handle timeout and block PR
