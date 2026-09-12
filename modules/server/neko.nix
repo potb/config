@@ -83,7 +83,7 @@ in {
         autoStart = true;
 
         environment = {
-          NEKO_DESKTOP_SCREEN = "1920x1080@30";
+          NEKO_DESKTOP_SCREEN = "1080x1920@30";
           NEKO_MEMBER_PROVIDER = "multiuser";
           NEKO_WEBRTC_TCPMUX = toString mediaPort;
           NEKO_WEBRTC_ICELITE = "true";
