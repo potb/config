@@ -174,6 +174,24 @@ bumping the gateway.
 
 ## Things that cost time once
 
+Before reaching for a fix, note what already recovers without help. These were
+checked by killing the real processes on the running host:
+
+| Broken | What happens |
+| ------ | ------------ |
+| Chromium killed | supervisord restarts it, the debugging port returns, the agent's browser tool works again |
+| `podman-neko` restarted | `neko-cdp-bridge` follows the new network namespace, because it is bound to the container unit |
+| Host rebooted | every unit comes back and the browser keeps its logins, though a stale profile lock used to prevent this |
+| Secrets re-installed | the gateway restarts when what it reads no longer matches the installed secret |
+
+What does not self-heal is anything needing a decision: a changed upstream
+schema, an expired token, or a revoked key.
+
+Disk pressure is handled: `nix-gc` runs nightly with `--delete-older-than 7d`
+and reclaimed 14.5 GiB on its last run. The store dominates usage, so if space
+ever gets tight, look there before the agent's state, which is a few hundred
+megabytes.
+
 - The VM prefers its virtual DVD over the disk. After an install, detach the
   ISO in the netcup panel, and note that a boot-order change needs a power
   cycle rather than a reboot.
