@@ -105,11 +105,14 @@ Re-inviting with only what the agent uses is a kick and a fresh invite, no
 config change:
 
 ```
-https://discord.com/oauth2/authorize?client_id=1547996770380943360&scope=bot%20applications.commands&permissions=309237763136
+https://discord.com/oauth2/authorize?client_id=1547996770380943360&scope=bot%20applications.commands&permissions=2252194951064640
 ```
 
-That bitfield covers viewing channels, sending messages, threads for the forum,
-reading history, reactions, attachments and embeds, and nothing destructive.
+That covers viewing channels, sending messages, creating and managing threads
+for the forum, reading history, reactions, attachments, embeds, external emoji,
+and deleting and pinning messages, which the Discord plugin exposes as tools.
+It grants nothing that can ban, kick, or edit the guild, its channels, its
+roles or its webhooks.
 
 ## Access from the tailnet
 
