@@ -143,6 +143,12 @@ list. Both passwords live in `neko-env`:
 | `NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD` | watch and control |
 | `NEKO_MEMBER_MULTIUSER_USER_PASSWORD`  | watch only |
 
+Watching starts immediately, but typing and clicking do not: the mouse and
+keyboard icons start greyed out and control has to be requested from the
+toolbar before input reaches the browser. Until then keystrokes are accepted
+and silently discarded, which looks like a broken stream rather than a
+permission state.
+
 The agent and any human share one screen and one input focus, so taking
 control while the agent is mid-task means fighting over the same cursor. The
 viewer password avoids that.
