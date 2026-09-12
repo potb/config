@@ -1,8 +1,17 @@
 {
   lib,
+  pkgs,
   modulesPath,
   ...
-}: {
+}: let
+  vendorFirmware = pkgs.runCommand "asahi-vendorfw" {} ''
+    mkdir -p $out
+    cp ${builtins.fetchurl {
+      url = "file:///boot/vendorfw/firmware.cpio";
+      sha256 = "b13a4b0027f9e80e9439511b76baf856792dee899da77e0726c579542ba8b489";
+    }} $out/firmware.cpio
+  '';
+in {
   imports = [(modulesPath + "/installer/scan/not-detected.nix")];
 
   fileSystems."/" = {
@@ -20,7 +29,7 @@
   };
 
   hardware.asahi.enable = true;
-  hardware.asahi.peripheralFirmwareDirectory = "/boot/vendorfw";
+  hardware.asahi.peripheralFirmwareDirectory = vendorFirmware;
 
   hardware.bluetooth = {
     enable = true;

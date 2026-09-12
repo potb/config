@@ -28,7 +28,11 @@
       sccache
 
       awscli2
-      stripe-cli
+      (
+        if pkgs.stdenv.hostPlatform.isAarch64 && pkgs.stdenv.hostPlatform.isLinux
+        then stripe-cli.overrideAttrs {doCheck = false;}
+        else stripe-cli
+      )
 
       rtk
     ];
