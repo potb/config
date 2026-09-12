@@ -295,7 +295,7 @@ megabytes.
   `Target.attachToTarget` with `Not allowed`. Nothing else looks wrong:
   `/json/list` still lists pages and per-page sockets still upgrade, but
   Playwright sees zero pages and the agent reports `No pages available in the
-connected browser`. We mount our own policy file instead. To tell this apart
+  connected browser`. We mount our own policy file instead. To tell this apart
   from a transport problem, attach by hand rather than trusting the target list:
 
   ```
