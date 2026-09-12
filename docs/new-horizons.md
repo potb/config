@@ -72,9 +72,22 @@ Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
 
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
-80 from the tailnet. Log in with the member password from `neko-env`. Media
-rides a single TCP port, 52100, also published through Serve, so watching the
-session from a phone needs no UDP.
+80 from the tailnet. Media rides a single TCP port, 52100, also published
+through Serve, so watching the session from a phone needs no UDP.
+
+The login screen asks for a username and a password, but only the password
+carries meaning: it selects the role. Neko runs in multiuser mode, so there
+are no accounts, and the username is just the display name in the session
+list. Both passwords live in `neko-env`:
+
+| Secret | Role |
+| ------ | ---- |
+| `NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD` | watch and control |
+| `NEKO_MEMBER_MULTIUSER_USER_PASSWORD`  | watch only |
+
+The agent and any human share one screen and one input focus, so taking
+control while the agent is mid-task means fighting over the same cursor. The
+viewer password avoids that.
 
 ## Secrets
 
