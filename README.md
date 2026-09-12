@@ -8,6 +8,7 @@ Personal NixOS and nix-darwin configuration for my machines.
 |------|--------|-------------|
 | `charon` | x86_64-linux | NixOS desktop |
 | `nyx` | aarch64-darwin | macOS (Apple Silicon) |
+| `new-horizons` | x86_64-linux | NixOS server, see [docs/new-horizons.md](docs/new-horizons.md) |
 
 ## Usage
 
@@ -19,6 +20,9 @@ nh os switch .
 
 # macOS (nyx)
 darwin-rebuild switch --flake .#nyx    # see Setup for the first run
+
+# server (new-horizons), from a checkout on the machine itself
+sudo nixos-rebuild switch --flake .#new-horizons
 ```
 
 ### Format
@@ -38,21 +42,30 @@ nix flake check
 ```
 .
 ├── flake.nix              # Entry point, inputs, outputs
-├── nixos/                 # NixOS system configuration
-│   ├── configuration.nix  # System entry
-│   └── modules/           # System modules
-├── darwin/                # macOS configuration
-│   ├── configuration.nix  # Darwin entry
-│   └── modules/           # Darwin modules
-├── home-manager/          # User configuration
-│   ├── home.nix           # Home entry
-│   └── modules/           # User modules
-├── shared/                # Cross-platform
-│   ├── fonts.nix
-│   ├── zed.nix
-│   └── modules/theme.nix
-└── overlays/              # Custom package overlays
+├── hosts/                 # One directory per machine
+│   └── <host>/
+│       ├── configuration.nix
+│       └── modules/       # Modules only this host loads
+├── modules/               # Module sets, named explicitly per host
+│   ├── common/            # Every machine
+│   ├── desktop/           # Machines with a screen
+│   ├── server/            # Headless machines
+│   └── darwin-only/       # macOS
+├── shared/                # Cross-platform odds and ends
+├── overlays/              # Package overlays
+├── checks/                # Data the flake checks validate against
+├── scripts/               # Helpers referenced by the checks and docs
+└── docs/                  # Runbooks and the traps worth remembering
 ```
+
+Each host names the module sets it wants, so a headless server does not
+inherit desktop packages. Adding a module to `modules/desktop/` will not
+change the server.
+
+Flake inputs should follow this flake's `nixpkgs` unless there is a reason not
+to. An input that pins its own nixpkgs builds against a second package set: it
+duplicates much of the closure, ignores the overlays here, and can fail on
+upstream breakage that current nixpkgs has already fixed.
 
 ## Setup
 
