@@ -175,6 +175,31 @@ in {
       };
     };
 
+    systemd.services.openclaw-gateway = {
+      after = ["sops-nix.service"];
+      wants = ["sops-nix.service"];
+    };
+
+    system.activationScripts.openclaw-rebind-secrets = {
+      deps = ["setupSecrets"];
+      text = ''
+        unit=openclaw-gateway.service
+
+        if ! systemctl is-active --quiet "$unit"; then
+          exit 0
+        fi
+
+        pid=$(systemctl show -p MainPID --value "$unit")
+        live=${config.sops.secrets."workspace/SOUL.md".path}
+        seen=${workspace}/SOUL.md
+
+        if ! ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- \
+          ${pkgs.diffutils}/bin/cmp -s "$seen" "$live"; then
+          systemctl restart "$unit"
+        fi
+      '';
+    };
+
     systemd.services.openclaw-gateway.serviceConfig = {
       NoNewPrivileges = true;
       PrivateTmp = true;
