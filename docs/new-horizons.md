@@ -177,7 +177,15 @@ curl -o /dev/null -w '%{http_code}\n' https://new-horizons.taile99a6c.ts.net:844
 ```
 
 If the page loads but the picture never appears, the media port is the link to
-suspect rather than the UI.
+suspect rather than the UI. The browser's own statistics name the pair in use,
+which settles whether traffic really crossed the tailnet:
+
+```
+(await (await window.__pcs?.[0]?.getStats?.())?.values?.())
+```
+
+A healthy remote session shows a succeeded pair whose remote candidate is
+`100.125.71.113:52100/tcp host` with a growing `bytesReceived`.
 
 ## Secrets
 
