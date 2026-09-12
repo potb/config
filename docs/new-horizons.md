@@ -37,7 +37,7 @@ the way back in.
 | ------------------ | ------------------------------------------------------- |
 | `openclaw-gateway` | the agent, loopback on 18789                            |
 | `tailscaled`       | tailnet membership                                      |
-| `tailscale-serve`  | publishes the gateway and browser inside the tailnet     |
+| `tailscale-serve`  | publishes the gateway and browser inside the tailnet    |
 | `podman-neko`      | Neko, a browser a human and the agent share             |
 | `neko-cdp-bridge`  | relays Neko's debugging port out of its netns           |
 | `restic`           | nightly backup of agent state and browser profile       |
@@ -83,11 +83,11 @@ passed by hand.
 
 Three channels under a `hal` category:
 
-| Channel   | Type  | Purpose                                              |
-| --------- | ----- | ---------------------------------------------------- |
-| `#hal`    | text  | ordinary conversation                                |
+| Channel   | Type  | Purpose                                                |
+| --------- | ----- | ------------------------------------------------------ |
+| `#hal`    | text  | ordinary conversation                                  |
 | `#work`   | forum | one thread per topic, created by posting to the parent |
-| `#notify` | text  | the only place the agent notifies                    |
+| `#notify` | text  | the only place the agent notifies                      |
 
 Mute the first two and leave notifications on for `#notify`; the workspace
 rules tell the agent to keep anything that can wait out of it.
@@ -116,10 +116,10 @@ roles or its webhooks.
 
 ## Access from the tailnet
 
-| URL                                             | What              |
-| ----------------------------------------------- | ----------------- |
-| `https://new-horizons.taile99a6c.ts.net`        | OpenClaw Control UI |
-| `https://new-horizons.taile99a6c.ts.net:8443`   | Neko browser      |
+| URL                                           | What                |
+| --------------------------------------------- | ------------------- |
+| `https://new-horizons.taile99a6c.ts.net`      | OpenClaw Control UI |
+| `https://new-horizons.taile99a6c.ts.net:8443` | Neko browser        |
 
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
@@ -138,10 +138,10 @@ carries meaning: it selects the role. Neko runs in multiuser mode, so there
 are no accounts, and the username is just the display name in the session
 list. Both passwords live in `neko-env`:
 
-| Secret | Role |
-| ------ | ---- |
+| Secret                                 | Role              |
+| -------------------------------------- | ----------------- |
 | `NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD` | watch and control |
-| `NEKO_MEMBER_MULTIUSER_USER_PASSWORD`  | watch only |
+| `NEKO_MEMBER_MULTIUSER_USER_PASSWORD`  | watch only        |
 
 Watching starts immediately, but typing and clicking do not: the mouse and
 keyboard icons start greyed out and control has to be requested from the
@@ -186,6 +186,22 @@ which settles whether traffic really crossed the tailnet:
 
 A healthy remote session shows a succeeded pair whose remote candidate is
 `100.125.71.113:52100/tcp host` with a growing `bytesReceived`.
+
+### The agent asks for the keyboard
+
+Taking over is not only a way to watch. The agent treats it as its way out of
+a dead end: a 2FA code it cannot read, a CAPTCHA, an expired login, a page that
+behaves differently from the DOM it sees. Rather than inventing a workaround or
+abandoning the task, it names what blocks it, the tab, and the action it needs,
+and it waits without touching the browser until told the step is done.
+
+The request arrives wherever the conversation already is, or in `#notify` when
+the task stalls and nobody is talking to it. Control still has to be requested
+from Neko's toolbar; the agent cannot hand it over on its own.
+
+This lives in the workspace files, not in the gateway config. `AGENTS.md` says
+when to ask and what the request must contain, `TOOLS.md` describes the shared
+session. Changing either is an edit to the sops secret and a deploy.
 
 ## Secrets
 
@@ -246,12 +262,12 @@ bumping the gateway.
 Before reaching for a fix, note what already recovers without help. These were
 checked by killing the real processes on the running host:
 
-| Broken | What happens |
-| ------ | ------------ |
-| Chromium killed | supervisord restarts it, the debugging port returns, the agent's browser tool works again |
-| `podman-neko` restarted | `neko-cdp-bridge` follows the new network namespace, because it is bound to the container unit |
-| Host rebooted | every unit comes back and the browser keeps its logins, though a stale profile lock used to prevent this |
-| Secrets re-installed | the gateway restarts when what it reads no longer matches the installed secret |
+| Broken                  | What happens                                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| Chromium killed         | supervisord restarts it, the debugging port returns, the agent's browser tool works again                |
+| `podman-neko` restarted | `neko-cdp-bridge` follows the new network namespace, because it is bound to the container unit           |
+| Host rebooted           | every unit comes back and the browser keeps its logins, though a stale profile lock used to prevent this |
+| Secrets re-installed    | the gateway restarts when what it reads no longer matches the installed secret                           |
 
 What does not self-heal is anything needing a decision: a changed upstream
 schema, an expired token, or a revoked key.
@@ -279,7 +295,7 @@ megabytes.
   `Target.attachToTarget` with `Not allowed`. Nothing else looks wrong:
   `/json/list` still lists pages and per-page sockets still upgrade, but
   Playwright sees zero pages and the agent reports `No pages available in the
-  connected browser`. We mount our own policy file instead. To tell this apart
+connected browser`. We mount our own policy file instead. To tell this apart
   from a transport problem, attach by hand rather than trusting the target list:
 
   ```
@@ -287,6 +303,7 @@ megabytes.
   ```
 
   A populated list with a failing attach means policy, not networking.
+
 - Neko defaults to advertising `127.0.0.1` for WebRTC. The stream then plays
   only on the server itself and every remote client shows a black screen, so
   the tailnet address is written into an environment file at boot. Verify with
@@ -317,7 +334,11 @@ megabytes.
   agent while `ls` and every unit still looked correct. `restartUnits` does not
   cover this, because it fires on content change and the staleness comes from
   the generation roll. An activation snippet compares what the service reads
-  against the installed secret and restarts it on mismatch. To check by hand:
+  against the installed secret and restarts it on mismatch. It runs before the
+  units are restarted, where `PATH` holds no `systemctl`, so it calls one by
+  absolute store path: a bare `systemctl` fails with `command not found`, and
+  because the script keeps going the guard silently never runs. To check by
+  hand:
 
   ```
   pid=$(systemctl show -p MainPID --value openclaw-gateway)
