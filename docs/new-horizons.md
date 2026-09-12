@@ -45,6 +45,35 @@ the way back in.
 
 Nothing listens on a public port except SSH.
 
+## Backups
+
+`restic` takes a nightly snapshot of `/var/lib/openclaw` and
+`/var/lib/neko/profile`, which covers the agent's sessions and memory and the
+browser's logins. Caches and `node_modules` are excluded.
+
+The repository sits at `/var/lib/backup/restic`, on the same disk as the data
+it protects. That guards against a bad deploy, a wrong `rm`, or an agent
+mistake, and not against losing the disk or the provider. Anything that would
+hurt to lose should also live somewhere else; the persona files already do,
+since they come from this repository.
+
+A backup is only real once it restores, so check it rather than trusting the
+timer:
+
+```
+sudo restic-openclaw snapshots --compact
+
+sudo restic-openclaw restore latest --target /tmp/restore-check \
+  --include /var/lib/openclaw/workspace/MEMORY.md
+
+sudo cmp /tmp/restore-check/var/lib/openclaw/workspace/MEMORY.md \
+  /var/lib/openclaw/workspace/MEMORY.md
+```
+
+The NixOS module generates that `restic-openclaw` wrapper with the repository
+and password already set; plain `restic` is not on `PATH` and would need both
+passed by hand.
+
 ## Discord
 
 Three channels under a `hal` category:
