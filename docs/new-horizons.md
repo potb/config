@@ -153,6 +153,19 @@ The agent and any human share one screen and one input focus, so taking
 control while the agent is mid-task means fighting over the same cursor. The
 viewer password avoids that.
 
+From a phone, in order:
+
+1. Confirm the device is on this tailnet and not a work one, since the address
+   only resolves there.
+2. Open `https://new-horizons.taile99a6c.ts.net:8443`, including the port.
+3. Type any display name, then the password for the role you want.
+4. Tap the keyboard or mouse icon to request control before expecting to type.
+
+Each of those steps has its own failure that looks like something else: the
+wrong tailnet gives a name that does not resolve, a missing port gives nothing
+listening, an empty display name gives a login error rather than a hint, and
+skipping the control request gives a picture that ignores the keyboard.
+
 ## Secrets
 
 sops-nix, decrypting with the host's own SSH key converted to age. The
