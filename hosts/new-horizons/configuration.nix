@@ -27,8 +27,8 @@
   documentation.nixos.enable = false;
 
   nix.settings = {
-    max-jobs = lib.mkForce 2;
-    cores = lib.mkForce 2;
+    max-jobs = 2;
+    cores = 2;
   };
 
   services.xserver.enable = false;

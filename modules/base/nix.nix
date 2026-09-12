@@ -17,11 +17,6 @@ in {
         ];
         warn-dirty = false;
 
-        # Balance multiple Nix builds across this 32-thread host without
-        # allowing every derivation to consume every core at once.
-        max-jobs = 4;
-        cores = 8;
-
         # Keep developer shell build closures warm across the daily GC.
         keep-derivations = true;
         keep-outputs = true;
@@ -78,13 +73,6 @@ in {
           "@admin"
         ];
         builders-use-substitutes = true;
-
-        # Ten cores, four of them performance ones. Left at the default of one
-        # job per core each taking every core, a rebuild that compiles Rust
-        # starves the machine it is running on. Two jobs of four cores keeps
-        # the interface responsive and leaves the efficiency cores for it.
-        max-jobs = 2;
-        cores = 4;
       };
     };
 
