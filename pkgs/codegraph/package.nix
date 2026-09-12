@@ -6,24 +6,28 @@
   zlib,
 }: let
   version = "1.2.0";
-  target =
-    {
-      "x86_64-linux" = "linux-x64";
-      "aarch64-darwin" = "darwin-arm64";
-    }
-    .${
+
+  targets = {
+    "x86_64-linux" = {
+      target = "linux-x64";
+      hash = "sha256-ptsNHRP+i+lsqucL0ybvVJejtNPnhjb/glAEaUXDOy0=";
+    };
+    "aarch64-darwin" = {
+      target = "darwin-arm64";
+      hash = "sha256-g6Ps3FJEarmmfyqYVg64zcyIHYyuqMBbsqmjgjWWBU0=";
+    };
+  };
+
+  release =
+    targets.${
       stdenv.hostPlatform.system
     }
-    or (throw "unsupported system: ${stdenv.hostPlatform.system}");
-  hash =
-    {
-      "x86_64-linux" = "sha256-ptsNHRP+i+lsqucL0ybvVJejtNPnhjb/glAEaUXDOy0=";
-      "aarch64-darwin" = "sha256-g6Ps3FJEarmmfyqYVg64zcyIHYyuqMBbsqmjgjWWBU0=";
-    }
-    .${
-      stdenv.hostPlatform.system
-    }
-    or (throw "unsupported system: ${stdenv.hostPlatform.system}");
+    or {
+      target = "unsupported";
+      hash = lib.fakeHash;
+    };
+
+  inherit (release) target hash;
 in
   stdenv.mkDerivation {
     pname = "codegraph";
@@ -52,5 +56,6 @@ in
       description = "Pre-indexed code knowledge graph, auto syncs on code changes";
       homepage = "https://github.com/colbymchenry/codegraph";
       mainProgram = "codegraph";
+      platforms = builtins.attrNames targets;
     };
   }

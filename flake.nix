@@ -1,9 +1,15 @@
 {
-  description = "NixOS and nix-darwin configuration for charon, nyx and new-horizons";
+  description = "NixOS and nix-darwin configuration for charon, kerberos, nyx and new-horizons";
 
   nixConfig = {
-    extra-substituters = ["https://potb.cachix.org"];
-    extra-trusted-public-keys = ["potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="];
+    extra-substituters = [
+      "https://potb.cachix.org"
+      "https://hyprland.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
+      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+    ];
   };
 
   inputs = {
@@ -164,6 +170,11 @@
       url = "github:ataraxy-labs/sem";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixos-apple-silicon = {
+      url = "github:nix-community/nixos-apple-silicon/1bf1838b982768c3ece6d719f03e13b9f7408e6d";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -180,6 +191,7 @@
     systems = [
       "x86_64-linux"
       "aarch64-darwin"
+      "aarch64-linux"
     ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
     lib = nixpkgs.lib;
@@ -467,6 +479,29 @@
         homeDirectory = "/home/potb";
         extraModules = [
           disko.nixosModules.disko
+        ];
+      };
+
+      kerberos = mkHost {
+        hostname = "kerberos";
+        system = "aarch64-linux";
+        platform = "nixos";
+        sets = [
+          "base"
+          "linux"
+          "gui"
+          "dev"
+          "agents"
+          "lan"
+        ];
+        homeDirectory = "/home/potb";
+        extraModules = [
+          inputs.nixos-apple-silicon.nixosModules.apple-silicon-support
+          {
+            nixpkgs.overlays = [
+              inputs.nixos-apple-silicon.overlays.apple-silicon-overlay
+            ];
+          }
         ];
       };
 
