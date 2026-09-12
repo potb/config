@@ -81,6 +81,7 @@ in {
               enabled = true;
               provider = "openrouter-embeddings";
               model = "voyageai/voyage-4-lite";
+              sync.intervalMinutes = 60;
             };
 
             sandbox.mode = "off";
