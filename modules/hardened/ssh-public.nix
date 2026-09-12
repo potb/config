@@ -1,22 +1,13 @@
 {lib, ...}: let
-  nyxKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDBNj+8QbPM+G7odRtOWOWZ/A+UQ6FvnYMnurBgXWXfk potb@nyx";
+  keys = import ../../shared/keys.nix;
 in {
   nixos = {
     services.openssh = {
-      enable = true;
       openFirewall = true;
 
       settings = {
-        PasswordAuthentication = false;
-        KbdInteractiveAuthentication = false;
-        PermitRootLogin = "no";
-        X11Forwarding = false;
         AllowTcpForwarding = "local";
-        AllowUsers = ["potb"];
-        UseDns = false;
         MaxAuthTries = 3;
-        ClientAliveInterval = 60;
-        ClientAliveCountMax = 10;
       };
     };
 
@@ -34,7 +25,7 @@ in {
       ];
     };
 
-    users.users.potb.openssh.authorizedKeys.keys = [nyxKey];
+    users.users.potb.openssh.authorizedKeys.keys = [keys.nyx];
     users.users.root.openssh.authorizedKeys.keys = lib.mkForce [];
   };
 

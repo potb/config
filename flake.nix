@@ -210,14 +210,39 @@
       modulesPath = unavailable "modulesPath";
     };
 
-    loadUnifiedModules = platform: modulesDir:
-      builtins.readDir modulesDir
-      |> builtins.attrNames
-      |> builtins.filter (name: builtins.match ".+\\.nix$" name != null)
-      |> map (
-        name: let
-          file = modulesDir + "/${name}";
+    listNixFilesRecursive = platform: dir: let
+      platformDirs = ["linux" "darwin"];
+      wanted =
+        if platform == "nixos"
+        then "linux"
+        else "darwin";
 
+      entries = builtins.readDir dir;
+
+      go = name: type: let
+        path = dir + "/${name}";
+      in
+        if type == "directory"
+        then
+          if builtins.elem name platformDirs
+          then
+            if name == wanted
+            then listNixFilesRecursive platform path
+            else []
+          else listNixFilesRecursive platform path
+        else if builtins.match ".+\\.nix$" name != null
+        then [path]
+        else [];
+    in
+      entries
+      |> builtins.attrNames
+      |> map (name: go name entries.${name})
+      |> builtins.concatLists;
+
+    loadUnifiedModules = platform: modulesDir:
+      listNixFilesRecursive platform modulesDir
+      |> map (
+        file: let
           modStatic = import file (staticArgs file);
 
           staticPlatform = modStatic.${platform} or {};
@@ -294,14 +319,17 @@
     nixosAllOverlays = sharedOverlays;
     darwinAllOverlays = sharedOverlays;
 
-    # Module sets a host can opt into. `common` is everything a machine needs
-    # to be usable over a terminal, and is the only set a headless server
-    # takes. The others layer on top.
     moduleSets = {
-      common = ./modules/common;
-      desktop = ./modules/desktop;
-      server = ./modules/server;
-      darwin-only = ./modules/darwin-only;
+      base = ./modules/base;
+      linux = ./modules/linux;
+      gui = ./modules/gui;
+      dev = ./modules/dev;
+      agents = ./modules/agents;
+      tailscale = ./modules/tailscale;
+      hardened = ./modules/hardened;
+      lan = ./modules/lan;
+      openclaw = ./modules/apps/openclaw;
+      darwin = ./modules/darwin;
     };
 
     # A host names the module sets it wants instead of inheriting whatever
@@ -429,8 +457,12 @@
         system = "x86_64-linux";
         platform = "nixos";
         sets = [
-          "common"
-          "desktop"
+          "base"
+          "linux"
+          "gui"
+          "dev"
+          "agents"
+          "lan"
         ];
         homeDirectory = "/home/potb";
         extraModules = [
@@ -446,8 +478,11 @@
         system = "x86_64-linux";
         platform = "nixos";
         sets = [
-          "common"
-          "server"
+          "base"
+          "linux"
+          "hardened"
+          "tailscale"
+          "openclaw"
         ];
         homeDirectory = "/home/potb";
         extraModules = [
@@ -464,9 +499,12 @@
         system = "aarch64-darwin";
         platform = "darwin";
         sets = [
-          "common"
-          "desktop"
-          "darwin-only"
+          "base"
+          "gui"
+          "dev"
+          "agents"
+          "lan"
+          "darwin"
         ];
         homeDirectory = "/Users/potb";
         extraModules = [
