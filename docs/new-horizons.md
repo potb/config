@@ -51,6 +51,11 @@ Nothing listens on a public port except SSH.
 `/var/lib/neko/profile`, which covers the agent's sessions and memory and the
 browser's logins. Caches and `node_modules` are excluded.
 
+Retention keeps 7 daily, 5 weekly and 6 monthly snapshots. The unit runs
+`forget --prune` after every backup, so the repository does not grow without
+bound; a run that drops a snapshot logs `snapshots have been removed, running
+prune` and reports what it reclaimed.
+
 The repository sits at `/var/lib/backup/restic`, on the same disk as the data
 it protects. That guards against a bad deploy, a wrong `rm`, or an agent
 mistake, and not against losing the disk or the provider. Anything that would
@@ -89,6 +94,14 @@ rules tell the agent to keep anything that can wait out of it.
 
 The guild allowlist names those three channels, and DMs are restricted to the
 operator.
+
+The bot's invite granted `ADMINISTRATOR` in the guild, so the token in
+`openclaw-env` can ban members, delete channels and edit roles, not merely
+post in those three channels. The allowlist constrains what the agent chooses
+to do, not what the credential permits. If the token ever leaks, rotate it in
+the Discord developer portal and `sops secrets/new-horizons.yaml`, and
+consider re-inviting with only the permissions it needs: reading and sending
+messages, and managing threads for the forum.
 
 ## Access from the tailnet
 
