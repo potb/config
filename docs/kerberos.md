@@ -71,9 +71,11 @@ new-horizons and nyx. kerberos is checked on kerberos, where
 
 Two approaches that look like fixes are not. A fixed-output derivation copying
 from `/boot` fails because the build sandbox cannot see the path either.
-Guarding with `builtins.pathExists /boot/vendorfw/firmware.cpio` is worse: pure
-evaluation refuses absolute paths outside the flake, so it returns false even on
-kerberos and would silently disable firmware on the one machine that needs it.
+Guarding with `builtins.pathExists /boot/vendorfw/firmware.cpio` is worse: under
+pure evaluation, which is what flakes use, it returns false even on kerberos
+where the file plainly exists, so the guard would silently disable firmware on
+the one machine that needs it. It returns true only under `--impure`, which is
+what makes the trap convincing when tested by hand.
 
 If the firmware is ever refreshed, from macOS via `curl https://alx.sh | sh`
 and "Rebuild vendor firmware package", the recorded hash in
