@@ -4,7 +4,8 @@
   ...
 }: {
   nixos = {
-    boot.binfmt.emulatedSystems = ["aarch64-linux"];
+    boot.binfmt.emulatedSystems =
+      lib.optionals pkgs.stdenv.hostPlatform.isx86_64 ["aarch64-linux"];
 
     virtualisation.docker.enable = true;
     users.users.potb.extraGroups = lib.mkAfter ["docker"];

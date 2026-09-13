@@ -105,7 +105,11 @@ jobs:
       - name: Build configuration
         run: nix build .#${{ matrix.attribute }}
       - name: Run flake checks
-        run: nix flake check
+        run: |
+          system=$(nix eval --raw --impure --expr builtins.currentSystem)
+          nix build --no-link --print-build-logs \
+            $(nix eval --json ".#checks.$system" --apply 'builtins.attrNames' \
+              | python3 -c 'import json,sys; print(" ".join(f".#checks.'"$system"'.{c}" for c in json.load(sys.stdin)))')
 
   handle-timeout:
     name: Handle timeout and block PR

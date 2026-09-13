@@ -340,12 +340,13 @@ in {
       $DRY_RUN_CMD chmod 700 "$HOME/.secrets"
     '';
 
-    home.packages = [
-      pkgs.codegraph
-      pkgs.rtk
-      pkgs.codebase-memory-mcp
-      pkgs.sem
-    ];
+    home.packages =
+      [
+        pkgs.rtk
+        pkgs.codebase-memory-mcp
+        pkgs.sem
+      ]
+      ++ lib.optional (pkgs.codegraph.meta.available or false) pkgs.codegraph;
 
     systemd.user.services.agentmemory = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {

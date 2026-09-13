@@ -17,11 +17,6 @@ in {
         ];
         warn-dirty = false;
 
-        # Balance multiple Nix builds across this 32-thread host without
-        # allowing every derivation to consume every core at once.
-        max-jobs = 4;
-        cores = 8;
-
         # Keep developer shell build closures warm across the daily GC.
         keep-derivations = true;
         keep-outputs = true;
@@ -39,11 +34,13 @@ in {
         substituters = [
           "https://cache.nixos.org"
           "https://potb.cachix.org"
+          "https://hyprland.cachix.org"
         ];
 
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
+          "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
         ];
         builders-use-substitutes = true;
       };
@@ -78,13 +75,6 @@ in {
           "@admin"
         ];
         builders-use-substitutes = true;
-
-        # Ten cores, four of them performance ones. Left at the default of one
-        # job per core each taking every core, a rebuild that compiles Rust
-        # starves the machine it is running on. Two jobs of four cores keeps
-        # the interface responsive and leaves the efficiency cores for it.
-        max-jobs = 2;
-        cores = 4;
       };
     };
 

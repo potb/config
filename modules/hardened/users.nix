@@ -4,10 +4,9 @@
   ...
 }: {
   nixos = {
-    users.mutableUsers = lib.mkForce false;
-
-    users.users.potb.hashedPasswordFile =
-      config.sops.secrets.potb-password-hash.path;
+    users.mutableUsers =
+      lib.mkIf (config.users.users.potb.hashedPasswordFile != null)
+      (lib.mkForce false);
 
     users.users.root.hashedPassword = lib.mkForce "!";
 

@@ -141,4 +141,9 @@ in {
   };
 
   system.stateVersion = 5;
+
+  nix.settings = {
+    max-jobs = 2;
+    cores = 4;
+  };
 }

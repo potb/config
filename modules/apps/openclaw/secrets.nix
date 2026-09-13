@@ -9,7 +9,7 @@
   mkBootstrapSecret = name: {
     name = "workspace/${name}";
     value = {
-      sopsFile = ../../secrets/workspace + "/${name}";
+      sopsFile = ../../../secrets/workspace + "/${name}";
       format = "binary";
       owner = "openclaw";
       group = "openclaw";
@@ -20,7 +20,7 @@
 in {
   nixos = {
     sops = {
-      defaultSopsFile = ../../secrets/new-horizons.yaml;
+      defaultSopsFile = ../../../secrets/new-horizons.yaml;
       age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
 
       secrets =
@@ -49,6 +49,9 @@ in {
     };
 
     services.tailscale.authKeyFile = config.sops.secrets.tailscale-authkey.path;
+
+    users.users.potb.hashedPasswordFile =
+      config.sops.secrets.potb-password-hash.path;
   };
 
   darwin = {};
