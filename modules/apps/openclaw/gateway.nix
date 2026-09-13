@@ -188,15 +188,15 @@ in {
           "systemctl=${config.systemd.package}/bin/systemctl"
           ""
           ''if "$systemctl" is-active --quiet "$unit"; then''
-          ''  pid=$("$systemctl" show -p MainPID --value "$unit")''
+          ''pid=$("$systemctl" show -p MainPID --value "$unit")''
           "  stale=0"
         ]
         ++ map (
-          name: ''  ${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- ${pkgs.diffutils}/bin/cmp -s ${workspace}/${name} ${config.sops.secrets."workspace/${name}".path} || stale=1''
+          name: ''${pkgs.util-linux}/bin/nsenter -t "$pid" -m -- ${pkgs.diffutils}/bin/cmp -s ${workspace}/${name} ${config.sops.secrets."workspace/${name}".path} || stale=1''
         )
         bootstrapFiles
         ++ [
-          ''  [ "$stale" = 0 ] || "$systemctl" restart "$unit"''
+          ''[ "$stale" = 0 ] || "$systemctl" restart "$unit"''
           "fi"
         ]);
     };
