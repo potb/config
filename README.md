@@ -75,7 +75,7 @@ and differ only in what they additionally do:
 | Host | Traits |
 |------|--------|
 | `charon` | base linux gui dev agents lan |
-| `kerberos` | base linux gui dev agents lan |
+| `kerberos` | base linux gui dev agents lan tailscale |
 | `nyx` | base gui dev agents lan darwin |
 | `new-horizons` | base linux hardened tailscale openclaw |
 
