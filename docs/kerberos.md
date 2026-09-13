@@ -57,6 +57,13 @@ upstream default, which probes the filesystem. Instead the host fetches
 `file:///boot/vendorfw/firmware.cpio` by hash, which evaluates purely and is
 checked at build time.
 
+The consequence is that **this host evaluates only on this host**. Anywhere else
+the fetch fails with "Could not open file /boot/vendorfw/firmware.cpio", so
+`nix build .#nixosConfigurations.kerberos...` has to run on kerberos. The other
+three hosts are unaffected and still evaluate from anywhere, and `nix flake
+check` does not evaluate host configurations, so nothing in CI or on another
+machine trips over this.
+
 If the firmware is ever refreshed, from macOS via `curl https://alx.sh | sh`
 and "Rebuild vendor firmware package", the recorded hash in
 `hosts/kerberos/modules/hardware.nix` must be updated to match.
