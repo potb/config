@@ -13,6 +13,7 @@ in {
     nodeModulesHashes = {
       x86_64-linux = "sha256-Uizt9NXuovBdQg0ff+x4VFn5pRvB4RUV+4LwY4Cfrvk=";
       aarch64-darwin = "sha256-b+h+QYcJ3OunhlLcd+1ni/XOcfwwI1S+douLJ/4blYs=";
+      aarch64-linux = "sha256-9Y3p6fwPZwMjzeuAdflr6SY/Rdq32q0vrR5uYqV19Z8=";
     };
     system = prev.stdenv.hostPlatform.system;
   in
