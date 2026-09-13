@@ -60,9 +60,20 @@ checked at build time.
 The consequence is that **this host evaluates only on this host**. Anywhere else
 the fetch fails with "Could not open file /boot/vendorfw/firmware.cpio", so
 `nix build .#nixosConfigurations.kerberos...` has to run on kerberos. The other
-three hosts are unaffected and still evaluate from anywhere, and `nix flake
-check` does not evaluate host configurations, so nothing in CI or on another
-machine trips over this.
+three hosts are unaffected and still evaluate from anywhere.
+
+This also constrains CI. `nix flake check` evaluates every attribute under
+`nixosConfigurations`, kerberos included, so running it on a machine without the
+firmware fails on the missing file. The workflow therefore builds the checks by
+name rather than calling `nix flake check`, and the build matrix covers charon,
+new-horizons and nyx. kerberos is checked on kerberos, where
+`nix flake check` works normally.
+
+Two approaches that look like fixes are not. A fixed-output derivation copying
+from `/boot` fails because the build sandbox cannot see the path either.
+Guarding with `builtins.pathExists /boot/vendorfw/firmware.cpio` is worse: pure
+evaluation refuses absolute paths outside the flake, so it returns false even on
+kerberos and would silently disable firmware on the one machine that needs it.
 
 If the firmware is ever refreshed, from macOS via `curl https://alx.sh | sh`
 and "Rebuild vendor firmware package", the recorded hash in
