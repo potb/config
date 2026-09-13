@@ -25,4 +25,5 @@ result-*
 .omo
 docs/*
 !docs/new-horizons.md
+!docs/kerberos.md
 *.log
