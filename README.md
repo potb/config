@@ -6,7 +6,8 @@ Personal NixOS and nix-darwin configuration for my machines.
 
 | Host | System | Description |
 |------|--------|-------------|
-| `charon` | x86_64-linux | NixOS desktop |
+| `charon` | x86_64-linux | NixOS workstation |
+| `kerberos` | aarch64-linux | NixOS on Asahi, MacBook Pro M1 Pro, see [docs/kerberos.md](docs/kerberos.md) |
 | `nyx` | aarch64-darwin | macOS (Apple Silicon) |
 | `new-horizons` | x86_64-linux | NixOS server, see [docs/new-horizons.md](docs/new-horizons.md) |
 
@@ -23,6 +24,9 @@ darwin-rebuild switch --flake .#nyx    # see Setup for the first run
 
 # server (new-horizons), from a checkout on the machine itself
 sudo nixos-rebuild switch --flake .#new-horizons
+
+# kerberos, which must build on kerberos: see docs/kerberos.md
+sudo nixos-rebuild switch --flake .#kerberos
 ```
 
 ### Format
@@ -46,11 +50,17 @@ nix flake check
 │   └── <host>/
 │       ├── configuration.nix
 │       └── modules/       # Modules only this host loads
-├── modules/               # Module sets, named explicitly per host
-│   ├── common/            # Every machine
-│   ├── desktop/           # Machines with a screen
-│   ├── server/            # Headless machines
-│   └── darwin-only/       # macOS
+├── modules/               # Capability traits, composed per host
+│   ├── base/              # Every machine, every platform
+│   ├── linux/             # Every Linux machine, server or workstation
+│   ├── gui/               # Has a screen and a human at it
+│   ├── dev/               # Builds software
+│   ├── agents/            # Runs the coding agents
+│   ├── tailscale/         # Joins the tailnet
+│   ├── lan/               # Reachable on the LAN and not beyond
+│   ├── hardened/          # Exposed to the internet
+│   ├── apps/              # One directory per application
+│   └── darwin/            # macOS only
 ├── shared/                # Cross-platform odds and ends
 ├── overlays/              # Package overlays
 ├── checks/                # Data the flake checks validate against
@@ -58,9 +68,27 @@ nix flake check
 └── docs/                  # Runbooks and the traps worth remembering
 ```
 
-Each host names the module sets it wants, so a headless server does not
-inherit desktop packages. Adding a module to `modules/desktop/` will not
-change the server.
+A trait answers "does this machine do X", never "is this machine a Y". Hosts
+compose them, so `new-horizons` and `charon` visibly share `base` and `linux`
+and differ only in what they additionally do:
+
+| Host | Traits |
+|------|--------|
+| `charon` | base linux gui dev agents lan |
+| `kerberos` | base linux gui dev agents lan |
+| `nyx` | base gui dev agents lan darwin |
+| `new-horizons` | base linux hardened tailscale openclaw |
+
+Every trait evaluates on its own. Those that would otherwise need a secrets
+backend declare their own option with a working default instead, so `tailscale`
+enables without an auth key and `hardened` keeps its firewall without demanding
+a password hash. Adding a trait to a host is a one-word change, never a
+prerequisite hunt.
+
+Traits split by platform where the platforms share nothing: `gui/linux` is a
+Wayland stack and `gui/darwin` is a tiling window manager, and the loader picks
+between them from the host's platform. Architecture is not a trait; the handful
+of packages that differ use `lib.optionals` in place.
 
 Flake inputs should follow this flake's `nixpkgs` unless there is a reason not
 to. An input that pins its own nixpkgs builds against a second package set: it
@@ -118,7 +146,8 @@ sudo mv /etc/paths.d/homebrew /etc/paths.d/homebrew.before-nix-darwin
 
 A hand-written `~/.ssh/config` gets the same treatment once Home Manager owns
 SSH client configuration. Move it aside before switching so the generated host
-blocks from `modules/ssh.nix` can be installed without clobbering local content:
+blocks from `modules/base/ssh-daemon.nix` and `modules/lan/ssh-lan.nix` can be
+installed without clobbering local content:
 
 ```bash
 mv ~/.ssh/config ~/.ssh/config.before-home-manager
