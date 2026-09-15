@@ -95,7 +95,15 @@
   };
 in {
   nixos = {
-    services.tailscale.useRoutingFeatures = "client";
+    services.tailscale = {
+      useRoutingFeatures = "client";
+
+      # Without this the exit node route claims the local subnets too, podman's
+      # 10.88.0.0/16 among them, and every container loses the internet the
+      # moment an exit node is selected. It turns those routes into `throw`,
+      # which sends them back to the main table.
+      extraSetFlags = ["--exit-node-allow-lan-access"];
+    };
 
     systemd.services.tailscale-exit-node = {
       description = "Select a working tailnet exit node, or none";
