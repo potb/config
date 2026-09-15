@@ -112,6 +112,13 @@ ip rule show | grep 5000
 sudo nft list table inet exit-node-bypass
 ```
 
+That claim is testable without the host. `./scripts/test-exit-node-bypass`
+builds new-horizons, loads its real firewall into an unprivileged network
+namespace behind a blackholing default route standing in for the exit node, and
+checks that an inbound TCP connection completes while a new outbound one does
+not. It starts by confirming the same connection breaks without the bypass, so
+a passing run means something.
+
 ## Backups
 
 `restic` takes a nightly snapshot of `/var/lib/openclaw` and
