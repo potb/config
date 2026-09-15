@@ -57,6 +57,8 @@ nix flake check
 │   ├── dev/               # Builds software
 │   ├── agents/            # Runs the coding agents
 │   ├── tailscale/         # Joins the tailnet
+│   ├── exit-node/         # Offers itself as an exit node
+│   ├── exit-node-client/  # Egress through an exit node, with fallback
 │   ├── lan/               # Reachable on the LAN and not beyond
 │   ├── hardened/          # Exposed to the internet
 │   ├── apps/              # One directory per application
@@ -74,10 +76,10 @@ and differ only in what they additionally do:
 
 | Host | Traits |
 |------|--------|
-| `charon` | base linux gui dev agents lan |
-| `kerberos` | base linux gui dev agents lan tailscale |
+| `charon` | base linux gui dev agents lan tailscale exit-node |
+| `kerberos` | base linux gui dev agents lan tailscale exit-node |
 | `nyx` | base gui dev agents lan darwin |
-| `new-horizons` | base linux hardened tailscale openclaw |
+| `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
 
 Every trait evaluates on its own. Those that would otherwise need a secrets
 backend declare their own option with a working default instead, so `tailscale`

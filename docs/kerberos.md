@@ -81,6 +81,18 @@ If the firmware is ever refreshed, from macOS via `curl https://alx.sh | sh`
 and "Rebuild vendor firmware package", the recorded hash in
 `hosts/kerberos/modules/hardware.nix` must be updated to match.
 
+## Exit node
+
+This laptop advertises itself as an exit node, as a fallback behind `charon`
+for `new-horizons`. It is picked only while charon is unreachable, which for a
+machine that travels and sleeps means the VPS's egress can land on whatever
+network this laptop is on at the time. Suspending it is not a problem: the
+selector on new-horizons drops an offline node within 30 seconds.
+
+The route needs approving once in the admin console. Until then the host
+advertises an exit node that no client may use, and it looks offline to the
+selector rather than unapproved.
+
 ## Boot order
 
 Three operating systems share this disk, and two separate mechanisms decide

@@ -37,6 +37,8 @@ the way back in.
 | ------------------ | ------------------------------------------------------- |
 | `openclaw-gateway` | the agent, loopback on 18789                            |
 | `tailscaled`       | tailnet membership                                      |
+| `tailscale-exit-node` | picks the exit node egress leaves through, or none   |
+| `exit-node-bypass-rule` | keeps replies to inbound traffic off the exit node |
 | `tailscale-serve`  | publishes the gateway and browser inside the tailnet    |
 | `podman-neko`      | Neko, a browser a human and the agent share             |
 | `neko-cdp-bridge`  | relays Neko's debugging port out of its netns           |
@@ -44,6 +46,65 @@ the way back in.
 | `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
 
 Nothing listens on a public port except SSH.
+
+## Egress through home
+
+Outbound traffic leaves through an exit node at home rather than the netcup
+address: `charon` first, `kerberos` when charon is unavailable, and no exit
+node at all when neither is. Websites therefore see the home IP, which is the
+point: a datacentre IP is treated as a bot by a fair number of sites the agent
+and the shared browser have to use.
+
+`tailscale-exit-node` runs every 30 seconds and decides in that order. It
+trusts nothing but a working request: a peer counts only when tailscaled
+reports it online and advertising an exit node, and the selection stands only
+once an HTTPS fetch through it succeeds. A host that advertises an exit node
+but drops traffic is skipped like an offline one.
+
+When no candidate works the unit clears the exit node instead of leaving it
+set. That is deliberate and it is the opposite of Tailscale's own behaviour:
+`--exit-node=auto:any` and MDM-forced exit nodes both fail closed, keeping a
+dead default route and taking the host off the internet with it. Here the
+agent stays reachable and keeps working from the netcup IP, and the worst case
+is a visible change of address rather than an outage.
+
+The cost of that choice: egress silently moves between three addresses, so a
+service that pins a session to an IP may log the agent out mid-task, and home
+bandwidth carries the browser's traffic while an exit node is selected.
+
+```
+systemctl status tailscale-exit-node
+journalctl -u tailscale-exit-node -n 20
+tailscale status | head -1
+curl https://api.ipify.org; echo
+```
+
+A switch takes up to 30 seconds plus the probe, so a failover looks like a
+brief stall rather than an instant change.
+
+Both home hosts take the `exit-node` trait, which turns on forwarding and
+advertises them. Advertising is not enough on its own: the route needs
+approval once in the admin console under the machine's route settings, and a
+newly reinstalled host needs it again. An unapproved host reports
+`ExitNodeOption: false` and this unit skips it, which reads exactly like the
+host being down.
+
+### Inbound traffic keeps its own path
+
+A default route into the tunnel would also swallow the replies to connections
+that arrived on the public IP, and SSH from outside the tailnet would die the
+moment an exit node came up. `exit-node-bypass-rule` prevents that: nftables
+marks every connection that enters from a non-tailnet interface, the mark is
+restored on reply packets, and an `ip rule` at priority 5000, ahead of
+Tailscale's own at 5270, sends those replies back to the main table.
+
+So this host is asymmetric on purpose. New outbound connections go through
+home; anything answering an inbound connection goes back the way it came.
+
+```
+ip rule show | grep 5000
+sudo nft list table inet exit-node-bypass
+```
 
 ## Backups
 
