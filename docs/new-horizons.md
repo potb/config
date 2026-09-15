@@ -72,6 +72,11 @@ The cost of that choice: egress silently moves between three addresses, so a
 service that pins a session to an IP may log the agent out mid-task, and home
 bandwidth carries the browser's traffic while an exit node is selected.
 
+IPv6 is part of that cost. This netcup guest has no native IPv6 route, so the
+only IPv6 egress it has is the exit node's, and clearing the exit node takes
+IPv6 away entirely rather than moving it to another address. Anything that
+needs IPv6 breaks during a failover, while IPv4 merely changes address.
+
 The Neko container follows the host. That is not automatic: Tailscale routes
 the local subnets into the tunnel alongside the default route, to stop traffic
 leaking onto an untrusted LAN, and podman's `10.88.0.0/16` is one of them. The
