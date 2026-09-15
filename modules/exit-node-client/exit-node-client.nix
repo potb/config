@@ -67,7 +67,12 @@
 
         if [ "$candidate" != "$current_host" ]; then
           echo "selecting exit node $candidate"
-          tailscale set --exit-node="$candidate"
+          # Fails when the route lost its approval between the status read and
+          # here, which is a reason to try the next candidate, not to give up.
+          if ! tailscale set --exit-node="$candidate"; then
+            echo "$candidate refused the selection"
+            continue
+          fi
           # `set` returns before the route is in place.
           sleep 2
         fi
