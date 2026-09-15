@@ -22,12 +22,12 @@ in {
         content = ''
           chain prerouting {
             type filter hook prerouting priority mangle; policy accept;
-            iifname != "${config.services.tailscale.interfaceName}" ct state new ct mark set ${mark}
+            iifname != "${config.services.tailscale.interfaceName}" fib daddr type local ct state new ct mark set ${mark}
           }
 
           chain output {
             type route hook output priority mangle; policy accept;
-            ct mark ${mark} meta mark set ${mark}
+            ct mark ${mark} meta mark 0x0 meta mark set ${mark}
           }
         '';
       };
