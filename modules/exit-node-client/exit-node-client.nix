@@ -110,8 +110,13 @@ in {
       after = [
         "tailscaled.service"
         "tailscaled-autoconnect.service"
+        # Never select an exit node before the rule that keeps replies to
+        # inbound traffic off it, or the window between the two takes public
+        # SSH down on a host whose other way in is a VNC console.
+        "exit-node-bypass-rule.service"
       ];
       wants = ["tailscaled.service"];
+      requires = ["exit-node-bypass-rule.service"];
 
       serviceConfig = {
         Type = "oneshot";

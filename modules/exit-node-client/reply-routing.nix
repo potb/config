@@ -37,6 +37,14 @@ in {
       wantedBy = ["multi-user.target"];
       after = ["network.target"];
 
+      # tailscaled restores the previous exit node from its own state at boot,
+      # without waiting for anything here, so this rule has to be in place
+      # before it starts. Otherwise a reboot has a window where the default
+      # route points into the tunnel and public SSH answers nothing, on a host
+      # whose only other way in is the provider's VNC console.
+      before = ["tailscaled.service"];
+      requiredBy = ["tailscaled.service"];
+
       path = with pkgs; [iproute2];
 
       serviceConfig = {
