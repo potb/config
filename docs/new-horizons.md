@@ -72,6 +72,20 @@ The cost of that choice: egress silently moves between three addresses, so a
 service that pins a session to an IP may log the agent out mid-task, and home
 bandwidth carries the browser's traffic while an exit node is selected.
 
+The Neko container follows the host. That is not automatic: Tailscale routes
+the local subnets into the tunnel alongside the default route, to stop traffic
+leaking onto an untrusted LAN, and podman's `10.88.0.0/16` is one of them. The
+first deploy here cut the container off the internet entirely while the host
+was fine, with DNS still resolving through the host to make it look like
+something else. `--exit-node-allow-lan-access` turns those routes into `throw`.
+So check both when this misbehaves, not just the host:
+
+```
+curl https://api.ipify.org; echo
+pid=$(sudo podman inspect neko --format '{{.State.Pid}}')
+sudo nsenter -t "$pid" -n curl https://api.ipify.org; echo
+```
+
 ```
 systemctl status tailscale-exit-node
 journalctl -u tailscale-exit-node -n 20
@@ -87,7 +101,9 @@ advertises them. Advertising is not enough on its own: the route needs
 approval once in the admin console under the machine's route settings, and a
 newly reinstalled host needs it again. An unapproved host reports
 `ExitNodeOption: false` and this unit skips it, which reads exactly like the
-host being down.
+host being down. `tailscale set` also refuses the selection outright in that
+state, so the selector treats a refusal as another reason to try the next
+candidate.
 
 ### Inbound traffic keeps its own path
 
