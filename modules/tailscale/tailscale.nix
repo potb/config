@@ -6,7 +6,7 @@
   nixos = {
     services.tailscale = {
       enable = true;
-      useRoutingFeatures = "none";
+      useRoutingFeatures = lib.mkDefault "none";
       openFirewall = true;
     };
 

@@ -338,6 +338,8 @@
       dev = ./modules/dev;
       agents = ./modules/agents;
       tailscale = ./modules/tailscale;
+      exit-node = ./modules/exit-node;
+      exit-node-client = ./modules/exit-node-client;
       hardened = ./modules/hardened;
       lan = ./modules/lan;
       openclaw = ./modules/apps/openclaw;
@@ -476,6 +478,7 @@
           "agents"
           "lan"
           "tailscale"
+          "exit-node"
         ];
         homeDirectory = "/home/potb";
         extraModules = [
@@ -495,6 +498,7 @@
           "agents"
           "lan"
           "tailscale"
+          "exit-node"
         ];
         homeDirectory = "/home/potb";
         extraModules = [
@@ -519,6 +523,7 @@
           "linux"
           "hardened"
           "tailscale"
+          "exit-node-client"
           "openclaw"
         ];
         homeDirectory = "/home/potb";
