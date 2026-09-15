@@ -475,6 +475,7 @@
           "dev"
           "agents"
           "lan"
+          "tailscale"
         ];
         homeDirectory = "/home/potb";
         extraModules = [
