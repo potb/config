@@ -18,18 +18,28 @@
     text = ''
       candidates=(${lib.concatStringsSep " " (map lib.escapeShellArg candidates)})
 
-      status=$(tailscale status --json)
+      if ! status=$(tailscale status --json 2>/dev/null); then
+        echo "tailscaled is not answering, leaving the exit node alone"
+        exit 0
+      fi
+
+      # A tailnet of one has no .Peer at all.
+      backend=$(jq -r '.BackendState // ""' <<<"$status")
+      if [ "$backend" != "Running" ]; then
+        echo "tailscale is $backend, leaving the exit node alone"
+        exit 0
+      fi
 
       current_host=$(jq -r '
         (.ExitNodeStatus.ID // "") as $id
         | if $id == "" then ""
-          else ([.Peer[] | select(.ID == $id) | .HostName] | first // "")
+          else ([(.Peer // {})[] | select(.ID == $id) | .HostName] | first // "")
           end
       ' <<<"$status")
 
       eligible() {
         jq -e --arg host "$1" '
-          [.Peer[]
+          [(.Peer // {})[]
            | select((.HostName // "") == $host)
            | select(.Online == true)
            | select(.ExitNodeOption == true)]
@@ -52,7 +62,6 @@
 
       for candidate in "''${candidates[@]}"; do
         if ! eligible "$candidate"; then
-          echo "$candidate is not an available exit node"
           continue
         fi
 
@@ -75,10 +84,8 @@
       # the host off the internet with it.
       if [ -n "$current_host" ]; then
         echo "no exit node available, clearing $current_host"
-      else
-        echo "no exit node available, staying direct"
+        tailscale set --exit-node=
       fi
-      tailscale set --exit-node=
     '';
   };
 in {

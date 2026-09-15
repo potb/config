@@ -94,9 +94,15 @@ host being down.
 A default route into the tunnel would also swallow the replies to connections
 that arrived on the public IP, and SSH from outside the tailnet would die the
 moment an exit node came up. `exit-node-bypass-rule` prevents that: nftables
-marks every connection that enters from a non-tailnet interface, the mark is
-restored on reply packets, and an `ip rule` at priority 5000, ahead of
-Tailscale's own at 5270, sends those replies back to the main table.
+marks connections that enter from a non-tailnet interface *and are addressed to
+this host*, the mark is restored on reply packets, and an `ip rule` at priority
+5000, ahead of Tailscale's own at 5270, sends those replies back to the main
+table.
+
+The `fib daddr type local` half of that rule is load-bearing. Without it the
+mark also lands on traffic merely passing through this host, which is exactly
+the Neko container's egress, and the browser would leave from the public IP
+while everything else left from home.
 
 So this host is asymmetric on purpose. New outbound connections go through
 home; anything answering an inbound connection goes back the way it came.
