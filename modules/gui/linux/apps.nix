@@ -13,7 +13,6 @@
         audacity
         prismlauncher
         xarchiver
-        rusty-path-of-building
         vlc
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [

@@ -52,7 +52,6 @@
         "zsh-users/zsh-completions kind:fpath path:src"
         "getantidote/use-omz"
         "ohmyzsh/ohmyzsh path:lib"
-        "ohmyzsh/ohmyzsh path:plugins/aws"
         "ohmyzsh/ohmyzsh path:plugins/colored-man-pages"
         "ohmyzsh/ohmyzsh path:plugins/common-aliases"
         "ohmyzsh/ohmyzsh path:plugins/docker"

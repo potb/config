@@ -31,8 +31,6 @@
         shfmt
         tectonic
 
-        duckdb
-        harlequin
         postgresql_18
 
         glab

@@ -26,13 +26,6 @@
       nixfmt
       python3Packages.black
       sccache
-
-      awscli2
-      (
-        if pkgs.stdenv.hostPlatform.isAarch64 && pkgs.stdenv.hostPlatform.isLinux
-        then stripe-cli.overrideAttrs {doCheck = false;}
-        else stripe-cli
-      )
     ];
 
     home.activation.ensureFnmDefaultAlias = lib.hm.dag.entryAfter ["writeBoundary"] ''
