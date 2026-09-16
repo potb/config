@@ -394,6 +394,88 @@
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
     checks = forAllSystems (system: {
+      package-channels = let
+        pkgs = nixpkgs.legacyPackages.${system};
+
+        hosts =
+          lib.mapAttrs (_: h: {
+            inherit (h) config;
+            platform = "nixos";
+          })
+          self.nixosConfigurations
+          // lib.mapAttrs (_: h: {
+            inherit (h) config;
+            platform = "darwin";
+          })
+          self.darwinConfigurations;
+
+        nameOf = p: p.pname or (p.name or "<unnamed>");
+
+        brewNames = host:
+          lib.optionals (host.platform == "darwin") (
+            map (c: c.name) host.config.homebrew.casks
+            ++ map (b: b.name) host.config.homebrew.brews
+          );
+
+        nixNames = host:
+          map nameOf (
+            host.config.home-manager.users.potb.home.packages
+            ++ host.config.environment.systemPackages
+            ++ host.config.fonts.packages
+          );
+
+        aliases = {
+          ghostty = ["ghostty" "ghostty-bin"];
+          "1password-cli" = ["_1password-cli" "1password-cli"];
+          google-chrome = ["google-chrome"];
+          slack = ["slack"];
+          spotify = ["spotify"];
+          discord = ["discord"];
+          "qwerty-fr" = ["qwerty-fr" "qwertyFr"];
+          tailscale = ["tailscale" "tailscale-app"];
+          "font-fira-code-nerd-font" = ["nerd-fonts-fira-code"];
+          "font-inter" = ["inter"];
+          "font-symbols-only-nerd-font" = ["nerd-fonts-symbols-only"];
+        };
+
+        duplicatesOn = hostName: host: let
+          brews = brewNames host;
+          nixed = nixNames host;
+
+          both =
+            lib.filterAttrs (
+              logical: names:
+                (builtins.any (n: builtins.elem n brews) (names ++ [logical]))
+                && (builtins.any (n: builtins.elem n nixed) names)
+            )
+            aliases;
+        in
+          map (logical: "${hostName}: ${logical} arrives from both Homebrew and nixpkgs") (
+            builtins.attrNames both
+          );
+
+        problems = builtins.concatLists (lib.mapAttrsToList duplicatesOn hosts);
+      in
+        if problems != []
+        then
+          throw ''
+            a package arrives through two channels at once:
+              ${lib.concatStringsSep "\n  " problems}
+          ''
+        else pkgs.runCommand "package-channels-check" {} "touch $out";
+
+      trait-table = let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+        pkgs.runCommand "trait-table-check" {
+          nativeBuildInputs = [pkgs.python3];
+          readme = ./README.md;
+          flake = ./flake.nix;
+        } ''
+          python3 ${./scripts/check-trait-table.py} "$flake" "$readme"
+          touch $out
+        '';
+
       kerberos-offhost = let
         pkgs = nixpkgs.legacyPackages.${system};
 
