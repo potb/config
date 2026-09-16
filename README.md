@@ -56,6 +56,8 @@ nix flake check
 │   ├── gui/               # Has a screen and a human at it
 │   ├── desktop-apps/      # Applications a human opens to get work done
 │   ├── leisure/           # Applications a human opens for fun
+│   ├── workstation/       # Desk machine: external monitors, always on mains
+│   ├── laptop/            # Battery, internal panel, a lid that closes
 │   ├── dev/               # Builds software
 │   ├── containers/        # Runs containers
 │   ├── agents/            # Runs the coding agents
@@ -79,8 +81,8 @@ and differ only in what they additionally do:
 
 | Host | Traits |
 |------|--------|
-| `charon` | base linux gui desktop-apps leisure dev containers agents lan tailscale exit-node |
-| `kerberos` | base linux gui desktop-apps dev agents lan tailscale exit-node |
+| `charon` | base linux gui desktop-apps leisure workstation dev containers agents lan tailscale exit-node |
+| `kerberos` | base linux gui desktop-apps laptop dev agents lan tailscale exit-node |
 | `nyx` | base gui desktop-apps dev containers agents lan darwin |
 | `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
 

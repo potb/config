@@ -71,50 +71,56 @@
           }
           // extra;
       in {
-        barA = mkBar "bar-a" 46 {
-          modules-left = ["hyprland/workspaces"];
-          tray = {
-            spacing = 10;
-            icon-size = 24;
-            show-passive-items = true;
-          };
-          "custom/ip" = {
-            exec = "ip -4 -o addr show scope global | awk '{split($4,a,\"/\"); print a[1]}' | head -1";
-            format = "{}";
-            interval = 10;
-          };
-          disk = {
-            format = "<span font_features='tnum'>{used}</span>";
-            path = "/";
-            interval = 30;
-          };
-          cpu = {
-            format = "<span font_features='tnum'>{usage:02}%</span>";
-            interval = 5;
-          };
-          memory = {
-            format = "<span font_features='tnum'>{used:0.1f}G</span>";
-            interval = 5;
-          };
-          "custom/date" = {
-            exec = "date '+%Y-%m-%d'";
-            format = "{}";
-            interval = 60;
-          };
-          modules-right = [
-            "tray"
-            "custom/ip"
-            "disk"
-            "cpu"
-            "memory"
-            "custom/date"
-            "clock"
-          ];
-          clock = {
-            format = "<span font_features='tnum'>{:%H:%M:%S}</span>";
-            interval = 1;
-          };
-        };
+        barA = lib.mkMerge [
+          (mkBar "bar-a" 46 {
+            modules-left = ["hyprland/workspaces"];
+            tray = {
+              spacing = 10;
+              icon-size = 24;
+              show-passive-items = true;
+            };
+            "custom/ip" = {
+              exec = "ip -4 -o addr show scope global | awk '{split($4,a,\"/\"); print a[1]}' | head -1";
+              format = "{}";
+              interval = 10;
+            };
+            disk = {
+              format = "<span font_features='tnum'>{used}</span>";
+              path = "/";
+              interval = 30;
+            };
+            cpu = {
+              format = "<span font_features='tnum'>{usage:02}%</span>";
+              interval = 5;
+            };
+            memory = {
+              format = "<span font_features='tnum'>{used:0.1f}G</span>";
+              interval = 5;
+            };
+            "custom/date" = {
+              exec = "date '+%Y-%m-%d'";
+              format = "{}";
+              interval = 60;
+            };
+            modules-right = [
+              "tray"
+              "custom/ip"
+              "disk"
+              "cpu"
+              "memory"
+            ];
+            clock = {
+              format = "<span font_features='tnum'>{:%H:%M:%S}</span>";
+              interval = 1;
+            };
+          })
+          {
+            modules-right = lib.mkAfter [
+              "custom/date"
+              "clock"
+            ];
+          }
+        ];
       };
 
       style = ''

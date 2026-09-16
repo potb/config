@@ -275,6 +275,8 @@
       gui = ./modules/gui;
       desktop-apps = ./modules/desktop-apps;
       leisure = ./modules/leisure;
+      workstation = ./modules/workstation;
+      laptop = ./modules/laptop;
       dev = ./modules/dev;
       containers = ./modules/containers;
       agents = ./modules/agents;
@@ -417,6 +419,7 @@
           "gui"
           "desktop-apps"
           "leisure"
+          "workstation"
           "dev"
           "containers"
           "agents"
@@ -439,6 +442,7 @@
           "linux"
           "gui"
           "desktop-apps"
+          "laptop"
           "dev"
           "agents"
           "lan"
