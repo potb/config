@@ -67,7 +67,8 @@ nix flake check
 │   ├── lan/               # Reachable on the LAN and not beyond
 │   ├── hardened/          # Exposed to the internet
 │   ├── apps/              # One directory per application
-│   └── darwin/            # macOS only
+│   ├── darwin/            # macOS only
+│   └── lib/               # The package catalog and its channel resolver
 ├── shared/                # Cross-platform odds and ends
 ├── overlays/              # Package overlays
 ├── checks/                # Data the flake checks validate against
@@ -83,7 +84,7 @@ and differ only in what they additionally do:
 |------|--------|
 | `charon` | base linux gui desktop-apps leisure workstation dev containers agents lan tailscale exit-node |
 | `kerberos` | base linux gui desktop-apps laptop dev agents lan tailscale exit-node |
-| `nyx` | base gui desktop-apps dev containers agents lan darwin |
+| `nyx` | base gui desktop-apps leisure dev containers agents lan tailscale darwin |
 | `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
 
 Every trait evaluates on its own. Those that would otherwise need a secrets
@@ -96,6 +97,66 @@ Traits split by platform where the platforms share nothing: `gui/linux` is a
 Wayland stack and `gui/darwin` is a tiling window manager, and the loader picks
 between them from the host's platform. Architecture is not a trait; the handful
 of packages that differ use `lib.optionals` in place.
+
+### Package channels
+
+A trait says what a machine needs. Where a package can arrive by more than one
+route, the host says which one. A trait declares the need in a `packages` list
+beside the usual `nixos`, `darwin` and `home` attributes:
+
+```nix
+{
+  packages = ["ghostty"];
+
+  home.programs.ghostty.enable = true;
+}
+```
+
+`modules/lib/catalog.nix` holds one recipe per channel per package. A recipe is
+a configuration fragment rather than only a package, which is what lets a
+package arrive from Homebrew while home-manager keeps writing its config: the
+Homebrew recipe for Ghostty installs the cask and sets
+`programs.ghostty.package` to `null`, an arrangement home-manager supports on
+purpose.
+
+```nix
+ghostty = {
+  defaultChannel = {
+    linux = "nixpkgs";
+    darwin = "homebrew-cask";
+  };
+
+  channels = {
+    nixpkgs = { ... };
+    homebrew-cask = { ... };
+  };
+};
+```
+
+A host overrides any default through `mkHost`'s `channels` argument, where
+`"none"` means the machine deliberately goes without:
+
+```nix
+channels = {
+  slack = "none";
+};
+```
+
+Two mistakes fail during evaluation rather than at build time or silently.
+Naming a channel a package does not offer reports the ones it does, and
+choosing `nixpkgs` where nixpkgs has no build for the host's architecture says
+so, which is why kerberos declines Slack by name instead of relying on an
+`isx86_64` guard it would be easy to misread. Each recipe states its own
+availability rather than the resolver inferring it from the package name, since
+a catalog key and a nixpkgs attribute need not match: `qwerty-fr` is
+`pkgs.qwertyFr`.
+
+Adding a channel means adding a key to a catalog entry. The resolver enumerates
+whatever is there, so it needs no change to learn about one.
+
+Enrol a package only when there is a real choice to make. Something that comes
+from nixpkgs everywhere is a plain `home.packages` entry and gains nothing from
+the indirection.
 
 Flake inputs should follow this flake's `nixpkgs` unless there is a reason not
 to. An input that pins its own nixpkgs builds against a second package set: it
