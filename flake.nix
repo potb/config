@@ -17,10 +17,6 @@
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
 
-    nixpkgs-master = {
-      url = "github:NixOS/nixpkgs/master";
-    };
-
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
     };

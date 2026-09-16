@@ -1,17 +1,4 @@
-{pkgs, ...}: let
-  idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
-    -Dawt.toolkit.name=WLToolkit
-  '';
-  idea-wrapped = pkgs.symlinkJoin {
-    name = "idea";
-    paths = [pkgs.jetbrains.idea];
-    nativeBuildInputs = [pkgs.makeWrapper];
-    postBuild = ''
-      wrapProgram $out/bin/idea \
-        --set-default IDEA_VM_OPTIONS ${idea-vmoptions}
-    '';
-  };
-in {
+{pkgs, ...}: {
   nixos = {};
   darwin = {};
 
@@ -50,9 +37,5 @@ in {
         shell-integration-features = "cursor,no-sudo,title,ssh-env,ssh-terminfo,path";
       };
     };
-
-    home.packages = [
-      idea-wrapped
-    ];
   };
 }

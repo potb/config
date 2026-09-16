@@ -225,9 +225,7 @@
         };
 
         windowrule = [
-          "match:class ^(jetbrains-.*)$, match:float true, immediate on"
           "size 1 1, move -100 -100, match:xwayland true, match:title ^$, match:class ^$, match:initial_class ^$, match:initial_title ^$"
-          "no_anim on, match:class ^(jetbrains-idea)$"
           # Battle.net (Proton non-Steam shortcut) Electron popups render black
           # dropdowns/panels under blur+transparency. Fully opaque, no blur.
           "no_blur on, match:class ^(steam_app_2962204454)$"

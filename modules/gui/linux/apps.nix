@@ -15,7 +15,6 @@
         xarchiver
         rusty-path-of-building
         vlc
-        jetbrains.datagrip
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
         spotify

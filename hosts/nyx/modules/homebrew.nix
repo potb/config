@@ -34,7 +34,6 @@
       "aldente"
       "claude"
       "claude-code"
-      "datagrip"
       "discord"
       "ghostty"
       "google-chrome"
@@ -55,7 +54,6 @@
       "spotify"
       "tailscale-app"
       "temurin"
-      "webstorm"
       "zed"
 
       "font-fira-code-nerd-font"
