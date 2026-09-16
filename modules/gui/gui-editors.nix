@@ -1,21 +1,4 @@
 {pkgs, ...}: let
-  opencodeBinPath = pkgs.lib.makeBinPath [
-    pkgs.typescript
-    pkgs.typescript-language-server
-    pkgs.pyright
-    pkgs.nixd
-    pkgs.vscode-langservers-extracted
-  ];
-  opencode-wrapped = pkgs.symlinkJoin {
-    name = "opencode";
-    paths = [pkgs.opencode];
-    nativeBuildInputs = [pkgs.makeWrapper];
-    postBuild = ''
-      wrapProgram $out/bin/opencode \
-        --prefix PATH : ${opencodeBinPath} \
-        --set-default OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS true
-    '';
-  };
   idea-vmoptions = pkgs.writeText "idea64.vmoptions" ''
     -Dawt.toolkit.name=WLToolkit
   '';
@@ -70,7 +53,6 @@ in {
 
     home.packages = [
       idea-wrapped
-      opencode-wrapped
     ];
   };
 }

@@ -21,10 +21,6 @@
       url = "github:NixOS/nixpkgs/master";
     };
 
-    opencode-src = {
-      url = "github:anomalyco/opencode/production";
-    };
-
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
     };
@@ -102,46 +98,6 @@
       url = "github:openclaw/nix-openclaw";
     };
 
-    schemastore = {
-      url = "github:SchemaStore/schemastore";
-      flake = false;
-    };
-
-    opencode-oh-my-openagent = {
-      url = "github:code-yeongyu/oh-my-openagent";
-      flake = false;
-    };
-
-    opencode-anthropic-auth = {
-      url = "github:ex-machina-co/opencode-anthropic-auth";
-      flake = false;
-    };
-
-    opencode-dcp = {
-      url = "github:Opencode-DCP/opencode-dynamic-context-pruning";
-      flake = false;
-    };
-
-    superpowers = {
-      url = "github:obra/superpowers";
-      flake = false;
-    };
-
-    mattpocock-skills = {
-      url = "github:mattpocock/skills";
-      flake = false;
-    };
-
-    stop-slop = {
-      url = "github:hardikpandya/stop-slop";
-      flake = false;
-    };
-
-    agentmemory = {
-      url = "github:rohitg00/agentmemory";
-      flake = false;
-    };
-
     rtk = {
       url = "github:rtk-ai/rtk";
       flake = false;
@@ -160,15 +116,6 @@
     tsm-app = {
       url = "github:exceptionptr/tsm-app-linux/v1.1.15";
       flake = false;
-    };
-
-    codebase-memory-mcp = {
-      url = "github:DeusData/codebase-memory-mcp";
-    };
-
-    sem = {
-      url = "github:ataraxy-labs/sem";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixos-apple-silicon = {
