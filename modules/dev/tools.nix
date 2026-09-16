@@ -10,23 +10,68 @@
     lib,
     ...
   }: {
-    home.packages = with pkgs; [
-      (lib.hiPrio clang)
-      gnumake
-      autoconf
-      automake
-      libtool
-      pkg-config
+    programs.gh = {
+      enable = true;
+      settings = {
+        git_protocol = "ssh";
+        prompt = "enabled";
+        pager = "${pkgs.bat}/bin/bat";
+      };
+    };
 
-      fnm
-      bun
-      uv
-      python3
+    home.packages = with pkgs;
+      [
+        (lib.hiPrio clang)
+        gnumake
+        autoconf
+        automake
+        libtool
+        pkg-config
 
-      nixfmt
-      python3Packages.black
-      sccache
-    ];
+        fnm
+        bun
+        uv
+        python3
+
+        nixfmt
+        python3Packages.black
+        sccache
+
+        tokei
+        act
+        lefthook
+        _1password-cli
+        hyperfine
+        yt-dlp
+        ffmpeg
+
+        ast-grep
+        (d2.override {withImageSupport = false;})
+        shellcheck
+        shfmt
+        tectonic
+
+        postgresql_18
+
+        glab
+      ]
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+        gcc
+        binutils
+        lm_sensors
+      ]
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+        stdenv.cc
+
+        macmon
+        mactop
+
+        mermaid-cli
+        firebase-tools
+        gitlab-ci-local
+        google-cloud-sdk
+        terraform
+      ];
 
     home.activation.ensureFnmDefaultAlias = lib.hm.dag.entryAfter ["writeBoundary"] ''
       fnm_dir=${config.xdg.dataHome}/fnm
