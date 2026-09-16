@@ -317,11 +317,20 @@
       channelModule = {pkgs, ...}: let
         resolved = import ./modules/lib/resolve-channels.nix {
           inherit lib pkgs platform;
-          requests =
-            builtins.listToAttrs (
+          requests = let
+            requested = builtins.listToAttrs (
               map (name: lib.nameValuePair name true) requestedPackages
-            )
-            // channels;
+            );
+
+            stray = builtins.attrNames (builtins.removeAttrs channels (builtins.attrNames requested));
+          in
+            if stray != []
+            then
+              builtins.throw ''
+                host ${hostname} selects a channel for a package no trait asked for:
+                  ${lib.concatStringsSep "\n  " stray}
+              ''
+            else requested // channels;
         };
       in {
         config = lib.mkMerge [

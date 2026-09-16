@@ -142,6 +142,11 @@ channels = {
 };
 ```
 
+A host may only steer a package one of its traits already asked for. Naming
+anything else is a mistake rather than a shorthand for installing it, and says
+so, because a `channels` entry that quietly added software would defeat the
+point of reading a host's trait list to know what it runs.
+
 Two mistakes fail during evaluation rather than at build time or silently.
 Naming a channel a package does not offer reports the ones it does, and
 choosing `nixpkgs` where nixpkgs has no build for the host's architecture says
