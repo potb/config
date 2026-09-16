@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+attr_names() {
+  nix eval --json "$1" --apply 'builtins.attrNames' \
+    | python3 -c 'import json,sys
+for name in json.load(sys.stdin):
+    print(name)'
+}
+
+for host in $(attr_names '.#nixosConfigurations'); do
+  if [ "$host" = kerberos ] && [ "$(hostname)" != kerberos ]; then
+    echo "skip nixosConfigurations.$host: evaluates only on kerberos, see docs/kerberos.md" >&2
+    continue
+  fi
+  nix eval --raw ".#nixosConfigurations.$host.config.system.build.toplevel.drvPath" >/dev/null
+  echo "ok nixosConfigurations.$host"
+done
+
+for host in $(attr_names '.#darwinConfigurations'); do
+  nix eval --raw ".#darwinConfigurations.$host.system.drvPath" >/dev/null
+  echo "ok darwinConfigurations.$host"
+done
+
+system=$(nix eval --raw --impure --expr builtins.currentSystem)
+
+targets=()
+for check in $(attr_names ".#checks.$system"); do
+  targets+=(".#checks.$system.$check")
+done
+
+nix build --no-link --print-build-logs "${targets[@]}"
+echo "ok ${#targets[@]} checks on $system"
