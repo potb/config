@@ -54,6 +54,8 @@ nix flake check
 │   ├── base/              # Every machine, every platform
 │   ├── linux/             # Every Linux machine, server or workstation
 │   ├── gui/               # Has a screen and a human at it
+│   ├── desktop-apps/      # Applications a human opens to get work done
+│   ├── leisure/           # Applications a human opens for fun
 │   ├── dev/               # Builds software
 │   ├── containers/        # Runs containers
 │   ├── agents/            # Runs the coding agents
@@ -77,9 +79,9 @@ and differ only in what they additionally do:
 
 | Host | Traits |
 |------|--------|
-| `charon` | base linux gui dev containers agents lan tailscale exit-node |
-| `kerberos` | base linux gui dev agents lan tailscale exit-node |
-| `nyx` | base gui dev containers agents lan darwin |
+| `charon` | base linux gui desktop-apps leisure dev containers agents lan tailscale exit-node |
+| `kerberos` | base linux gui desktop-apps dev agents lan tailscale exit-node |
+| `nyx` | base gui desktop-apps dev containers agents lan darwin |
 | `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
 
 Every trait evaluates on its own. Those that would otherwise need a secrets

@@ -11,14 +11,11 @@
       [
         libnotify
         audacity
-        prismlauncher
         xarchiver
         vlc
       ]
       ++ lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
-        spotify
         slack
-        discord
       ];
   };
 }

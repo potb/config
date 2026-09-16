@@ -273,6 +273,8 @@
       base = ./modules/base;
       linux = ./modules/linux;
       gui = ./modules/gui;
+      desktop-apps = ./modules/desktop-apps;
+      leisure = ./modules/leisure;
       dev = ./modules/dev;
       containers = ./modules/containers;
       agents = ./modules/agents;
@@ -413,6 +415,8 @@
           "base"
           "linux"
           "gui"
+          "desktop-apps"
+          "leisure"
           "dev"
           "containers"
           "agents"
@@ -434,6 +438,7 @@
           "base"
           "linux"
           "gui"
+          "desktop-apps"
           "dev"
           "agents"
           "lan"
@@ -483,6 +488,7 @@
         sets = [
           "base"
           "gui"
+          "desktop-apps"
           "dev"
           "containers"
           "agents"
