@@ -94,11 +94,6 @@
       url = "github:openclaw/nix-openclaw";
     };
 
-    rtk = {
-      url = "github:rtk-ai/rtk";
-      flake = false;
-    };
-
     qwerty-fr = {
       url = "github:qwerty-fr/qwerty-fr/v0.7.3";
       flake = false;
@@ -536,7 +531,6 @@
                 "asmvik/formulae"
                 "jaisonerick/tap"
                 "potb/tap"
-                "rtk-ai/tap"
               ];
             };
           }

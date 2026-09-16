@@ -1325,26 +1325,9 @@
         "nixpkgs": "nixpkgs_6",
         "nixvim": "nixvim",
         "qwerty-fr": "qwerty-fr",
-        "rtk": "rtk",
         "sops-nix": "sops-nix",
         "stylix": "stylix",
         "tsm-app": "tsm-app"
-      }
-    },
-    "rtk": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788739025,
-        "narHash": "sha256-piqP0bf4qtPyUN6vgETCPxtTIRzv/D1Awherb2PmaqA=",
-        "owner": "rtk-ai",
-        "repo": "rtk",
-        "rev": "5e10aa6462f7ffbba1a779055d213f1631711def",
-        "type": "github"
-      },
-      "original": {
-        "owner": "rtk-ai",
-        "repo": "rtk",
-        "type": "github"
       }
     },
     "sops-nix": {

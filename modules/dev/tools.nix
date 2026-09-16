@@ -33,8 +33,6 @@
         then stripe-cli.overrideAttrs {doCheck = false;}
         else stripe-cli
       )
-
-      rtk
     ];
 
     home.activation.ensureFnmDefaultAlias = lib.hm.dag.entryAfter ["writeBoundary"] ''
