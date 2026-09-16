@@ -189,6 +189,11 @@
       |> map (name: go name entries.${name})
       |> builtins.concatLists;
 
+    packageRequestsOf = platform: modulesDir:
+      listNixFilesRecursive platform modulesDir
+      |> map (file: (import file (staticArgs file)).packages or [])
+      |> builtins.concatLists;
+
     loadUnifiedModules = platform: modulesDir:
       listNixFilesRecursive platform modulesDir
       |> map (
@@ -297,12 +302,36 @@
       system,
       platform,
       sets ? ["common"],
+      channels ? {},
       extraModules ? [],
       homeDirectory,
     }: let
       unified = builtins.concatLists (
         map (name: loadUnifiedModules platform moduleSets.${name}) sets
       );
+
+      requestedPackages = builtins.concatLists (
+        map (name: packageRequestsOf platform moduleSets.${name}) sets
+      );
+
+      channelModule = {pkgs, ...}: let
+        resolved = import ./modules/lib/resolve-channels.nix {
+          inherit lib pkgs platform;
+          requests =
+            builtins.listToAttrs (
+              map (name: lib.nameValuePair name true) requestedPackages
+            )
+            // channels;
+        };
+      in {
+        config = lib.mkMerge [
+          resolved.${platform}
+          {
+            assertions = resolved.availabilityAssertions;
+            home-manager.users.potb = resolved.home;
+          }
+        ];
+      };
 
       hostModules =
         if builtins.pathExists (./hosts + "/${hostname}/modules")
@@ -330,6 +359,7 @@
         specialArgs = {inherit inputs outputs;};
         modules =
           unified
+          ++ [channelModule]
           ++ hostModules
           ++ lib.optional (builtins.pathExists hostConfiguration) hostConfiguration
           ++ [
@@ -449,6 +479,9 @@
           "tailscale"
           "exit-node"
         ];
+        channels = {
+          slack = "none";
+        };
         homeDirectory = "/home/potb";
         extraModules = [
           inputs.nixos-apple-silicon.nixosModules.apple-silicon-support
@@ -493,10 +526,12 @@
           "base"
           "gui"
           "desktop-apps"
+          "leisure"
           "dev"
           "containers"
           "agents"
           "lan"
+          "tailscale"
           "darwin"
         ];
         homeDirectory = "/Users/potb";

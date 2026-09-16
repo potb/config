@@ -12,12 +12,6 @@
       "/share/xsessions"
     ];
 
-    environment.systemPackages = [pkgs.qwertyFr];
-
-    environment.sessionVariables = {
-      XKB_CONFIG_EXTRA_PATH = "${pkgs.qwertyFr}/share/X11/xkb";
-    };
-
     xdg.portal.enable = true;
 
     services.seatd.enable = true;

@@ -1,10 +1,4 @@
-{
-  pkgs,
-  lib,
-  ...
-}: let
-  fonts = import ../../shared/fonts.nix {inherit pkgs;};
-in {
+{lib, ...}: {
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-darwin";
 
   networking = {
@@ -33,11 +27,6 @@ in {
     harddisk = "never";
     display = 10;
   };
-
-  fonts.packages = [
-    fonts.monospace.package
-    fonts.ui.package
-  ];
 
   security.pam.services.sudo_local.touchIdAuth = true;
 

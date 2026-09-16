@@ -3,6 +3,8 @@
   lib,
   ...
 }: {
+  packages = ["_1password-cli"];
+
   nixos = {};
   darwin = {};
   home = {
@@ -40,7 +42,6 @@
         tokei
         act
         lefthook
-        _1password-cli
         hyperfine
         yt-dlp
         ffmpeg

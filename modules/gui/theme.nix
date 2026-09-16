@@ -18,6 +18,8 @@
       };
     });
 in {
+  packages = ["qwerty-fr"];
+
   nixos = {
     imports = with inputs; [
       stylix.nixosModules.stylix
