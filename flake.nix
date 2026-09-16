@@ -274,6 +274,7 @@
       linux = ./modules/linux;
       gui = ./modules/gui;
       dev = ./modules/dev;
+      containers = ./modules/containers;
       agents = ./modules/agents;
       tailscale = ./modules/tailscale;
       exit-node = ./modules/exit-node;
@@ -413,6 +414,7 @@
           "linux"
           "gui"
           "dev"
+          "containers"
           "agents"
           "lan"
           "tailscale"
@@ -482,6 +484,7 @@
           "base"
           "gui"
           "dev"
+          "containers"
           "agents"
           "lan"
           "darwin"
