@@ -385,6 +385,52 @@
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
     checks = forAllSystems (system: {
+      kerberos-offhost = let
+        pkgs = nixpkgs.legacyPackages.${system};
+
+        stubFirmware = {
+          lib,
+          pkgs,
+          ...
+        }: {
+          hardware.asahi.peripheralFirmwareDirectory =
+            lib.mkForce
+            (pkgs.runCommand "stub-vendor-firmware" {} "mkdir -p $out; touch $out/firmware.cpio");
+        };
+
+        kerberos =
+          (self.nixosConfigurations.kerberos.extendModules {
+            modules = [stubFirmware];
+          })
+          .config;
+
+        unavailable = packages:
+          map (p: p.name or "<unnamed>") (
+            builtins.filter (p: !(p.meta.available or true)) packages
+          );
+
+        problems =
+          map (a: "assertion: ${a.message}") (
+            builtins.filter (a: !a.assertion) kerberos.assertions
+          )
+          ++ map (w: "warning: ${w}") kerberos.warnings
+          ++ map (n: "no aarch64-linux build: ${n}") (
+            unavailable kerberos.home-manager.users.potb.home.packages
+            ++ unavailable kerberos.environment.systemPackages
+            ++ unavailable kerberos.fonts.packages
+          );
+      in
+        if problems != []
+        then
+          throw ''
+            nixosConfigurations.kerberos:
+              ${lib.concatStringsSep "\n  " problems}
+          ''
+        else
+          pkgs.runCommand "kerberos-offhost-check" {
+            evaluated = builtins.unsafeDiscardStringContext kerberos.system.build.toplevel.drvPath;
+          } "echo \"$evaluated\" > $out";
+
       deadnix =
         nixpkgs.legacyPackages.${system}.runCommand "deadnix-check"
         {

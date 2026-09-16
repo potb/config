@@ -67,7 +67,20 @@ This also constrains CI. `nix flake check` evaluates every attribute under
 firmware fails on the missing file. The workflow therefore builds the checks by
 name rather than calling `nix flake check`, and the build matrix covers charon,
 new-horizons and nyx. kerberos is checked on kerberos, where
-`nix flake check` works normally.
+`nix flake check` works normally. `scripts/flake-check`, which the pre-commit
+hook runs, does the same thing locally.
+
+Only the firmware path is unevaluable, though, and that is a smaller hole than
+it first appears. The `kerberos-offhost` check substitutes an empty stub for
+`hardware.asahi.peripheralFirmwareDirectory` through `extendModules` and
+evaluates everything else: the full system derivation, every assertion and
+warning, and whether any package in the closure lacks an aarch64-linux build.
+So a change that breaks kerberos is caught from any machine, and only a change
+to the firmware itself needs the real hardware.
+
+The check records the derivation path rather than depending on it. Depending on
+it would give the output string context, and realising a check would then build
+an entire aarch64 system on whatever machine ran it.
 
 Two approaches that look like fixes are not. A fixed-output derivation copying
 from `/boot` fails because the build sandbox cannot see the path either.
