@@ -11,7 +11,7 @@ pre-commit:
       skip_empty: true
 
     - name: check
-      run: nix flake check
+      run: ./scripts/flake-check
       glob: "*.nix"
 
 post-checkout:

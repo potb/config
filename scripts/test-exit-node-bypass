@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Proves the exit node bypass keeps inbound connections working when a default
+# route points into the tunnel, and that it does not drag outbound traffic back
+# out of it.
+#
+# Runs entirely in an unprivileged network namespace against the rules
+# new-horizons actually builds, so it needs no root and touches no real host.
+#
+#   ./scripts/test-exit-node-bypass
+#
+# A dummy interface stands in for the exit node: it blackholes anything routed
+# to it, so "the packet left through the exit node" and "the packet was lost"
+# are the same observation, which is what makes the test meaningful.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "Building new-horizons to read its generated firewall..."
+system=$(nix build --no-link --print-out-paths \
+  .#nixosConfigurations.new-horizons.config.system.build.toplevel)
+
+rules=$(grep -o '/nix/store/[a-z0-9]*-nftables-rules' \
+  "$system/etc/systemd/system/nftables.service" | head -1)
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# The deletions include only exists on a running host.
+grep -v 'include "/var/lib/nftables/deletions.nft"' "$rules" > "$work/full.nft"
+
+# Just the bypass table, kept for reference when debugging a failure.
+awk '/^table inet exit-node-bypass \{/{f=1}
+     f{print; n+=gsub(/\{/,"{"); n-=gsub(/\}/,"}"); if(n==0) exit}' \
+  "$rules" > "$work/bypass.nft"
+
+if ! grep -q 'fib daddr type local' "$work/bypass.nft"; then
+  echo "The prerouting rule no longer scopes the mark to this host's own" >&2
+  echo "traffic, which would pull the Neko container's egress off the" >&2
+  echo "exit node. See modules/exit-node-client/reply-routing.nix." >&2
+  exit 1
+fi
+
+cat > "$work/test.sh" <<'INNER'
+set -euo pipefail
+py=$(command -v python3)
+rules=$RULES
+
+# A peer namespace plays the internet; this namespace plays the VPS.
+unshare --net sleep 120 &
+world=$!
+sleep 0.3
+
+ip link add veth-vps type veth peer name veth-world
+ip link set veth-world netns "$world"
+ip addr add 10.99.0.1/24 dev veth-vps
+ip link set veth-vps up
+ip link set lo up
+nsenter -t "$world" -n ip addr add 10.99.0.2/24 dev veth-world
+nsenter -t "$world" -n ip link set veth-world up
+nsenter -t "$world" -n ip route add default via 10.99.0.1
+
+# podman0 only has to exist for the firewall rules that name it.
+ip link add podman0 type dummy
+ip link set podman0 up
+
+# The exit node: a default route that swallows whatever it receives.
+ip link add tailscale0 type dummy
+ip link set tailscale0 up
+ip addr add 100.64.0.5/32 dev tailscale0
+ip route add default dev tailscale0 table 52
+ip rule add from all lookup 52 priority 5270
+
+inbound_works() {
+  "$py" -c "
+import socket
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('10.99.0.1', 22))
+s.listen(1)
+s.settimeout(6)
+try:
+    c, _ = s.accept()
+    c.sendall(b'SSH-2.0-test')
+    c.close()
+except Exception:
+    pass
+" &
+  local server=$!
+  sleep 0.6
+  local got
+  got=$(nsenter -t "$world" -n "$py" -c "
+import socket
+try:
+    s = socket.create_connection(('10.99.0.1', 22), timeout=4)
+    print(s.recv(32).decode())
+except Exception:
+    print('')
+" 2>/dev/null || true)
+  wait "$server" 2>/dev/null || true
+  [ "$got" = "SSH-2.0-test" ]
+}
+
+outbound_leaves_through_exit() {
+  ! timeout 3 "$py" -c "
+import socket, sys
+try:
+    socket.create_connection(('8.8.8.8', 53), timeout=2)
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+"
+}
+
+fail=0
+check() {
+  if [ "$2" = "$3" ]; then
+    echo "  ok       $1"
+  else
+    echo "  FAILED   $1 (expected $2, got $3)"
+    fail=1
+  fi
+}
+
+echo "Without the bypass, an exit node route should break inbound traffic:"
+if inbound_works; then result=works; else result=broken; fi
+check "inbound connection" broken "$result"
+
+echo "With the host's full generated ruleset:"
+nft -f "$rules"
+ip rule add fwmark 0x1 lookup main priority 5000
+
+if inbound_works; then result=works; else result=broken; fi
+check "inbound connection survives the exit node route" works "$result"
+check "and it passes the hardened firewall's rpfilter" works "$result"
+
+if outbound_leaves_through_exit; then result=via-exit; else result=leaked; fi
+check "new outbound connections still take the exit node" via-exit "$result"
+
+kill "$world" 2>/dev/null || true
+exit "$fail"
+INNER
+
+nftables=$(nix build --no-link --print-out-paths nixpkgs#nftables)
+iproute2=$(nix build --no-link --print-out-paths nixpkgs#iproute2)
+util=$(nix build --no-link --print-out-paths nixpkgs#util-linux)
+
+unshare -rn env \
+  PATH="$nftables/bin:$iproute2/bin:$util/bin:$PATH" \
+  RULES="$work/full.nft" \
+  bash "$work/test.sh"

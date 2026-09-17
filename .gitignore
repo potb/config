@@ -23,5 +23,8 @@ result-*
 .serena
 .sisyphus
 .omo
-docs
+docs/*
+!docs/new-horizons.md
+!docs/kerberos.md
+!docs/upstream-warnings.md
 *.log

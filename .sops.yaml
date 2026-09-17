@@ -1,0 +1,16 @@
+keys:
+  - &admin age1hffk96lguzulkcv26jrguu63ayg0nfrgm34cdxfrsyvg5zqc6vgqj6j0vv
+  - &new-horizons age1cejzue6krmyzz9y2w42da2wn5cnryhytkf327pzcmzrkqt32dvkqtzugmv
+
+creation_rules:
+  - path_regex: secrets/workspace/[^/]+\.md$
+    key_groups:
+      - age:
+          - *admin
+          - *new-horizons
+
+  - path_regex: secrets/new-horizons\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *new-horizons

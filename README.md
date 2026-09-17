@@ -6,8 +6,10 @@ Personal NixOS and nix-darwin configuration for my machines.
 
 | Host | System | Description |
 |------|--------|-------------|
-| `charon` | x86_64-linux | NixOS desktop |
+| `charon` | x86_64-linux | NixOS workstation |
+| `kerberos` | aarch64-linux | NixOS on Asahi, MacBook Pro M1 Pro, see [docs/kerberos.md](docs/kerberos.md) |
 | `nyx` | aarch64-darwin | macOS (Apple Silicon) |
+| `new-horizons` | x86_64-linux | NixOS server, see [docs/new-horizons.md](docs/new-horizons.md) |
 
 ## Usage
 
@@ -19,6 +21,12 @@ nh os switch .
 
 # macOS (nyx)
 darwin-rebuild switch --flake .#nyx    # see Setup for the first run
+
+# server (new-horizons), from a checkout on the machine itself
+sudo nixos-rebuild switch --flake .#new-horizons
+
+# kerberos, which must build on kerberos: see docs/kerberos.md
+sudo nixos-rebuild switch --flake .#kerberos
 ```
 
 ### Format
@@ -38,21 +46,127 @@ nix flake check
 ```
 .
 ├── flake.nix              # Entry point, inputs, outputs
-├── nixos/                 # NixOS system configuration
-│   ├── configuration.nix  # System entry
-│   └── modules/           # System modules
-├── darwin/                # macOS configuration
-│   ├── configuration.nix  # Darwin entry
-│   └── modules/           # Darwin modules
-├── home-manager/          # User configuration
-│   ├── home.nix           # Home entry
-│   └── modules/           # User modules
-├── shared/                # Cross-platform
-│   ├── fonts.nix
-│   ├── zed.nix
-│   └── modules/theme.nix
-└── overlays/              # Custom package overlays
+├── hosts/                 # One directory per machine
+│   └── <host>/
+│       ├── configuration.nix
+│       └── modules/       # Modules only this host loads
+├── modules/               # Capability traits, composed per host
+│   ├── base/              # Every machine, every platform
+│   ├── linux/             # Every Linux machine, server or workstation
+│   ├── gui/               # Has a screen and a human at it
+│   ├── desktop-apps/      # Applications a human opens to get work done
+│   ├── leisure/           # Applications a human opens for fun
+│   ├── workstation/       # Desk machine: external monitors, always on mains
+│   ├── laptop/            # Battery, internal panel, a lid that closes
+│   ├── dev/               # Builds software
+│   ├── containers/        # Runs containers
+│   ├── agents/            # Runs the coding agents
+│   ├── tailscale/         # Joins the tailnet
+│   ├── exit-node/         # Offers itself as an exit node
+│   ├── exit-node-client/  # Egress through an exit node, with fallback
+│   ├── lan/               # Reachable on the LAN and not beyond
+│   ├── hardened/          # Exposed to the internet
+│   ├── apps/              # One directory per application
+│   ├── darwin/            # macOS only
+│   └── lib/               # The package catalog and its channel resolver
+├── shared/                # Cross-platform odds and ends
+├── overlays/              # Package overlays
+├── checks/                # Data the flake checks validate against
+├── scripts/               # Helpers referenced by the checks and docs
+└── docs/                  # Runbooks and the traps worth remembering
 ```
+
+A trait answers "does this machine do X", never "is this machine a Y". Hosts
+compose them, so `new-horizons` and `charon` visibly share `base` and `linux`
+and differ only in what they additionally do:
+
+| Host | Traits |
+|------|--------|
+| `charon` | base linux gui desktop-apps leisure workstation dev containers agents lan tailscale exit-node |
+| `kerberos` | base linux gui desktop-apps laptop dev agents lan tailscale exit-node |
+| `nyx` | base gui desktop-apps leisure dev containers agents lan tailscale darwin |
+| `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
+
+Every trait evaluates on its own. Those that would otherwise need a secrets
+backend declare their own option with a working default instead, so `tailscale`
+enables without an auth key and `hardened` keeps its firewall without demanding
+a password hash. Adding a trait to a host is a one-word change, never a
+prerequisite hunt.
+
+Traits split by platform where the platforms share nothing: `gui/linux` is a
+Wayland stack and `gui/darwin` is a tiling window manager, and the loader picks
+between them from the host's platform. Architecture is not a trait; the handful
+of packages that differ use `lib.optionals` in place.
+
+### Package channels
+
+A trait says what a machine needs. Where a package can arrive by more than one
+route, the host says which one. A trait declares the need in a `packages` list
+beside the usual `nixos`, `darwin` and `home` attributes:
+
+```nix
+{
+  packages = ["ghostty"];
+
+  home.programs.ghostty.enable = true;
+}
+```
+
+`modules/lib/catalog.nix` holds one recipe per channel per package. A recipe is
+a configuration fragment rather than only a package, which is what lets a
+package arrive from Homebrew while home-manager keeps writing its config: the
+Homebrew recipe for Ghostty installs the cask and sets
+`programs.ghostty.package` to `null`, an arrangement home-manager supports on
+purpose.
+
+```nix
+ghostty = {
+  defaultChannel = {
+    linux = "nixpkgs";
+    darwin = "homebrew-cask";
+  };
+
+  channels = {
+    nixpkgs = { ... };
+    homebrew-cask = { ... };
+  };
+};
+```
+
+A host overrides any default through `mkHost`'s `channels` argument, where
+`"none"` means the machine deliberately goes without:
+
+```nix
+channels = {
+  slack = "none";
+};
+```
+
+A host may only steer a package one of its traits already asked for. Naming
+anything else is a mistake rather than a shorthand for installing it, and says
+so, because a `channels` entry that quietly added software would defeat the
+point of reading a host's trait list to know what it runs.
+
+Two mistakes fail during evaluation rather than at build time or silently.
+Naming a channel a package does not offer reports the ones it does, and
+choosing `nixpkgs` where nixpkgs has no build for the host's architecture says
+so, which is why kerberos declines Slack by name instead of relying on an
+`isx86_64` guard it would be easy to misread. Each recipe states its own
+availability rather than the resolver inferring it from the package name, since
+a catalog key and a nixpkgs attribute need not match: `qwerty-fr` is
+`pkgs.qwertyFr`.
+
+Adding a channel means adding a key to a catalog entry. The resolver enumerates
+whatever is there, so it needs no change to learn about one.
+
+Enrol a package only when there is a real choice to make. Something that comes
+from nixpkgs everywhere is a plain `home.packages` entry and gains nothing from
+the indirection.
+
+Flake inputs should follow this flake's `nixpkgs` unless there is a reason not
+to. An input that pins its own nixpkgs builds against a second package set: it
+duplicates much of the closure, ignores the overlays here, and can fail on
+upstream breakage that current nixpkgs has already fixed.
 
 ## Setup
 
@@ -105,7 +219,8 @@ sudo mv /etc/paths.d/homebrew /etc/paths.d/homebrew.before-nix-darwin
 
 A hand-written `~/.ssh/config` gets the same treatment once Home Manager owns
 SSH client configuration. Move it aside before switching so the generated host
-blocks from `modules/ssh.nix` can be installed without clobbering local content:
+blocks from `modules/base/ssh-daemon.nix` and `modules/lan/ssh-lan.nix` can be
+installed without clobbering local content:
 
 ```bash
 mv ~/.ssh/config ~/.ssh/config.before-home-manager
