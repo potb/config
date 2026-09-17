@@ -500,11 +500,36 @@
             builtins.filter (p: !(p.meta.available or true)) packages
           );
 
+        acknowledgedUpstreamWarnings = [
+          {
+            match = "programs.rofi.font";
+            reason = "stylix sets the renamed option itself, see docs/upstream-warnings.md";
+          }
+        ];
+
+        containsLiteral = needle: haystack:
+          builtins.length (builtins.split (lib.escapeRegex needle) haystack) > 1;
+
+        acknowledged = warning:
+          builtins.any (a: containsLiteral a.match warning) acknowledgedUpstreamWarnings;
+
+        staleAcknowledgements =
+          builtins.filter (
+            a: !(builtins.any (containsLiteral a.match) kerberos.warnings)
+          )
+          acknowledgedUpstreamWarnings;
+
         problems =
           map (a: "assertion: ${a.message}") (
             builtins.filter (a: !a.assertion) kerberos.assertions
           )
-          ++ map (w: "warning: ${w}") kerberos.warnings
+          ++ map (w: "warning: ${w}") (
+            builtins.filter (w: !(acknowledged w)) kerberos.warnings
+          )
+          ++ map (
+            a: "stale acknowledgement, upstream fixed ${a.match}, drop it from flake.nix: ${a.reason}"
+          )
+          staleAcknowledgements
           ++ map (n: "no aarch64-linux build: ${n}") (
             unavailable kerberos.home-manager.users.potb.home.packages
             ++ unavailable kerberos.environment.systemPackages
