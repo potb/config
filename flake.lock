@@ -893,6 +893,22 @@
         "type": "github"
       }
     },
+    "jcode": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789615955,
+        "narHash": "sha256-f7cN6vxZCtoacaTOJ9QSb4LODXf1qJU9R7wj8oSq6ho=",
+        "owner": "1jehuang",
+        "repo": "jcode",
+        "rev": "0735c75317e644ecb440e0c3dddb7a6b3cd0d8bf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "1jehuang",
+        "repo": "jcode",
+        "type": "github"
+      }
+    },
     "nh": {
       "inputs": {
         "nixpkgs": [
@@ -1316,6 +1332,7 @@
         "homebrew-cask": "homebrew-cask",
         "homebrew-core": "homebrew-core",
         "hy3": "hy3",
+        "jcode": "jcode",
         "nh": "nh",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",

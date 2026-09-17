@@ -59,6 +59,8 @@
   in {
     # Overwrites only while the target still matches what was seeded last time.
     # Once edited, the live file wins and the nix version lands in <file>.nix-new.
+    home.packages = [pkgs.jcode];
+
     home.activation.seedJcodeFiles = lib.hm.dag.entryAfter ["writeBoundary"] ''
       seed_jcode_file() {
         dest="$HOME/$1"
