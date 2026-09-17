@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+event="${JCODE_HOOK_EVENT:-}"
+[ -n "$event" ] || exit 0
+
+payload=""
+if [ "$event" = "pre_tool" ]; then
+  payload=$(cat)
+fi
+
+run_child() {
+  child="$1"
+  [ -x "$child" ] || return 0
+
+  if [ "$event" = "pre_tool" ]; then
+    err=$(printf '%s' "$payload" | "$child" 2>&1 >/dev/null)
+    status=$?
+    if [ "$status" -eq 2 ]; then
+      printf '%s\n' "$err" >&2
+      exit 2
+    fi
+    return 0
+  fi
+
+  "$child" </dev/null >/dev/null 2>&1 &
+  return 0
+}
+
+run_tree() {
+  root="$1"
+  run_child "$root/$event"
+
+  if [ -d "$root/$event.d" ]; then
+    for child in "$root/$event.d"/*; do
+      run_child "$child"
+    done
+  fi
+}
+
+run_tree "${JCODE_HOOK_GLOBAL_DIR:-$HOME/.jcode/hooks/global}"
+
+cwd="${JCODE_HOOK_CWD:-}"
+if [ -n "$cwd" ] && [ -d "$cwd/.jcode/hooks" ]; then
+  run_tree "$cwd/.jcode/hooks"
+fi
+
+exit 0

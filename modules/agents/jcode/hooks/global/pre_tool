@@ -23,14 +23,15 @@ SLASH_STAR = {
 HASH = {
     "py", "rb", "sh", "bash", "zsh", "fish", "pl", "pm", "r", "jl", "nix", "tf",
     "toml", "yaml", "yml", "ini", "cfg", "conf", "just", "mk", "dockerfile",
-    "gitignore", "env",
+    "env",
 }
 
 DIRECTIVE = re.compile(
     r"^(?:@|#!)|^(?:type:|noqa|pyright:|ruff:|mypy:|pylint:|flake8:|pyre:|pytype:"
     r"|eslint-|prettier-ignore|ts-ignore|ts-expect-error|biome-ignore|clippy:"
     r"|rustfmt:|safety:|cbindgen:|codegen|nolint|go:|#\[|shellcheck|nosec"
-    r"|allow\(|deny\(|warn\(|forbid\(|region\b|endregion\b|language=|istanbul )",
+    r"|allow\(|deny\(|warn\(|forbid\(|region\b|endregion\b|language=|istanbul "
+    r"|c8 ignore|v8 ignore)",
     re.IGNORECASE,
 )
 BDD = re.compile(r"^(given|when|then|arrange|act|assert|when ?& ?then)\b[:.]?$", re.IGNORECASE)
