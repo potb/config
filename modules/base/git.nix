@@ -9,7 +9,26 @@
   home = {
     programs.git = {
       enable = true;
-      includes = [{path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}];
+      includes = [
+        {path = "${inputs.catppuccin-delta}/themes/latte.gitconfig";}
+        {
+          condition = "gitdir:~/projects/github/nixpkgs/";
+          contents = {
+            gc = {
+              reflogExpire = "now";
+              reflogExpireUnreachable = "now";
+              pruneExpire = "now";
+              auto = 256;
+            };
+            maintenance.auto = false;
+            fetch.negotiationAlgorithm = "skipping";
+            pack.useSparse = true;
+            index.version = 4;
+            feature.manyFiles = true;
+            core.untrackedCache = true;
+          };
+        }
+      ];
 
       # Global activator for mergiraf: only this attribute references the
       # `merge "mergiraf"` driver defined in settings below. Process-affecting
@@ -24,6 +43,8 @@
         };
 
         init.defaultBranch = "main";
+
+        alias.shallow-sync = ''!f(){ git fetch --depth=1 origin "''${1:-$(git symbolic-ref --short HEAD)}" && git reset --hard FETCH_HEAD && git reflog expire --expire=now --all && git gc --prune=now --quiet; }; f'';
 
         # ── Tier 0 — stacked-PR survival kit ────────────────────────────
         rebase = {
