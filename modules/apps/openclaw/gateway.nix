@@ -77,13 +77,6 @@ in {
             skipBootstrap = true;
             contextInjection = "continuation-skip";
 
-            memorySearch = {
-              enabled = true;
-              provider = "openrouter-embeddings";
-              model = "voyageai/voyage-4-lite";
-              sync.intervalMinutes = 60;
-            };
-
             sandbox.mode = "off";
           };
         };
@@ -146,11 +139,14 @@ in {
           profiles.neko = {
             cdpUrl = "ws://127.0.0.1:9222";
             attachOnly = true;
-            color = "#d84a31";
           };
         };
 
-        memory.backend = "builtin";
+        memory.search = {
+          enabled = true;
+          provider = "openrouter-embeddings";
+          model = "voyageai/voyage-4-lite";
+        };
 
         models.providers.openrouter-embeddings = {
           api = "openai-completions";
