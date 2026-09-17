@@ -17,6 +17,19 @@
     jcode-setup-hints = ["assets/app-icons"];
   };
 
+  extraAttrsFor = {
+    jcode = {
+      crateBin = [
+        {
+          name = "jcode";
+          path = "src/main.rs";
+          requiredFeatures = [];
+        }
+      ];
+      extraRustcOpts = rustcOpts ++ ["-C strip=symbols"];
+    };
+  };
+
   extraEnvFor = {
     jcode-build-meta = {
       JCODE_BUILD_GIT_HASH = "nix";
@@ -49,7 +62,8 @@
       workspace_member = memberDir crate;
     }
     // tuning
-    // extraEnvFor.${crate} or {};
+    // extraEnvFor.${crate} or {}
+    // extraAttrsFor.${crate} or {};
 
   workspaceOverrides =
     lib.genAttrs workspaceCrates workspaceCrateOverride;
