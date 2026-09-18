@@ -4,20 +4,14 @@
   pkgs,
   ...
 }: let
+  features = import ../../shared/nix-features.nix;
   flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
   nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
 in {
   nixos = {
     nix = {
       settings = {
-        experimental-features = [
-          "nix-command"
-          "flakes"
-          "pipe-operators"
-          "ca-derivations"
-          "dynamic-derivations"
-          "recursive-nix"
-        ];
+        experimental-features = features.base ++ features.dynamic;
         system-features = [
           "benchmark"
           "big-parallel"
@@ -73,11 +67,7 @@ in {
       enable = true;
       nixosVmBasedLinuxBuilder.enable = true;
       customSettings = {
-        extra-experimental-features = [
-          "nix-command"
-          "flakes"
-          "pipe-operators"
-        ];
+        extra-experimental-features = features.base;
         trusted-users = [
           "root"
           "@admin"

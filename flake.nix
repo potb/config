@@ -98,6 +98,11 @@
       flake = false;
     };
 
+    drowse = {
+      url = "github:figsoda/drowse";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     tsm-app = {
       url = "github:exceptionptr/tsm-app-linux/v1.1.15";
       flake = false;
@@ -548,7 +553,7 @@
         }
         ''
           cd ${self}
-          deadnix --fail --no-lambda-pattern-names --no-lambda-arg --exclude pkgs/jcode/Cargo.nix
+          deadnix --fail --no-lambda-pattern-names --no-lambda-arg
           touch $out
         '';
 

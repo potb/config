@@ -8,6 +8,7 @@
   jcode = final.callPackage ../pkgs/jcode/package.nix {
     pkgs = final;
     src = inputs.jcode;
+    drowse = inputs.drowse.lib.${final.stdenv.hostPlatform.system};
   };
   tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {
     src = inputs.tsm-app;
