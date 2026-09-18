@@ -97,11 +97,6 @@ jobs:
             keep-env-derivations = true
             keep-outputs = true
             extra-experimental-features = pipe-operators
-      - uses: cachix/cachix-action@v16
-        with:
-          name: potb
-          authToken: ${{ secrets.CACHIX_TOKEN }}
-          pushFilter: '-source(?:-|$)'
       - name: Build configuration
         run: nix build .#${{ matrix.attribute }}
       - name: Run flake checks
