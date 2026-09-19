@@ -9,7 +9,7 @@
 }: let
   features = import ../../shared/nix-features.nix;
 
-  version = "0.84.0";
+  version = (builtins.fromTOML (builtins.readFile (src + "/Cargo.toml"))).package.version;
   name = "jcode-${version}";
 
   requiredFeatures = ["ca-derivations" "dynamic-derivations" "recursive-nix"];
