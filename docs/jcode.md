@@ -91,10 +91,28 @@ The package refuses to evaluate rather than fail in a confusing way later.
 
 `shared/nix-features.nix` is the single declaration of the experimental
 features this configuration enables. `modules/base/nix.nix` writes them into
-`nix.settings.experimental-features`, and `package.nix` asserts that
+`nix.settings.experimental-features` on nixos and into
+`determinateNix.customSettings.extra-experimental-features` on darwin, and
+`package.nix` asserts that
 `ca-derivations`, `dynamic-derivations`, and `recursive-nix` are all still
 there. Removing one from that file fails evaluation with a message naming the
 missing feature, instead of producing a daemon that cannot build this package.
+
+Both platforms need the full `base ++ dynamic` set, not just `base`. Darwin
+writes `/etc/nix/nix.custom.conf` through the determinate module, which is a
+different option than the nixos `nix.settings` path, so the two lists have to be
+kept in step deliberately. When darwin was left on `base` alone,
+`builtins.outputOf` was missing from `builtins` and every evaluation of the
+darwin system failed in `pkgs/jcode/package.nix` with `attribute 'outputOf'
+missing`. The daemon also needs `recursive-nix` in `system-features` before it
+will schedule the generator build locally.
+
+Darwin also sets `lazy-trees = false`, which Determinate Nix otherwise defaults
+to true. The drowse generator calls `builtins.appendContext` on a flake input
+path through its `__pathToString` helper, and under lazy trees that path is
+never realised in the store, so evaluation fails with `path '...-source' is
+required, but there is no substituter that can build it`. The setting is scoped
+to darwin because only Determinate ships that default.
 
 Two version bounds:
 

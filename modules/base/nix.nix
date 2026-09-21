@@ -67,7 +67,15 @@ in {
       enable = true;
       nixosVmBasedLinuxBuilder.enable = true;
       customSettings = {
-        extra-experimental-features = features.base;
+        extra-experimental-features = features.base ++ features.dynamic;
+        lazy-trees = false;
+        system-features = [
+          "apple-virt"
+          "benchmark"
+          "big-parallel"
+          "nixos-test"
+          "recursive-nix"
+        ];
         trusted-users = [
           "root"
           "@admin"
