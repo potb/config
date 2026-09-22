@@ -181,5 +181,15 @@
     xdg.configFile."environment.d/90-user-path.conf".text = ''
       PATH=$HOME/.local/bin:$HOME/.cargo/bin:$PATH
     '';
+
+    xdg.configFile."environment.d/90-jcode-no-update.conf".text = ''
+      JCODE_CHECK_UPDATES=false
+      JCODE_NO_AUTO_UPDATE=1
+    '';
+
+    home.sessionVariables = {
+      JCODE_CHECK_UPDATES = "false";
+      JCODE_NO_AUTO_UPDATE = "1";
+    };
   };
 }

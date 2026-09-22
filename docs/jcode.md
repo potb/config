@@ -265,6 +265,41 @@ only known after the generator is realised, so another machine cannot
 substitute it by path from an evaluation alone. With one machine per
 architecture this costs nothing.
 
+## Update checks are off
+
+A nix-built jcode is not a release build: nothing sets `JCODE_RELEASE_BUILD`,
+and `jcode-build-meta` derives no release semver from the pinned
+`JCODE_BUILD_GIT_*` values, so `is_release_build()` is false. The background
+update check in `src/cli/startup.rs` therefore takes its source-build branch,
+which asks `hot_exec::check_for_updates()` to compare a jcode git checkout
+against its upstream. There is no checkout: the binary lives in the store, and
+`get_repo_dir()` finds nothing from `JCODE_REPO_DIR`, the executable's
+ancestors, or the working directory. The check returns `None`, which the TUI
+renders as:
+
+> Source update check failed: unable to compare the source checkout with its
+> upstream. The repository or upstream may be unavailable, or git fetch may
+> have failed.
+
+Nothing was broken; this configuration simply has no use for the check, since
+the binary only changes when `flake.lock` does. `modules/agents/jcode.nix`
+turns it off with two environment variables rather than a config file, so the
+setting cannot be lost to a live edit of `~/.jcode/config.toml`:
+
+- `JCODE_CHECK_UPDATES=false` overrides `features.check_updates`, which is what
+  gates the background check.
+- `JCODE_NO_AUTO_UPDATE=1` covers `update::should_auto_update()`, the
+  release-channel installer path, in case a release build ever runs here.
+
+Both are set twice on purpose. `home.sessionVariables` reaches interactive
+shells, and an `environment.d` file reaches the systemd user manager, which
+does not read shell profiles. Running jcode from one of the agent's own
+scheduled jobs inherits the latter.
+
+Setting `check_updates = false` in `~/.jcode/config.toml` has the same effect
+for shell-launched sessions. It is not used here because that file is seeded,
+not managed, so an edit through the UI would silently win.
+
 ## Updating
 
 Bumping the input to a newer upstream master is the whole procedure:
