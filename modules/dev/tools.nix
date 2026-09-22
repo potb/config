@@ -47,7 +47,7 @@
         ffmpeg
 
         ast-grep
-        (d2.override {withImageSupport = false;})
+        d2
         shellcheck
         shfmt
         tectonic
