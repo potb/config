@@ -20,6 +20,44 @@
     "USER.md"
     "TOOLS.md"
   ];
+
+  gatewayPackage = config.services.openclaw-gateway.package;
+
+  runtimeConfigDir = "/var/lib/openclaw/config";
+  runtimeConfigPath = "${runtimeConfigDir}/openclaw.json";
+  agentOwnedSections = [
+    "mcp"
+    "skills"
+  ];
+
+  migrateStateBeforeStart = pkgs.writeShellScript "openclaw-state-migrate" ''
+    set -u
+    state=/var/lib/openclaw
+    work=$state/doctor
+    want="${gatewayPackage} $(${pkgs.coreutils}/bin/sha256sum < /etc/openclaw/openclaw.json)"
+
+    if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" = "$want" ]; then
+      exit 0
+    fi
+
+    ${pkgs.coreutils}/bin/mkdir -p "$work"
+    ${pkgs.gnutar}/bin/tar -C "$state" \
+      --use-compress-program=${pkgs.gzip}/bin/gzip \
+      -cf "$work/pre-migrate.tgz" state agents/main/agent || true
+    ${pkgs.jq}/bin/jq 'del(.[] | select(type == "object" and has("$include")))' \
+      /etc/openclaw/openclaw.json > "$work/openclaw.json"
+    ${pkgs.coreutils}/bin/chmod 0600 "$work/openclaw.json"
+
+    if OPENCLAW_NIX_MODE=0 \
+      OPENCLAW_SERVICE_REPAIR_POLICY=external \
+      OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+      ${gatewayPackage}/bin/openclaw doctor --fix --non-interactive; then
+      echo "$want" > "$work/stamp"
+    else
+      echo "openclaw-state-migrate: doctor --fix failed, starting the gateway anyway" >&2
+    fi
+    exit 0
+  '';
 in {
   nixos = {
     services.openclaw-gateway = {
@@ -32,10 +70,16 @@ in {
 
       environmentFiles = [config.sops.secrets.openclaw-env.path];
 
+      execStartPre = ["${migrateStateBeforeStart}"];
+
       environment = {
         OPENCLAW_NO_RESPAWN = "1";
         NODE_COMPILE_CACHE = "/var/lib/openclaw/compile-cache";
         OPENCLAW_WORKSPACE_DIR = workspace;
+        OPENCLAW_CONFIG_PATH = lib.mkForce runtimeConfigPath;
+        CLAWDBOT_CONFIG_PATH = lib.mkForce runtimeConfigPath;
+        OPENCLAW_NIX_MODE = "0";
+        OPENCLAW_NO_AUTO_UPDATE = "1";
       };
 
       servicePath = with pkgs; [
@@ -59,10 +103,13 @@ in {
           auth = {
             mode = "token";
             token = "\${OPENCLAW_GATEWAY_TOKEN}";
-            allowTailscale = true;
           };
 
-          tailscale.mode = "serve";
+          tailscale.mode = "off";
+          trustedProxies = [
+            "127.0.0.1"
+            "::1"
+          ];
 
           controlUi = {
             enabled = true;
@@ -72,7 +119,10 @@ in {
         agents = {
           defaults = {
             inherit workspace;
-            model = "openrouter/deepseek/deepseek-v4.1-flash";
+            model = {
+              primary = "openrouter/deepseek/deepseek-v4.1-flash";
+              fallbacks = ["openrouter/google/gemini-3.5-flash-lite"];
+            };
             userTimezone = "Europe/Paris";
             skipBootstrap = true;
             contextInjection = "continuation-skip";
@@ -109,6 +159,16 @@ in {
             };
           };
         };
+
+        commands.ownerAllowFrom = ["discord:104696030611673088"];
+
+        update = {
+          checkOnStart = false;
+          auto.enabled = false;
+        };
+
+        mcp."$include" = "./mcp.json5";
+        skills."$include" = "./skills.json5";
 
         session.threadBindings = {
           enabled = true;
@@ -224,12 +284,13 @@ in {
       CapabilityBoundingSet = "";
       AmbientCapabilities = "";
       UMask = "0077";
-      TimeoutStartSec = "90";
+      TimeoutStartSec = "300";
       ReadWritePaths = [
         "/var/lib/openclaw"
       ];
       BindReadOnlyPaths =
-        map (
+        ["/etc/openclaw/openclaw.json:${runtimeConfigPath}"]
+        ++ map (
           name: "${config.sops.secrets."workspace/${name}".path}:${workspace}/${name}"
         )
         bootstrapFiles;
@@ -241,7 +302,13 @@ in {
         "d /var/lib/openclaw/compile-cache 0750 openclaw openclaw - -"
         "d ${workspace} 0750 openclaw openclaw - -"
         "d ${workspace}/memory 0750 openclaw openclaw - -"
+        "d ${runtimeConfigDir} 0700 openclaw openclaw - -"
+        "f ${runtimeConfigPath} 0400 openclaw openclaw - -"
       ]
+      ++ map (
+        section: "f ${runtimeConfigDir}/${section}.json5 0600 openclaw openclaw - {}"
+      )
+      agentOwnedSections
       ++ lib.concatMap (name: [
         "r ${workspace}/${name} - - - - -"
         "f ${workspace}/${name} 0440 openclaw openclaw - -"
