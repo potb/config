@@ -4,16 +4,20 @@
   pkgs,
   ...
 }: let
+  features = import ../../shared/nix-features.nix;
   flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
   nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
 in {
   nixos = {
     nix = {
       settings = {
-        experimental-features = [
-          "nix-command"
-          "flakes"
-          "pipe-operators"
+        experimental-features = features.base ++ features.dynamic;
+        system-features = [
+          "benchmark"
+          "big-parallel"
+          "kvm"
+          "nixos-test"
+          "recursive-nix"
         ];
         warn-dirty = false;
 
@@ -33,13 +37,11 @@ in {
 
         substituters = [
           "https://cache.nixos.org"
-          "https://potb.cachix.org"
           "https://hyprland.cachix.org"
         ];
 
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "potb.cachix.org-1:byvGn6qmFOaccjc7kbUMNKLJaCyn/B8HqGNG4gxI6P0="
           "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
         ];
         builders-use-substitutes = true;
@@ -65,10 +67,14 @@ in {
       enable = true;
       nixosVmBasedLinuxBuilder.enable = true;
       customSettings = {
-        extra-experimental-features = [
-          "nix-command"
-          "flakes"
-          "pipe-operators"
+        extra-experimental-features = features.base ++ features.dynamic;
+        lazy-trees = false;
+        system-features = [
+          "apple-virt"
+          "benchmark"
+          "big-parallel"
+          "nixos-test"
+          "recursive-nix"
         ];
         trusted-users = [
           "root"

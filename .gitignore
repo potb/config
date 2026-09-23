@@ -27,4 +27,5 @@ docs/*
 !docs/new-horizons.md
 !docs/kerberos.md
 !docs/upstream-warnings.md
+!docs/jcode.md
 *.log

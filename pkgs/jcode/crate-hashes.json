@@ -1,0 +1,4 @@
+{
+  "git+https://github.com/1jehuang/agentgrep.git?tag=v0.1.6#agentgrep@0.1.6": "0i9xxsv60xd0wgi47njpvkzvp4jy83cjwil63m9ljwbshvcyq4n8",
+  "git+https://github.com/1jehuang/mermaid-rs-renderer.git?tag=v0.3.1#mermaid-rs-renderer@0.3.1": "1nsbw3kkfchsb10ki92bjq1b764lj8m3xf5z7w7x1xbmybb23sdr"
+}

@@ -8,7 +8,7 @@ Personal NixOS and nix-darwin configuration for my machines.
 |------|--------|-------------|
 | `charon` | x86_64-linux | NixOS workstation |
 | `kerberos` | aarch64-linux | NixOS on Asahi, MacBook Pro M1 Pro, see [docs/kerberos.md](docs/kerberos.md) |
-| `nyx` | aarch64-darwin | macOS (Apple Silicon) |
+| `nyx` | aarch64-darwin | macOS (Apple Silicon), keyboard see [docs/nyx-keyboard.md](docs/nyx-keyboard.md) |
 | `new-horizons` | x86_64-linux | NixOS server, see [docs/new-horizons.md](docs/new-horizons.md) |
 
 ## Usage

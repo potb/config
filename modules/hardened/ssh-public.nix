@@ -25,7 +25,7 @@ in {
       ];
     };
 
-    users.users.potb.openssh.authorizedKeys.keys = [keys.nyx];
+    users.users.potb.openssh.authorizedKeys.keys = [keys.nyx keys.charon];
     users.users.root.openssh.authorizedKeys.keys = lib.mkForce [];
   };
 

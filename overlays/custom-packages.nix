@@ -5,6 +5,12 @@
   agent-browser = final.callPackage ../pkgs/agent-browser/package.nix {
     src = inputs.agent-browser;
   };
+  jcode = final.callPackage ../pkgs/jcode/package.nix {
+    pkgs = final;
+    src = inputs.jcode;
+    patches = [../pkgs/jcode/no-macos-option-char-shortcuts.patch];
+    drowse = inputs.drowse.lib.${final.stdenv.hostPlatform.system};
+  };
   tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {
     src = inputs.tsm-app;
     version = "1.1.15";

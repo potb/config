@@ -5,6 +5,12 @@
   darwin = {};
 
   home = {
+    darwin = {lib, ...}: {
+      home.activation.reloadGhosttyConfig = lib.hm.dag.entryAfter ["linkGeneration"] ''
+        run /usr/bin/pkill -USR2 -x ghostty || true
+      '';
+    };
+
     programs.ghostty = {
       enable = true;
       settings = {
@@ -19,6 +25,8 @@
         # On macOS Ghostty keeps running after the last window closes. Quit
         # with the last window instead, like on Linux.
         quit-after-last-window-closed = true;
+
+        macos-option-as-alt = "left";
 
         # Ghostty renders SGR 2 (faint) by blending the glyph toward the
         # background, which washes out styles like Starship's "green dimmed
