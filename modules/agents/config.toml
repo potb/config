@@ -10,6 +10,10 @@ scroll_down = "ctrl+shift+j"
 scroll_prompt_up = "ctrl+k"
 scroll_prompt_down = "ctrl+j"
 
+[display]
+show_thinking = false
+reasoning_display = "hidden"
+
 [tools]
 disabled = ["browser"]
 
