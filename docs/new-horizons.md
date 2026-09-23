@@ -388,6 +388,13 @@ which is `commands.ownerAllowFrom`. Turns the gateway starts on its own, such
 as the heartbeat, run without them, so a scheduled job has to be created from
 a message sent by that account.
 
+From a Discord turn the agent sees only the automations it created from that
+same conversation. A job created with `openclaw automations add` on the host
+is operator-owned: it runs and delivers normally, but the agent's list comes
+back with `scope: "caller"` and leaves it out, so asking hal for its jobs
+looks as if nothing is scheduled. Manage those from the CLI or the Control UI
+Automations page, whose administrator turns see the whole Gateway.
+
 `nix flake check` validates the generated OpenClaw config against the gateway's
 own JSON schema, which catches unknown keys, missing required keys and bad enum
 values before they reach the server. The schema is committed at
