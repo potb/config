@@ -300,6 +300,18 @@ Setting `check_updates = false` in `~/.jcode/config.toml` has the same effect
 for shell-launched sessions. It is not used here because that file is seeded,
 not managed, so an edit through the UI would silently win.
 
+## MCP servers and secrets
+
+`modules/agents/jcode/mcp.json` is seeded into `~/.jcode/mcp.json` like the
+rest of the seed tree. It holds no secrets. The Exa server reads its API key
+at launch from `~/.config/sops-nix/secrets/exa-api-key`, which the Home
+Manager sops module decrypts from `secrets/jcode.yaml` on every activation.
+
+The recipients of `secrets/jcode.yaml` are the admin age key plus each
+machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
+converted with `ssh-to-age`. A new machine needs its key added to
+`.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
+
 ## Updating
 
 Bumping the input to a newer upstream master is the whole procedure:

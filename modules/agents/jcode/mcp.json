@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "linear": {
+      "command": "/etc/profiles/per-user/potb/bin/bunx",
+      "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+    },
+    "exa": {
+      "command": "/bin/sh",
+      "args": [
+        "-c",
+        "exec /etc/profiles/per-user/potb/bin/bunx -y mcp-remote 'https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa,agent_run' --header \"x-api-key:$(cat \"$HOME/.config/sops-nix/secrets/exa-api-key\")\""
+      ]
+    }
+  }
+}

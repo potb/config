@@ -380,6 +380,7 @@
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [
                 inputs.nixvim.homeModules.nixvim
+                inputs.sops-nix.homeManagerModules.sops
               ];
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.backupFileExtension = "backup";

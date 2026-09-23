@@ -8,6 +8,7 @@
   darwin = {};
 
   home = {
+    config,
     lib,
     pkgs,
     ...
@@ -51,6 +52,12 @@
     # Overwrites only while the target still matches what was seeded last time.
     # Once edited, the live file wins and the nix version lands in <file>.nix-new.
     home.packages = [pkgs.jcode];
+
+    sops = {
+      defaultSopsFile = ../../secrets/jcode.yaml;
+      age.sshKeyPaths = ["${config.home.homeDirectory}/.ssh/id_ed25519"];
+      secrets.exa-api-key = {};
+    };
 
     home.activation.seedJcodeFiles = lib.hm.dag.entryAfter ["writeBoundary"] ''
       seed_jcode_file() {

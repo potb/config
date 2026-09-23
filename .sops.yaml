@@ -1,8 +1,19 @@
 keys:
   - &admin age1hffk96lguzulkcv26jrguu63ayg0nfrgm34cdxfrsyvg5zqc6vgqj6j0vv
   - &new-horizons age1cejzue6krmyzz9y2w42da2wn5cnryhytkf327pzcmzrkqt32dvkqtzugmv
+  - &potb-charon age1ahdjp8nafcmrmky4etpdfeymf6adk033yhyp07gfahhe9f09hgrq7kspvf
+  - &potb-nyx age1zmu0wz0tphxm0q49aexuxthf5u5e5q3dauscuwecr9qp852epq2q9ptu37
+  - &potb-kerberos age1m56zthy8d4a49fe943eu56mj6npgw7y2w98y5lgd0yyec0k2rspsguh5xv
 
 creation_rules:
+  - path_regex: secrets/jcode\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *potb-charon
+          - *potb-nyx
+          - *potb-kerberos
+
   - path_regex: secrets/workspace/[^/]+\.md$
     key_groups:
       - age:
