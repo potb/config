@@ -219,10 +219,14 @@ roles or its webhooks.
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
 
-The Control UI opens from any tailnet device without a token, because Serve
-authenticates it with tailnet identity headers. The HTTP API is separate and
-still demands the token, which is `OPENCLAW_GATEWAY_TOKEN` in `openclaw-env`:
-requests to `/api/*` answer `401` without it even from inside the tailnet.
+The Control UI opens from any tailnet device with the gateway token,
+`OPENCLAW_GATEWAY_TOKEN` in `openclaw-env`. The gateway used to claim the
+Serve route itself and accept tailnet identity headers instead of a token,
+but since 2026.9 that claim is a hard startup requirement and the service user
+can neither run `tailscale serve` nor reach sudo, so the gateway could not
+start at all. `tailscale-serve` owns every route now, `gateway.tailscale.mode`
+is `off`, and loopback is a trusted proxy so forwarded client addresses are
+still honoured. Requests to `/api/*` answer `401` without the token.
 
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
 80 from the tailnet. Media rides a single TCP port, 52100, also published
@@ -343,6 +347,46 @@ ssh potb@185.163.119.202
 cd /tmp/cfg && git pull
 sudo nixos-rebuild switch --flake .#new-horizons
 ```
+
+## What the agent owns
+
+Nix owns the package, the unit and the base config in
+`/etc/openclaw/openclaw.json`. The agent owns everything under
+`/var/lib/openclaw`: its databases, sessions, memory and cron jobs, plus two
+config sections it can edit at runtime, `mcp` and `skills`.
+
+The gateway does not read `/etc` directly. That file is bind-mounted read-only
+over `/var/lib/openclaw/config/openclaw.json`, and its `mcp` and `skills`
+sections are `$include`s of `mcp.json5` and `skills.json5` in the same
+directory, which belong to the `openclaw` user. When the agent (or `/config`,
+`/mcp`) changes a key inside one of those sections, OpenClaw writes through to
+the included file and leaves the base untouched. A change to any other key
+fails with `EBUSY` on the rename over the bind mount, so the base stays
+exactly what Nix built. To hand another section to the agent, add it to
+`agentOwnedSections` and give it an `$include` in the config.
+
+This needs `OPENCLAW_NIX_MODE=0` in the unit: Nix mode refuses every config
+write before it looks at includes, even ones that would land in the agent's
+own files. The package wrapper sets it to `1` by default, the unit overrides
+it. What Nix mode also blocked is disabled by config instead: update checks
+and auto-updates are off, so the package still only changes through a
+rebuild. Do not set any key in Nix that lives inside an agent-owned section:
+a sibling key next to an `$include` overrides the included value.
+
+Schema migrations run from `ExecStartPre` rather than by hand. An upgrade can
+move the state databases to a newer schema, and the gateway then refuses to
+start (`status=78/CONFIG`, `gateway.maintenance_required`) until
+`openclaw doctor --fix` migrates them. The pre-start script runs doctor once
+per package and config generation, against a disposable copy of the config in
+`/var/lib/openclaw/doctor`, after writing `pre-migrate.tgz` of the databases
+next to it. Delete `doctor/stamp` to force it to run again. A failed doctor
+run does not block the start; the gateway then prints the real error in
+`/var/lib/openclaw/logs/gateway.log`.
+
+Owner-only tools (`cron`, `gateway`, `nodes`) follow the turn's requester,
+which is `commands.ownerAllowFrom`. Turns the gateway starts on its own, such
+as the heartbeat, run without them, so a scheduled job has to be created from
+a message sent by that account.
 
 `nix flake check` validates the generated OpenClaw config against the gateway's
 own JSON schema, which catches unknown keys, missing required keys and bad enum

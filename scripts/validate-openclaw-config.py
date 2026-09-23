@@ -23,6 +23,9 @@ def check(node, sch, path, errors):
 
         for key, value in node.items():
             here = f"{path}.{key}" if path else key
+
+            if key == "$include":
+                continue
             sub = props.get(key) or (extra if isinstance(extra, dict) else None)
 
             if sub is None:
