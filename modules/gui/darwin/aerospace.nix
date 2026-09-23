@@ -72,9 +72,48 @@
     "Left option drives AeroSpace, right option keeps typing qwerty-fr"
   ];
 
+  terminalAltVariable = "right_command_is_terminal_alt";
+
+  terminalBundleIdentifiers = ["^com\\.mitchellh\\.ghostty$"];
+
   karabinerRule = pkgs.writeText "aerospace.json" (builtins.toJSON {
     title = "AeroSpace";
     rules = [
+      {
+        description = "Right command is a plain alt in the terminal, never an AeroSpace chord or an accent";
+        manipulators = [
+          {
+            type = "basic";
+            from = {
+              key_code = "right_command";
+              modifiers.optional = ["any"];
+            };
+            to = [
+              {
+                set_variable = {
+                  name = terminalAltVariable;
+                  value = 1;
+                };
+              }
+              {key_code = "left_option";}
+            ];
+            to_after_key_up = [
+              {
+                set_variable = {
+                  name = terminalAltVariable;
+                  value = 0;
+                };
+              }
+            ];
+            conditions = [
+              {
+                type = "frontmost_application_if";
+                bundle_identifiers = terminalBundleIdentifiers;
+              }
+            ];
+          }
+        ];
+      }
       {
         description = "Left option plus an AeroSpace key sends the AeroSpace chord, right option keeps typing qwerty-fr";
         manipulators =
@@ -93,6 +132,13 @@
               {
                 key_code = code;
                 modifiers = chordModifiers;
+              }
+            ];
+            conditions = [
+              {
+                type = "variable_unless";
+                name = terminalAltVariable;
+                value = 1;
               }
             ];
           })
