@@ -31,11 +31,29 @@
     # ~/.jcode/skills/<name> by hand when retiring a skill.
     seedRoot = ./jcode;
 
-    seedFiles = lib.listToAttrs (map (path: let
-      rel = lib.removePrefix "${toString seedRoot}/" (toString path);
-    in
-      lib.nameValuePair ".jcode/${rel}" path)
-    (lib.filesystem.listFilesRecursive seedRoot));
+    linuxMcpServers = {
+      computer-use = {
+        command = "/etc/profiles/per-user/potb/bin/computer-use-linux";
+        args = ["mcp"];
+        env.YDOTOOL_SOCKET = "/run/ydotoold/socket";
+      };
+    };
+
+    sharedMcp = lib.importJSON (seedRoot + "/mcp.json");
+
+    mcpJson = pkgs.writeText "mcp.json" (builtins.toJSON (
+      if pkgs.stdenv.hostPlatform.isLinux
+      then sharedMcp // {mcpServers = sharedMcp.mcpServers // linuxMcpServers;}
+      else sharedMcp
+    ));
+
+    seedFiles =
+      lib.listToAttrs (map (path: let
+        rel = lib.removePrefix "${toString seedRoot}/" (toString path);
+      in
+        lib.nameValuePair ".jcode/${rel}" path)
+      (lib.filesystem.listFilesRecursive seedRoot))
+      // {".jcode/mcp.json" = mcpJson;};
 
     # Hooks are spawned by jcode as programs rather than sourced, so they need
     # the exec bit the default 0644 seed mode would strip.

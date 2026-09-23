@@ -312,6 +312,50 @@ machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
 converted with `ssh-to-age`. A new machine needs its key added to
 `.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
 
+## Computer use on Linux
+
+jcode ships desktop control only for macOS (`macos_computer_use`). Linux
+machines get it from
+[computer-use-linux](https://github.com/agent-sh/computer-use-linux), packaged
+in `pkgs/computer-use-linux` and enabled by `modules/agents/linux/computer-use.nix`.
+The seeded `mcp.json` is generated rather than copied: on Linux the
+`computer-use` server is merged into the shared file, so nyx never tries to
+launch a binary it cannot run.
+
+It was picked over cua-driver, zavora-ai/computer-use-mcp and da-mcp because
+it is the only one whose pointer is exact on Hyprland without an experimental
+compositor plugin, and it still covers GNOME, KDE, i3, COSMIC and X11.
+
+How each capability is served on Hyprland:
+
+| Capability | Backend | Needs |
+| ---------- | ------- | ----- |
+| Screenshots | XDG screenshot portal (grim) | a normal login session |
+| Windows | `hyprctl` | nothing extra |
+| Clicks, drags | its own absolute uinput pointer | `uinput` group |
+| Typing, Unicode | `wtype` virtual keyboard | nothing extra |
+| Key chords, scroll | `ydotoold` | `ydotool` group |
+| Semantic clicks | AT-SPI | `services.gnome.at-spi2-core` |
+
+The package wrapper suffixes `hyprctl`, `wtype`, `ydotool` and `grim` onto
+`PATH`, and the MCP entry pins `YDOTOOL_SOCKET` to the NixOS daemon's socket.
+
+Traps:
+
+- Group changes need a fresh login. Borrowing a group with `sg` is not a
+  substitute: the portal rejects screenshots from that subshell, and the
+  absolute pointer, which sizes itself from a screenshot, then silently falls
+  back to `ydotool`.
+- With at-spi2-core disabled NixOS exports `GTK_A11Y=none` and
+  `NO_AT_BRIDGE=1`, and a session started before enabling it keeps them. Apps
+  launched in that session expose no accessibility tree until the next login.
+- Semantic clicks read a tree cached by `get_app_state`, so call it first in
+  the same MCP session.
+- The absolute pointer is sized once per server process. After a monitor
+  change, restart jcode (or the MCP) before clicking by coordinates.
+- Chords go through `ydotool` keycodes. On qwerty-fr, `ctrl+a` and `Return`
+  were verified; layout-dependent symbols in chords may map differently.
+
 ## Updating
 
 Bumping the input to a newer upstream master is the whole procedure:
