@@ -20,6 +20,8 @@
         # with the last window instead, like on Linux.
         quit-after-last-window-closed = true;
 
+        macos-option-as-alt = "left";
+
         # Ghostty renders SGR 2 (faint) by blending the glyph toward the
         # background, which washes out styles like Starship's "green dimmed
         # bold" hostname. Alacritty ignored faint entirely, so keep the

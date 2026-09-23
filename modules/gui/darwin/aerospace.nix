@@ -3,17 +3,21 @@
   lib,
   ...
 }: let
-  # AeroSpace matches `alt` from either option key and cannot distinguish the
-  # two (nikitabobko/AeroSpace#28), while qwerty-fr puts every accented and
-  # typographic character behind option. Binding option directly would cost
-  # the layout. Karabiner rewrites the left option key alone into the chord
-  # below, which no keyboard can produce by itself, so only that key reaches
-  # the window manager and the right one still types é.
-  leftOptionChord = {
-    key_code = "left_control";
-    modifiers = ["left_command" "left_alt"];
-  };
+  chordModifiers = ["left_control" "left_command" "left_option"];
   mod = "ctrl-cmd-alt";
+
+  karabinerKeyCodes =
+    lib.genAttrs workspaces lib.id
+    // lib.genAttrs ["p" "w" "f" "h" "v" "t" "s" "tab"] lib.id
+    // {
+      left = "left_arrow";
+      right = "right_arrow";
+      up = "up_arrow";
+      down = "down_arrow";
+      enter = "return_or_enter";
+      backspace = "delete_or_backspace";
+      space = "spacebar";
+    };
 
   workspaces = map toString (lib.range 1 9) ++ ["0"];
   workspaceBindings = lib.listToAttrs (
@@ -56,21 +60,43 @@
     "${mod}-tab" = "workspace-back-and-forth";
   };
 
+  bindings =
+    workspaceBindings
+    // focusBindings
+    // launchBindings
+    // layoutBindings;
+
+  boundKeys = lib.unique (map (binding: lib.last (lib.splitString "-" binding)) (lib.attrNames bindings));
+
+  retiredRuleDescriptions = [
+    "Left option drives AeroSpace, right option keeps typing qwerty-fr"
+  ];
+
   karabinerRule = pkgs.writeText "aerospace.json" (builtins.toJSON {
     title = "AeroSpace";
     rules = [
       {
-        description = "Left option drives AeroSpace, right option keeps typing qwerty-fr";
-        manipulators = [
-          {
+        description = "Left option plus an AeroSpace key sends the AeroSpace chord, right option keeps typing qwerty-fr";
+        manipulators =
+          map (key: let
+            code = karabinerKeyCodes.${key} or (throw "aerospace.nix: no Karabiner key code for AeroSpace key `${key}`");
+          in {
             type = "basic";
             from = {
-              key_code = "left_option";
-              modifiers.optional = ["any"];
+              key_code = code;
+              modifiers = {
+                mandatory = ["left_option"];
+                optional = ["any"];
+              };
             };
-            to = [leftOptionChord];
-          }
-        ];
+            to = [
+              {
+                key_code = code;
+                modifiers = chordModifiers;
+              }
+            ];
+          })
+          boundKeys;
       }
     ];
   });
@@ -108,11 +134,7 @@ in {
           };
         };
 
-        mode.main.binding =
-          workspaceBindings
-          // focusBindings
-          // launchBindings
-          // layoutBindings;
+        mode.main.binding = bindings;
       };
     };
 
@@ -138,6 +160,7 @@ in {
 
       config="${karabinerDir}/karabiner.json"
       rule=${karabinerRule}
+      retired='${builtins.toJSON retiredRuleDescriptions}'
 
       if [ ! -e "$config" ]; then
         ${lib.getExe pkgs.jq} -n --slurpfile rule "$rule" '{
@@ -151,12 +174,12 @@ in {
         exit 0
       fi
 
-      merged=$(${lib.getExe pkgs.jq} --slurpfile rule "$rule" '
+      merged=$(${lib.getExe pkgs.jq} --slurpfile rule "$rule" --argjson retired "$retired" '
         .profiles |= map(
           .complex_modifications.rules = (
             ((.complex_modifications.rules // []) | map(select(
               .description as $existing
-              | ($rule[0].rules | map(.description) | index($existing)) == null
+              | ($rule[0].rules | map(.description) + $retired | index($existing)) == null
             )))
             + $rule[0].rules
           )
