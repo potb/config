@@ -3,11 +3,21 @@
   pkgs,
   drowse,
   src,
+  patches ? [],
   optLevel ? 1,
   codegenUnits ? 16,
   rootFeatures ? ["pdf" "embeddings"],
 }: let
   features = import ../../shared/nix-features.nix;
+
+  patchedSrc =
+    if patches == []
+    then src
+    else
+      pkgs.applyPatches {
+        name = "jcode-source-patched";
+        inherit src patches;
+      };
 
   version = (builtins.fromTOML (builtins.readFile (src + "/Cargo.toml"))).package.version;
   name = "jcode-${version}";
@@ -33,7 +43,8 @@
   generator =
     (drowse.crate2nix {
       pname = "jcode";
-      inherit version src;
+      inherit version;
+      src = patchedSrc;
       dynamicCargoDeps = false;
       preBuild = ''
         cp ${./crate-hashes.json} crate-hashes.json

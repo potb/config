@@ -97,6 +97,7 @@
     home.sessionVariables = {
       JCODE_CHECK_UPDATES = "false";
       JCODE_NO_AUTO_UPDATE = "1";
+      JCODE_NO_MACOS_OPTION_CHAR_SHORTCUTS = "1";
     };
   };
 }
