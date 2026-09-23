@@ -34,7 +34,7 @@
     set -u
     state=/var/lib/openclaw
     work=$state/doctor
-    want="${gatewayPackage} $(${pkgs.coreutils}/bin/readlink -f /etc/openclaw/openclaw.json)"
+    want="${gatewayPackage} $(${pkgs.coreutils}/bin/sha256sum < /etc/openclaw/openclaw.json)"
 
     if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" = "$want" ]; then
       exit 0
