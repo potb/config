@@ -44,10 +44,9 @@
     ${pkgs.gnutar}/bin/tar -C "$state" \
       --use-compress-program=${pkgs.gzip}/bin/gzip \
       -cf "$work/pre-migrate.tgz" state agents/main/agent || true
-    ${pkgs.coreutils}/bin/install -m 0600 /etc/openclaw/openclaw.json "$work/openclaw.json"
-    for section in ${lib.concatStringsSep " " agentOwnedSections}; do
-      ${pkgs.coreutils}/bin/install -m 0600 "${runtimeConfigDir}/$section.json5" "$work/$section.json5" || echo '{}' > "$work/$section.json5"
-    done
+    ${pkgs.jq}/bin/jq 'del(.[] | select(type == "object" and has("$include")))' \
+      /etc/openclaw/openclaw.json > "$work/openclaw.json"
+    ${pkgs.coreutils}/bin/chmod 0600 "$work/openclaw.json"
 
     if OPENCLAW_NIX_MODE=0 \
       OPENCLAW_SERVICE_REPAIR_POLICY=external \
