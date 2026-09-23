@@ -12,7 +12,7 @@ scroll_prompt_down = "ctrl+j"
 
 [display]
 show_thinking = false
-reasoning_display = "hidden"
+reasoning_display = "off"
 
 [tools]
 disabled = ["browser"]
