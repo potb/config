@@ -5,6 +5,12 @@
   darwin = {};
 
   home = {
+    darwin = {lib, ...}: {
+      home.activation.reloadGhosttyConfig = lib.hm.dag.entryAfter ["linkGeneration"] ''
+        run /usr/bin/pkill -USR2 -x ghostty || true
+      '';
+    };
+
     programs.ghostty = {
       enable = true;
       settings = {
