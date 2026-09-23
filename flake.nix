@@ -108,6 +108,11 @@
       flake = false;
     };
 
+    computer-use-linux = {
+      url = "github:agent-sh/computer-use-linux/v0.7.1";
+      flake = false;
+    };
+
     nixos-apple-silicon = {
       url = "github:nix-community/nixos-apple-silicon/1bf1838b982768c3ece6d719f03e13b9f7408e6d";
       inputs.nixpkgs.follows = "nixpkgs";

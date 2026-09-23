@@ -155,6 +155,23 @@
         "type": "github"
       }
     },
+    "computer-use-linux": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789820587,
+        "narHash": "sha256-L+5/2NQ7urS/TvlOEZn+A3b88gGV4tLUDDQMEZ7kLCQ=",
+        "owner": "agent-sh",
+        "repo": "computer-use-linux",
+        "rev": "c35cbce61d6ff0209c14a898f422c88dcc7925f1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "agent-sh",
+        "ref": "v0.7.1",
+        "repo": "computer-use-linux",
+        "type": "github"
+      }
+    },
     "determinate": {
       "inputs": {
         "determinate-nixd-aarch64-darwin": "determinate-nixd-aarch64-darwin",
@@ -1390,6 +1407,7 @@
       "inputs": {
         "agent-browser": "agent-browser",
         "catppuccin-delta": "catppuccin-delta",
+        "computer-use-linux": "computer-use-linux",
         "determinate": "determinate",
         "disko": "disko",
         "dnscrypt-resolvers": "dnscrypt-resolvers",
