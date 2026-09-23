@@ -78,6 +78,22 @@
       ${seedScript}
     '';
 
+    # jcode rewrites config.toml at runtime, so it must be a real file owned by
+    # the user rather than a read-only store symlink. Unlike the seed tree
+    # above, the repo copy always wins: it is reinstalled on every switch.
+    # Runtime changes that differ are kept once in config.toml.bak, so copy
+    # anything worth keeping back into modules/agents/config.toml.
+    home.activation.jcodeConfig = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      dest="$HOME/.jcode/config.toml"
+      run mkdir -p "$HOME/.jcode"
+      if [ -f "$dest" ] && [ ! -L "$dest" ] \
+        && ! ${pkgs.diffutils}/bin/cmp -s "$dest" ${./config.toml}; then
+        run cp -f "$dest" "$dest.bak"
+      fi
+      run rm -f "$dest"
+      run install -m 0644 ${./config.toml} "$dest"
+    '';
+
     home.sessionVariables = {
       JCODE_CHECK_UPDATES = "false";
       JCODE_NO_AUTO_UPDATE = "1";
