@@ -58,8 +58,15 @@ and its [tracking issue](https://github.com/NixOS/nix/issues/6316).
 
 The overlay in `overlays/custom-packages.nix` exposes the result as
 `pkgs.jcode`, and `modules/agents/jcode.nix` installs it into the user profile.
-The systemd user unit still starts `~/.local/bin/jcode`, so a self-dev build can
-take over the daemon without a rebuild of this repository.
+No service supervises the daemon. The first client spawns it, and it resolves
+its binary through the channel links under `~/.jcode/builds` (`shared-server`,
+then `stable`) before falling back to its own executable. A nix install has no
+use for that tree, so it should not exist: with it gone, clients, the daemon
+and the menu bar helper all run the profile binary. A leftover tree from a
+release install or self-dev build silently wins over the nix package, and
+`jcode server reload` cannot move off it, because its downgrade guard compares
+mtimes and every store path is dated 1970. Stop the daemon, then remove
+`~/.jcode/builds`.
 
 ## How a build runs
 
@@ -291,10 +298,8 @@ setting cannot be lost to a live edit of `~/.jcode/config.toml`:
 - `JCODE_NO_AUTO_UPDATE=1` covers `update::should_auto_update()`, the
   release-channel installer path, in case a release build ever runs here.
 
-Both are set twice on purpose. `home.sessionVariables` reaches interactive
-shells, and an `environment.d` file reaches the systemd user manager, which
-does not read shell profiles. Running jcode from one of the agent's own
-scheduled jobs inherits the latter.
+Both are set through `home.sessionVariables`, which reaches interactive shells
+and everything they launch, including the daemon a client spawns.
 
 Setting `check_updates = false` in `~/.jcode/config.toml` has the same effect
 for shell-launched sessions. It is not used here because that file is seeded,
