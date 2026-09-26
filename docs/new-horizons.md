@@ -553,6 +553,25 @@ megabytes.
   curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
   ```
 
+- The Discord plugin cannot come from the Nix store. Since 2026.9.4 OpenClaw
+  lets only bundled plugins and ones with an official install record open
+  keyed storage, and a Nix path in `plugins.load.paths` has no install record,
+  so Discord fails to register with `openKeyedStore is only available for
+  trusted plugins` while the gateway otherwise reports ready (upstream
+  nix-openclaw#158). The pre-start script installs `@openclaw/discord` from npm
+  at the gateway's own version whenever the trusted install differs, and the
+  unit reads the persisted plugin registry so the gateway sees that record.
+  Check it with:
+
+  ```
+  sudo -u openclaw env OPENCLAW_STATE_DIR=/var/lib/openclaw \
+    OPENCLAW_CONFIG_PATH=/var/lib/openclaw/doctor/openclaw.json \
+    OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 HOME=/var/lib/openclaw \
+    openclaw plugins inspect discord --json | jq .plugin.trust
+  ```
+
+  `reason` must be `trusted-official`.
+
 - OpenClaw 2026.9.5 takes its gateway lock through `openat2`, and systemd's
   `RestrictSUIDSGID` seccomp filter answers every `openat2` with `ENOSYS`,
   because the syscall's mode argument sits in a struct the filter cannot

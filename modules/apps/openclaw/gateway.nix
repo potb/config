@@ -9,8 +9,14 @@
 
   runtimePlugins = [
     openclawPkgs."openclaw-runtime-plugin-exa"
-    openclawPkgs."openclaw-runtime-plugin-discord"
   ];
+
+  npmPlugins = {
+    discord = {
+      package = "@openclaw/discord";
+      version = gatewayPackage.version;
+    };
+  };
 
   workspace = "/var/lib/openclaw/workspace";
 
@@ -45,26 +51,41 @@
     work=$state/doctor
     want="${gatewayPackage} $(${pkgs.coreutils}/bin/sha256sum < /etc/openclaw/openclaw.json)"
 
-    if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" = "$want" ]; then
-      exit 0
-    fi
-
     ${pkgs.coreutils}/bin/mkdir -p "$work"
-    ${pkgs.gnutar}/bin/tar -C "$state" \
-      --use-compress-program=${pkgs.gzip}/bin/gzip \
-      -cf "$work/pre-migrate.tgz" state agents/main/agent || true
     ${pkgs.jq}/bin/jq 'del(.[] | select(type == "object" and has("$include")))' \
       /etc/openclaw/openclaw.json > "$work/openclaw.json"
     ${pkgs.coreutils}/bin/chmod 0600 "$work/openclaw.json"
 
-    if OPENCLAW_NIX_MODE=0 \
-      OPENCLAW_SERVICE_REPAIR_POLICY=external \
-      OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
-      ${gatewayPackage}/bin/openclaw doctor --fix --non-interactive; then
-      echo "$want" > "$work/stamp"
-    else
-      echo "openclaw-state-migrate: doctor --fix failed, starting the gateway anyway" >&2
+    if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" != "$want" ]; then
+      ${pkgs.gnutar}/bin/tar -C "$state" \
+        --use-compress-program=${pkgs.gzip}/bin/gzip \
+        -cf "$work/pre-migrate.tgz" state agents/main/agent || true
+
+      if OPENCLAW_NIX_MODE=0 \
+        OPENCLAW_SERVICE_REPAIR_POLICY=external \
+        OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+        ${gatewayPackage}/bin/openclaw doctor --fix --non-interactive; then
+        echo "$want" > "$work/stamp"
+      else
+        echo "openclaw-state-migrate: doctor --fix failed, starting the gateway anyway" >&2
+      fi
     fi
+
+    ${lib.concatStringsSep "\n" (lib.mapAttrsToList (id: plugin: let
+        spec = "${plugin.package}@${plugin.version}";
+      in ''
+        installed=$(OPENCLAW_NIX_MODE=0 OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+          OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 \
+          ${gatewayPackage}/bin/openclaw plugins inspect ${id} --json 2>/dev/null \
+          | ${pkgs.jq}/bin/jq -r 'select(.plugin.trust.reason == "trusted-official") | .plugin.version // empty')
+        if [ "$installed" != ${lib.escapeShellArg plugin.version} ]; then
+          OPENCLAW_NIX_MODE=0 OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+            OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 \
+            ${gatewayPackage}/bin/openclaw plugins install ${lib.escapeShellArg spec} --force --pin \
+            || echo "openclaw-state-migrate: installing ${spec} failed" >&2
+        fi
+      '')
+      npmPlugins)}
     exit 0
   '';
 in {
@@ -89,6 +110,7 @@ in {
         CLAWDBOT_CONFIG_PATH = lib.mkForce runtimeConfigPath;
         OPENCLAW_NIX_MODE = "0";
         OPENCLAW_NO_AUTO_UPDATE = "1";
+        OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "0";
       };
 
       servicePath = with pkgs; [
