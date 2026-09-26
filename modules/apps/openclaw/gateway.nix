@@ -126,6 +126,9 @@ in {
         OPENCLAW_NO_AUTO_UPDATE = "1";
         OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "0";
         GOG_KEYRING_BACKEND = "file";
+        GOG_READONLY = "1";
+        GOG_GMAIL_NO_SEND = "1";
+        GOG_WRAP_UNTRUSTED = "1";
       };
 
       servicePath = with pkgs; [

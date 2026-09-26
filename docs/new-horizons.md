@@ -214,6 +214,15 @@ sets `GOG_KEYRING_BACKEND=file` and `openclaw-env` carries
 `GOG_KEYRING_PASSWORD`; the refresh token ends up encrypted under
 `/var/lib/openclaw/.local/share/gogcli`, inside the backed-up state.
 
+The unit also sets `GOG_READONLY`, `GOG_GMAIL_NO_SEND` and `GOG_WRAP_UNTRUSTED`,
+the environment forms of `--readonly`, `--gmail-no-send` and `--wrap-untrusted`.
+The agent was told to pass those flags in `TOOLS.md` and skipped them on its
+first real request, so they are enforced for every `gog` it runs instead. The
+first two are a second line behind the read-only token; the third wraps
+fetched mail fields in untrusted-content markers so the model reads them as
+data. `auth add` run through the unit's environment therefore also asks for
+read-only scopes.
+
 Connecting an account needs a human once, because Google's consent screen does.
 Create a Google Cloud project with the Calendar API enabled and a Desktop OAuth
 client, then, in the gateway's environment on this host:
@@ -581,6 +590,13 @@ lock:
 ```
 nixos-rebuild switch --flake .#new-horizons \
   --target-host potb@new-horizons --elevate sudo
+```
+
+or with nh, which needs `-e passwordless` to use the NOPASSWD sudo rule instead
+of prompting:
+
+```
+nh os switch . -H new-horizons --target-host potb@new-horizons -e passwordless
 ```
 
 The closure is built locally and copied over the tailnet; only activation runs
