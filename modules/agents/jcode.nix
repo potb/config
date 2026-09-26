@@ -83,6 +83,11 @@
       defaultSopsFile = ../../secrets/jcode.yaml;
       age.sshKeyPaths = ["${config.home.homeDirectory}/.ssh/id_ed25519"];
       secrets.exa-api-key = {};
+      secrets.typesafe-api-key = {};
+      templates."jcode-typesafe.env" = {
+        content = "TYPESAFE_API_KEY=${config.sops.placeholder.typesafe-api-key}\n";
+        path = "${config.xdg.configHome}/jcode/typesafe.env";
+      };
     };
 
     home.activation.seedJcodeFiles = lib.hm.dag.entryAfter ["writeBoundary"] ''

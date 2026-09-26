@@ -22,6 +22,7 @@ cross_provider_failover = "manual"
 
 [agents]
 swarm_model = "claude-sonnet-5"
+memory_jev_provider = "typesafe"
 
 [hooks]
 pre_tool = "~/.jcode/hooks/dispatch"
