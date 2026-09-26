@@ -5,6 +5,7 @@
     "USER.md"
     "TOOLS.md"
     "skills/transit/SKILL.md"
+    "skills/position/SKILL.md"
   ];
 
   mkBootstrapSecret = name: {
@@ -45,6 +46,13 @@ in {
           };
 
           restic-password = {mode = "0400";};
+
+          owntracks-password = {
+            owner = "owntracks";
+            group = "owntracks";
+            mode = "0400";
+            restartUnits = ["owntracks-receiver.service"];
+          };
 
           transit-pinned-regions = {
             sopsFile = ../../../secrets/transit.yaml;

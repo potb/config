@@ -19,6 +19,8 @@ SOURCES = {
 UA = os.environ.get("TRANSIT_USER_AGENT", "potb-transit/1.0 (+https://github.com/potb/config)")
 MOTIS_STATE = Path(os.environ.get("TRANSIT_MOTIS_STATE", "/var/lib/motis"))
 NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, ConnectionError, ValueError, KeyError)
+HERE_WORDS = {"ici", "here", "moi"}
+HERE_MAX_AGE_S = 30 * 60
 
 
 class NoResult(Exception):
@@ -152,7 +154,25 @@ def geocode(source, text, stop_only=False):
     return hits
 
 
+def current_position():
+    path = Path(os.environ.get("LOC_DATA_DIR", "/var/lib/owntracks")) / "latest.json"
+    try:
+        rec = json.loads(path.read_text())
+    except (OSError, ValueError):
+        raise NoResult("position inconnue : aucune position reçue du téléphone")
+    age = int(time.time()) - int(rec["ts"])
+    if age > HERE_MAX_AGE_S:
+        raise NoResult(f"position trop ancienne ({age // 60} min), demande où est l'utilisateur")
+    return {
+        "coord": (rec["lat"], rec["lon"]),
+        "name": f"position actuelle (il y a {age // 60} min, ±{int(rec.get('acc_m') or 0)} m)",
+        "stop": None,
+    }
+
+
 def resolve_place(text):
+    if text.strip().lower() in HERE_WORDS:
+        return current_position()
     coord = as_coord(text)
     if coord:
         return {"coord": coord, "name": text, "stop": None}
@@ -362,7 +382,10 @@ def main():
 
     a = p.parse_args()
     started = time.monotonic()
-    out = a.fn(a)
+    try:
+        out = a.fn(a)
+    except NoResult as e:
+        out = {"erreur": str(e)}
     out["duree_s"] = round(time.monotonic() - started, 1)
     json.dump({k: v for k, v in out.items() if v is not None}, sys.stdout, ensure_ascii=False, indent=1)
     print()

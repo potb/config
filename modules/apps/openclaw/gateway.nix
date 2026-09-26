@@ -26,6 +26,7 @@
     "USER.md"
     "TOOLS.md"
     "skills/transit/SKILL.md"
+    "skills/position/SKILL.md"
   ];
 
   bootstrapDirs = lib.unique (lib.concatMap (

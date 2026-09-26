@@ -45,6 +45,7 @@ the way back in.
 | `restic`           | nightly backup of agent state and browser profile       |
 | `motis`            | public transport router, loopback on 8090               |
 | `motis-import`     | rebuilds the router's data when the regions in use change |
+| `owntracks-receiver` | stores the phone's position, loopback on 8765          |
 | `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
 
 Nothing listens on a public port except SSH.
@@ -124,6 +125,44 @@ watch planned trips without repeating an alert it already sent. Like the other
 workspace files, it describes the assistant and so is encrypted, at
 `secrets/workspace/skills/transit/SKILL.md`, and bind-mounted into the
 workspace.
+
+## The user's position
+
+The phone reports its position with OwnTracks in HTTP mode to
+`owntracks-receiver`, which listens on loopback 8765 and is published by Serve
+on `https://new-horizons.taile99a6c.ts.net:8444/pub`, tailnet only. A request
+needs both the Basic credentials, `owntracks` and `owntracks-password` from
+`secrets/new-horizons.yaml`, and a `Tailscale-User-Login` of the owner. Serve
+sets that header from the connecting device and overwrites whatever a client
+sends, and the receiver refuses requests without it, so a caller on this host
+that bypasses Serve is refused even with the password.
+
+Positions land in `/var/lib/owntracks`: `history.jsonl`, `latest.json`, and
+`transitions.jsonl` for region entries and exits. The directory belongs to the
+`owntracks` user and is readable by its group, which the gateway joins. A daily
+timer drops anything older than 30 days. The nightly backup leaves the
+directory out on purpose: its six monthly snapshots would otherwise keep half a
+year of movements that the retention is meant to forget. The agent reads it through `loc`
+(`latest`, `history`, `transitions`, `coord`), and `transit plan ici …` starts
+from the latest position, refusing one older than 30 minutes.
+
+iOS decides when the app runs. OwnTracks in significant-change mode reports
+roughly every 500 m or every few minutes of movement and stays quiet while the
+phone does not move, so an old position usually means the user is still there.
+Nothing on this side can ask the phone for a fresh fix; the reportLocation
+command exists only as a reply to a report the phone sends.
+
+Setting up a phone is a configuration file: `.otrc` JSON with `mode: 3` (HTTP),
+the URL above, `auth: true`, the credentials, `deviceId`, `tid`,
+`monitoring: 1`. Opening it on the phone imports it, as does the link form
+`owntracks:///config?inline=<base64 of the file>`. The file holds the password,
+so it is generated on demand and never committed. The phone must be on this
+tailnet with location access set to Always.
+
+```
+sudo tail -1 /var/lib/owntracks/history.jsonl | jq .
+loc latest
+```
 
 ## Egress through home
 
@@ -293,6 +332,7 @@ roles or its webhooks.
 | --------------------------------------------- | ------------------- |
 | `https://new-horizons.taile99a6c.ts.net`      | OpenClaw Control UI |
 | `https://new-horizons.taile99a6c.ts.net:8443` | Neko browser        |
+| `https://new-horizons.taile99a6c.ts.net:8444` | OwnTracks receiver  |
 
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
