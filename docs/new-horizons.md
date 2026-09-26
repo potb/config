@@ -384,7 +384,7 @@ Three channels under a `hal` category:
 
 | Channel   | Type  | Purpose                                                |
 | --------- | ----- | ------------------------------------------------------ |
-| `#hal`    | text  | ordinary conversation                                  |
+| `#hal`    | text  | ordinary conversation, one auto-thread per question    |
 | `#work`   | forum | one thread per topic, created by posting to the parent |
 | `#notify` | text  | the only place the agent notifies                      |
 

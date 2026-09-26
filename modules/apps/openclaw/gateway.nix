@@ -200,7 +200,11 @@ in {
             requireMention = false;
 
             channels = {
-              "1548072726571389018" = {};
+              "1548072726571389018" = {
+                autoThread = true;
+                autoThreadName = "generated";
+                autoArchiveDuration = 1440;
+              };
               "1548072727921819699" = {};
               "1548072729000022098" = {};
             };
