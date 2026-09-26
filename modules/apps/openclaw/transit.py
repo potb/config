@@ -214,6 +214,7 @@ def leg_view(leg):
         "alertes": alerts_of(leg),
         "trip_id": leg.get("tripId"),
         "arret_id": frm.get("stopId"),
+        "arret_arrivee_id": to.get("stopId"),
     }
     return {k: v for k, v in view.items() if k == "realtime" or not (v is None or v is False or v == [])}
 
@@ -451,6 +452,9 @@ def cmd_track(a):
         spec = json.loads(a.value)
         if not spec.get("etapes"):
             raise NoResult("un trajet a besoin d'au moins une étape avec trip_id")
+        missing = [i + 1 for i, e in enumerate(spec["etapes"]) if not e.get("arret_arrivee_id")]
+        if missing:
+            raise NoResult(f"étape(s) {missing} sans arret_arrivee_id : reprends-le de l'étape de transit plan")
         trip = {
             "id": spec.get("id") or f"t{int(time.time())}",
             "nom": spec.get("nom", ""),
