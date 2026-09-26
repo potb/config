@@ -182,9 +182,13 @@ command exists only as a reply to a report the phone sends.
 Setting up a phone is a configuration file: `.otrc` JSON with `mode: 3` (HTTP),
 the URL above, `auth: true`, the credentials, `deviceId`, `tid`,
 `monitoring: 1`. Opening it on the phone imports it, as does the link form
-`owntracks:///config?inline=<base64 of the file>`. The file holds the password,
-so it is generated on demand and never committed. The phone must be on this
-tailnet with location access set to Always.
+`owntracks:///config?inline=<base64 of the file>`. Since OwnTracks 26.2.3 on
+iOS, imports are refused until remote configuration is enabled in the app's
+settings, so turn that on first. The file holds the password, so it is
+generated on demand, never committed, and best moved to the phone as a QR code
+of the link (`qrencode -t ansiutf8`) or with Taildrop rather than through a
+gist or chat. The phone must be on this tailnet with location access set to
+Always.
 
 ```
 sudo tail -1 /var/lib/owntracks/history.jsonl | jq .
