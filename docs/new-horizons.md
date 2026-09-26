@@ -431,7 +431,12 @@ and the CLI reports the config as invalid. The code carries a full-access
 credential, so it goes to the phone as a QR image that is deleted afterwards.
 The paired phone shows up in `openclaw nodes status` as a node with calendar,
 camera, contacts, device, motion, photos, reminders, talk and watch
-capabilities; location appears once the app is granted it.
+capabilities. Granting the app a new permission later, location for instance,
+does not take effect by itself: the phone files a new node request declaring
+the extra capability and command, `openclaw nodes describe` lists them under
+`pendingDeclaredCommands`, and nothing changes until `openclaw nodes pending`
+shows the request and `openclaw nodes approve <requestId>` accepts it. Only
+then does `openclaw nodes location get --node iPhone` answer.
 
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
 80 from the tailnet. Media rides a single TCP port, 52100, also published
