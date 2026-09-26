@@ -109,7 +109,11 @@ that map cannot drift. Feeds come from the Transitous catalogue for France,
 which already picks the best source per network, SNCF as NeTEx with SIRI live
 data for instance. Each feed is placed on the map through the area its dataset
 declares on transport.data.gouv.fr, resolved to départements through
-geo.api.gouv.fr. Timetables are downloaded from the Transitous mirror, which
+geo.api.gouv.fr. A few feeds in the catalogue have no transport.data.gouv.fr
+dataset, Lyon's TCL among them, so they have no declared area; the build logs
+`no known area, not placed on the map` for each, and `UNLISTED_FEED_DEPARTEMENTS`
+in `regions.py` places the ones that matter by hand. Without it a Lyon import
+had SNCF trains but no metro, tram or bus. Timetables are downloaded from the Transitous mirror, which
 serves them cleaned and deduplicated, with the producer's own URL as a
 fallback. A build where more than half of the timetables are unavailable is
 abandoned and the running import stays.

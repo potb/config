@@ -43,6 +43,12 @@ GEOFABRIK_REGION_DEPARTEMENTS = {
     "rhone-alpes": ["01", "07", "26", "38", "42", "69", "73", "74"],
 }
 
+UNLISTED_FEED_DEPARTEMENTS = {
+    "lyon-tcl": ["69"],
+    "cars-faure-tcl": ["69"],
+    "caen-la-mer-reseau-twisto-gtfs-siri": ["14"],
+}
+
 RT_PROTOCOLS = {"gtfs-rt": "gtfsrt", "siri": "siri", "siri-json": "siri_json"}
 STATIC_SPECS = ("gtfs", "netex")
 DAY = 24 * 3600
@@ -215,7 +221,9 @@ def select_feeds(catalog, region_ids):
         if spec not in STATIC_SPECS or source.get("type") not in ("http", "url") or source["name"] in seen:
             continue
         dataset = catalog["pan"].get(source.get("x-data-gov-fr-dataset-id"))
-        area = dataset_departements(catalog, dataset) if dataset else set()
+        area = dataset_departements(catalog, dataset) if dataset else set(UNLISTED_FEED_DEPARTEMENTS.get(source["name"], []))
+        if not area and source["name"] not in national:
+            log(f"{source['name']}: no known area, not placed on the map")
         if source["name"] in national or "*" in area or area & wanted:
             seen.add(source["name"])
             static.append(source)
