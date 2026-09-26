@@ -370,6 +370,13 @@ id, creates or updates the event, runs `mail ack`, and posts what it added to
 `gmail=<message id>`, which is how it finds them again. The script and prompt
 are in `/var/lib/openclaw/automation-src`.
 
+The condition script calls `exec` with `yieldMs: 60000`. Inside a trigger
+script `exec` backgrounds any command that has not finished almost at once and
+returns `status: "running"` with empty output; `mail new` takes about two
+seconds, so without the option every check failed with `Unexpected end of JSON
+input` and the job never fired. `transit watch` answers fast enough not to hit
+it, but a slower command in any new condition script needs the same option.
+
 ### Running gog by hand
 
 gog is not on an interactive shell's PATH. To run it as the gateway does, as
