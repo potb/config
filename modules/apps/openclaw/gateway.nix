@@ -112,6 +112,7 @@ in {
         OPENCLAW_NIX_MODE = "0";
         OPENCLAW_NO_AUTO_UPDATE = "1";
         OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "0";
+        GOG_KEYRING_BACKEND = "file";
       };
 
       servicePath = with pkgs; [

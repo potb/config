@@ -126,6 +126,24 @@ workspace files, it describes the assistant and so is encrypted, at
 `secrets/workspace/skills/transit/SKILL.md`, and bind-mounted into the
 workspace.
 
+### Watching trips
+
+`transit track add` records a trip the agent planned, with the trip id of each
+leg, in `memory/trajets.json` in the workspace. `transit watch` checks every
+tracked trip leaving within three hours and prints only what changed since the
+previous check: a delay moving by five minutes or more, a cancellation, a
+platform change, a new alert, a connection that became too short, or, from the
+phone's position, a first departure the user can no longer walk to in time.
+What it saw is stored with the trip, so the same news is never reported twice,
+and a trip is dropped half an hour after it ends.
+
+An automation runs `transit watch` every five minutes as a condition script and
+wakes the agent only when the output is not empty, so the model is not called
+while nothing happens. The job has to be created from a Discord message by the
+owner: jobs created with `openclaw automations add` on the host are invisible to
+the agent (see "What the agent owns"), and condition scripts are an owner-only
+surface.
+
 ## The user's position
 
 The phone reports its position with OwnTracks in HTTP mode to
@@ -163,6 +181,28 @@ tailnet with location access set to Always.
 sudo tail -1 /var/lib/owntracks/history.jsonl | jq .
 loc latest
 ```
+
+## Google Calendar
+
+The agent reaches the calendar through `gog`, the Google Workspace CLI that
+ships with the gateway package. There is no keychain on this host, so the unit
+sets `GOG_KEYRING_BACKEND=file` and `openclaw-env` carries
+`GOG_KEYRING_PASSWORD`; the refresh token ends up encrypted under
+`/var/lib/openclaw/.local/share/gogcli`, inside the backed-up state.
+
+Connecting an account needs a human once, because Google's consent screen does.
+Create a Google Cloud project with the Calendar API enabled and a Desktop OAuth
+client, then, in the gateway's environment on this host:
+
+```
+gog auth credentials ~/client_secret.json
+gog auth add <account> --services calendar --readonly --remote --step 1
+gog auth add <account> --services calendar --readonly --remote --step 2 --auth-url '<redirect URL>'
+```
+
+Step 1 prints a URL to open on any device; after consent the browser lands on a
+localhost URL that fails to load, and that URL is what step 2 takes. Read-only
+is enough: the agent reads event times and locations and never writes.
 
 ## Egress through home
 

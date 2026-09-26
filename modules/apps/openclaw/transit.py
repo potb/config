@@ -324,6 +324,205 @@ def cmd_geocode(a):
     return {"source": source, "resultats": res, "erreurs": errors or None}
 
 
+TRACK_FILE = Path(os.environ.get("TRANSIT_TRACK_FILE", "/var/lib/openclaw/workspace/memory/trajets.json"))
+WATCH_WINDOW_S = 3 * 3600
+DELAY_ALERT_MIN = 5
+WALK_SPEED_MPS = 1.3
+
+
+def load_tracked():
+    try:
+        return json.loads(TRACK_FILE.read_text())
+    except (OSError, ValueError):
+        return {"trajets": []}
+
+
+def save_tracked(data):
+    TRACK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = TRACK_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+    tmp.replace(TRACK_FILE)
+
+
+def trip_status(trip_id):
+    def run(source):
+        d = call(source, "v6/trip", tripId=trip_id)
+        leg = next((leg for leg in d.get("legs", []) if leg["mode"] != "WALK"), None)
+        if not leg:
+            raise NoResult("course introuvable")
+        return leg
+
+    source, leg, errors = with_fallback(run)
+    return source, leg, errors
+
+
+def stop_on_leg(leg, stop_id, prefer):
+    stops = [leg["from"], *leg.get("intermediateStops", []), leg["to"]]
+    matches = [s for s in stops if s.get("stopId") == stop_id or s.get("parentId") == stop_id]
+    if matches:
+        return matches[0]
+    return stops[0] if prefer == "first" else stops[-1]
+
+
+def ground_distance_m(lat1, lon1, lat2, lon2):
+    import math
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * 6371000 * math.asin(math.sqrt(h))
+
+
+def observe_step(step):
+    source, leg, errors = trip_status(step["trip_id"])
+    if leg is None:
+        return {"etat": "introuvable", "erreurs": errors}
+    board = stop_on_leg(leg, step.get("arret_depart_id"), "first")
+    alight = stop_on_leg(leg, step.get("arret_arrivee_id"), "last")
+    dep = board.get("departure") or board.get("scheduledDeparture")
+    arr = alight.get("arrival") or alight.get("scheduledArrival")
+    return {
+        "etat": "annule" if leg.get("cancelled") or board.get("cancelled") else "ok",
+        "source": source,
+        "realtime": bool(leg.get("realTime")),
+        "depart": dep,
+        "arrivee": arr,
+        "retard_depart_min": delay_min(board.get("departure"), board.get("scheduledDeparture")),
+        "retard_arrivee_min": delay_min(alight.get("arrival"), alight.get("scheduledArrival")),
+        "voie": board.get("track"),
+        "alertes": alerts_of(leg),
+        "arret_lat": board.get("lat"),
+        "arret_lon": board.get("lon"),
+    }
+
+
+def changes_between(old, new, step):
+    out = []
+    label = f"{step.get('ligne') or step['trip_id'][:40]} {step.get('de', '')}".strip()
+    if new["etat"] != (old or {}).get("etat"):
+        if new["etat"] == "annule":
+            out.append(f"{label} : course annulée")
+        elif new["etat"] == "introuvable":
+            out.append(f"{label} : course introuvable (horaires modifiés ?), recalcule le trajet")
+    old_delay = (old or {}).get("retard_depart_min") or 0
+    new_delay = new.get("retard_depart_min") or 0
+    if new["etat"] == "ok" and abs(new_delay - old_delay) >= DELAY_ALERT_MIN:
+        out.append(f"{label} : départ {hhmm(new['depart'])}, retard {new_delay} min (avant {old_delay})")
+    if (old or {}).get("voie") and new.get("voie") and old["voie"] != new["voie"]:
+        out.append(f"{label} : changement de voie {old['voie']} vers {new['voie']}")
+    for alert in new.get("alertes", []):
+        if alert not in (old or {}).get("alertes", []):
+            out.append(f"{label} : alerte « {alert[:160]} »")
+    return out
+
+
+def connection_break(prev_obs, next_obs, min_transfer_min):
+    if not prev_obs or not next_obs or "arrivee" not in prev_obs or "depart" not in next_obs:
+        return None
+    if not prev_obs.get("arrivee") or not next_obs.get("depart"):
+        return None
+    margin = (parse_time(next_obs["depart"]) - parse_time(prev_obs["arrivee"])).total_seconds() / 60
+    return round(margin) if margin < min_transfer_min else None
+
+
+def reachability(first_obs):
+    here = Path(os.environ.get("LOC_DATA_DIR", "/var/lib/owntracks")) / "latest.json"
+    try:
+        rec = json.loads(here.read_text())
+    except (OSError, ValueError):
+        return None
+    if time.time() - rec["ts"] > HERE_MAX_AGE_S or first_obs.get("arret_lat") is None or not first_obs.get("depart"):
+        return None
+    dist = ground_distance_m(rec["lat"], rec["lon"], first_obs["arret_lat"], first_obs["arret_lon"])
+    walk_min = dist * 1.3 / WALK_SPEED_MPS / 60
+    left = (parse_time(first_obs["depart"]).timestamp() - time.time()) / 60
+    return {"distance_m": round(dist), "marche_min": round(walk_min), "reste_min": round(left)}
+
+
+def cmd_track(a):
+    data = load_tracked()
+    if a.action == "list":
+        return data
+    if a.action == "rm":
+        before = len(data["trajets"])
+        data["trajets"] = [t for t in data["trajets"] if t["id"] != a.value]
+        save_tracked(data)
+        return {"supprime": before - len(data["trajets"])}
+    if a.action == "add":
+        spec = json.loads(a.value)
+        if not spec.get("etapes"):
+            raise NoResult("un trajet a besoin d'au moins une étape avec trip_id")
+        trip = {
+            "id": spec.get("id") or f"t{int(time.time())}",
+            "nom": spec.get("nom", ""),
+            "etapes": [{
+                "trip_id": e["trip_id"],
+                "ligne": e.get("ligne"),
+                "de": e.get("de"),
+                "vers": e.get("vers"),
+                "arret_depart_id": e.get("arret_depart_id") or e.get("arret_id"),
+                "arret_arrivee_id": e.get("arret_arrivee_id"),
+            } for e in spec["etapes"]],
+            "correspondance_min": spec.get("correspondance_min", 4),
+            "suivre_position": spec.get("suivre_position", True),
+            "vu": {},
+        }
+        data["trajets"] = [t for t in data["trajets"] if t["id"] != trip["id"]] + [trip]
+        save_tracked(data)
+        return {"ajoute": trip["id"], "etapes": len(trip["etapes"])}
+    raise NoResult(f"action inconnue {a.action}")
+
+
+def cmd_watch(a):
+    data = load_tracked()
+    now = time.time()
+    report, kept = [], []
+    for trip in data["trajets"]:
+        observed = [observe_step(step) for step in trip["etapes"]]
+        first_dep = observed[0].get("depart")
+        last_arr = observed[-1].get("arrivee")
+        if last_arr and parse_time(last_arr).timestamp() < now - 1800:
+            continue
+        kept.append(trip)
+        if first_dep and parse_time(first_dep).timestamp() > now + WATCH_WINDOW_S and not a.all:
+            continue
+        seen = trip.get("vu", {})
+        messages = []
+        for i, (step, obs) in enumerate(zip(trip["etapes"], observed)):
+            messages += changes_between(seen.get(str(i)), obs, step)
+        for i in range(len(observed) - 1):
+            margin = connection_break(observed[i], observed[i + 1], trip.get("correspondance_min", 4))
+            key = f"corresp{i}"
+            if margin is not None and seen.get(key) != margin:
+                messages.append(f"correspondance {i + 1} compromise : {margin} min pour changer")
+                seen[key] = margin
+        if trip.get("suivre_position") and observed[0]["etat"] == "ok":
+            r = reachability(observed[0])
+            if r and r["reste_min"] >= 0 and r["marche_min"] > r["reste_min"] and not seen.get("trop_loin"):
+                messages.append(
+                    f"{trip['etapes'][0].get('ligne') or 'premier départ'} : il est à {r['distance_m']} m de l'arrêt "
+                    f"(~{r['marche_min']} min à pied) et le départ est dans {r['reste_min']} min"
+                )
+                seen["trop_loin"] = True
+        for i, obs in enumerate(observed):
+            seen[str(i)] = {k: obs.get(k) for k in ("etat", "retard_depart_min", "voie", "alertes")}
+        trip["vu"] = seen
+        if messages or a.all:
+            report.append({
+                "trajet": trip["id"],
+                "nom": trip.get("nom"),
+                "changements": messages,
+                "etapes": [{
+                    "ligne": s.get("ligne"), "de": s.get("de"),
+                    "depart": hhmm(o.get("depart")), "arrivee": hhmm(o.get("arrivee")),
+                    "retard_min": o.get("retard_depart_min"), "realtime": o.get("realtime"), "etat": o.get("etat"),
+                } for s, o in zip(trip["etapes"], observed)],
+            })
+    data["trajets"] = kept
+    if not a.dry_run:
+        save_tracked(data)
+    return {"a_signaler": [r for r in report if r["changements"]], **({"tous": report} if a.all else {})}
+
+
 def cmd_regions(a):
     loaded = loaded_regions()
     out = {"chargees": loaded}
@@ -379,6 +578,16 @@ def main():
     s.add_argument("--at", help="lieu ou lat,lon : dans quelle région, couverte ou non")
     s.add_argument("--request", metavar="REGION", help="demander le chargement d'une région")
     s.set_defaults(fn=cmd_regions)
+
+    s = sub.add_parser("track", help="trajets suivis : add '<json>', list, rm <id>")
+    s.add_argument("action", choices=["add", "list", "rm"])
+    s.add_argument("value", nargs="?", default="")
+    s.set_defaults(fn=cmd_track)
+
+    s = sub.add_parser("watch", help="vérifie les trajets suivis, ne sort que ce qui a changé")
+    s.add_argument("--all", action="store_true", help="montrer tous les trajets, même sans changement")
+    s.add_argument("--dry-run", action="store_true", help="ne pas enregistrer l'état vu")
+    s.set_defaults(fn=cmd_watch)
 
     a = p.parse_args()
     started = time.monotonic()
