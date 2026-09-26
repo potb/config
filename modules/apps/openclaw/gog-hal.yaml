@@ -34,3 +34,5 @@ locked-flags:
   wrap-untrusted: true
   no-input: true
   gmail-no-send: true
+  include-body: false
+  full: false

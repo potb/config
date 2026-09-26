@@ -280,7 +280,9 @@ PATH is filtered out of `extendedTools`, so the restricted build is the only
 subject, date and attachment names, but cannot open a message, so every read
 goes through `mail`. In the calendar it reads, creates and updates, and cannot
 delete, move, subscribe or change sharing. `auth` writes are refused.
-`wrap-untrusted`, `gmail-no-send` and `no-input` are locked on.
+`wrap-untrusted`, `gmail-no-send` and `no-input` are locked on, and
+`include-body` and `full` locked off: without them `gmail messages search`
+would print message bodies and skip `mail`.
 
 `gog-private-calendar.patch` applies to the agent's build only. It makes
 `buildAttendees` return nothing and `validateSendUpdates` always return
