@@ -206,9 +206,9 @@ sudo tail -1 /var/lib/owntracks/history.jsonl | jq .
 loc latest
 ```
 
-## Google Calendar
+## Google Calendar and Gmail
 
-The agent reaches the calendar through `gog`, the Google Workspace CLI that
+The agent reaches the calendar and Gmail through `gog`, the Google Workspace CLI that
 ships with the gateway package. There is no keychain on this host, so the unit
 sets `GOG_KEYRING_BACKEND=file` and `openclaw-env` carries
 `GOG_KEYRING_PASSWORD`; the refresh token ends up encrypted under
@@ -220,13 +220,19 @@ client, then, in the gateway's environment on this host:
 
 ```
 gog auth credentials ~/client_secret.json
-gog auth add <account> --services calendar --readonly --remote --step 1
-gog auth add <account> --services calendar --readonly --remote --step 2 --auth-url '<redirect URL>'
+gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly --force-consent --remote --step 1
+gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly --force-consent --remote --step 2 --auth-url '<redirect URL>'
 ```
 
 Step 1 prints a URL to open on any device; after consent the browser lands on a
 localhost URL that fails to load, and that URL is what step 2 takes. Read-only
-is enough: the agent reads event times and locations and never writes.
+is enough: the agent reads event times, locations and mail, and never writes.
+The token holds `calendar.readonly` and `gmail.readonly` only. Adding a service
+later means re-running both steps with every service listed, since a new
+consent replaces the old scopes rather than adding to them.
+
+The consent page ignores synthetic clicks on the "unverified app" warning, so
+driving it from an agent needs real input (computer use), not a CDP click.
 
 The client lives in the Google Cloud project `hal-calendar-509811`, whose
 consent screen is External and published ("In production"). An External app
