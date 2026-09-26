@@ -217,6 +217,29 @@ Step 1 prints a URL to open on any device; after consent the browser lands on a
 localhost URL that fails to load, and that URL is what step 2 takes. Read-only
 is enough: the agent reads event times and locations and never writes.
 
+The client lives in the Google Cloud project `hal-calendar-509811`, whose
+consent screen is External and published ("In production"). An External app
+left in Testing gets refresh tokens that expire after seven days, so it has to
+stay published. The Publish button stays greyed out until the Branding page has
+a home page URL, a privacy policy URL and an authorized domain; those point at
+`https://github.com/potb/config` and `github.com`. Consent then shows a "Google
+hasn't verified this app" warning, which Advanced, then "Go to hal (unsafe)",
+gets past; verification is not needed for an app only its developer uses. A
+token issued while the app was in Testing keeps its seven-day limit, so
+publishing is followed by one more `auth add` with `--force-consent` on both
+steps.
+
+gog is not on an interactive shell's PATH. To run it as the gateway does, as
+`openclaw` with the gateway's keyring password:
+
+```
+sudo systemd-run --quiet --collect --wait --pipe \
+  --uid=openclaw --gid=openclaw -p WorkingDirectory=/var/lib/openclaw \
+  -p EnvironmentFile=/run/secrets/openclaw-env \
+  -E HOME=/var/lib/openclaw -E GOG_KEYRING_BACKEND=file \
+  <gogcli store path>/bin/gog auth list
+```
+
 ## Egress through home
 
 Outbound traffic leaves through an exit node at home rather than the netcup
