@@ -14,9 +14,10 @@
     '';
   });
 
-  openclawBundle = openclawPkgs.openclaw.override {
+  openclawBundle = openclawPkgs.openclaw.override (old: {
     openclaw-gateway = openclawGateway;
-  };
+    extendedTools = builtins.filter (tool: (tool.pname or "") != "gogcli") old.extendedTools;
+  });
 
   runtimePlugins = [
     (openclawPkgs."openclaw-runtime-plugin-exa".overrideAttrs (old: {
@@ -126,9 +127,6 @@ in {
         OPENCLAW_NO_AUTO_UPDATE = "1";
         OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "0";
         GOG_KEYRING_BACKEND = "file";
-        GOG_READONLY = "1";
-        GOG_GMAIL_NO_SEND = "1";
-        GOG_WRAP_UNTRUSTED = "1";
       };
 
       servicePath = with pkgs; [
@@ -173,6 +171,8 @@ in {
               fallbacks = ["openrouter/google/gemini-3.5-flash-lite"];
             };
             thinkingDefault = "low";
+            imageModel = "openrouter/google/gemini-3.5-flash-lite";
+            pdfModel = "openrouter/google/gemini-3.5-flash-lite";
             userTimezone = "Europe/Paris";
             skipBootstrap = true;
             contextInjection = "continuation-skip";

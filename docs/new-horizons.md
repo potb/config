@@ -208,45 +208,50 @@ loc latest
 
 ## Google Calendar and Gmail
 
-The agent reaches the calendar and Gmail through `gog`, the Google Workspace CLI that
-ships with the gateway package. There is no keychain on this host, so the unit
-sets `GOG_KEYRING_BACKEND=file` and `openclaw-env` carries
-`GOG_KEYRING_PASSWORD`; the refresh token ends up encrypted under
+The agent reaches the calendar and Gmail through two commands built here: a
+`gog` restricted at compile time, and `mail`, which reads email with its
+attachments. There is no keychain on this host, so the unit sets
+`GOG_KEYRING_BACKEND=file` and `openclaw-env` carries `GOG_KEYRING_PASSWORD`;
+the refresh token ends up encrypted under
 `/var/lib/openclaw/.local/share/gogcli`, inside the backed-up state.
 
-The unit also sets `GOG_READONLY`, `GOG_GMAIL_NO_SEND` and `GOG_WRAP_UNTRUSTED`,
-the environment forms of `--readonly`, `--gmail-no-send` and `--wrap-untrusted`.
-The agent was told to pass those flags in `TOOLS.md` and skipped them on its
-first real request, so they are enforced for every `gog` it runs instead. The
-first two are a second line behind the read-only token; the third wraps
-fetched mail fields in untrusted-content markers so the model reads them as
-data. `auth add` run through the unit's environment therefore also asks for
-read-only scopes.
+### What the token allows
 
-Connecting an account needs a human once, because Google's consent screen does.
-Create a Google Cloud project with the Calendar API enabled and a Desktop OAuth
-client, then, in the gateway's environment on this host:
+The token holds `gmail.readonly`, `calendar.readonly` and `calendar.events`.
+Gmail stays read-only at Google's end. `calendar.events` lets the agent create
+and edit events, which the email-to-calendar job needs, without the full
+`calendar` scope that also manages calendars and their sharing. gog has no
+service mode for that combination, so the scope is added as an extra. In the
+gateway's environment on this host, with a Google Cloud project that has the
+Calendar and Gmail APIs enabled and a Desktop OAuth client:
 
 ```
 gog auth credentials ~/client_secret.json
-gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly --force-consent --remote --step 1
-gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly --force-consent --remote --step 2 --auth-url '<redirect URL>'
+gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly \
+  --extra-scopes https://www.googleapis.com/auth/calendar.events \
+  --force-consent --remote --step 1
 ```
 
-Step 1 prints a URL to open on any device; after consent the browser lands on a
-localhost URL that fails to load, and that URL is what step 2 takes. Read-only
-is enough: the agent reads event times, locations and mail, and never writes.
-The token holds `calendar.readonly` and `gmail.readonly` only. Adding a service
-later means re-running both steps with every service listed, since a new
-consent replaces the old scopes rather than adding to them.
+Step 2 is the same command with `--step 2 --auth-url '<redirect URL>'`.
+`--readonly` here only picks the read-only scope of each service; the extra
+scope is appended to them. Step 1 prints a URL to open on any device; after
+consent the browser lands on a localhost URL that fails to load, and that URL
+is what step 2 takes. A new consent replaces the old scopes rather than adding
+to them, so every service and the extra scope go on each run. The first
+exchange can fail with `oauth2: "internal_failure"` while Google has in fact
+recorded the grant; running both steps again goes through.
+
+Only a stock `gog` can run `auth add`: both restricted builds refuse it. Use
+`nix build nixpkgs#gogcli` or any gogcli already in the store.
 
 Google treats every client in the project as one app for grants. Revoking any
 refresh token issued in `hal-calendar-509811`, or removing "hal" from the
 account's third-party connections, also revokes the gateway's token, which then
 needs both steps again.
 
-The consent page ignores synthetic clicks on the "unverified app" warning, so
-driving it from an agent needs real input (computer use), not a CDP click.
+The consent page ignores synthetic clicks on "Advanced" in the "unverified
+app" warning, so driving it from an agent needs real input (computer use) for
+that link. "Go to hal (unsafe)" and the Continue buttons accept CDP clicks.
 
 The client lives in the Google Cloud project `hal-calendar-509811`, whose
 consent screen is External and published ("In production"). An External app
@@ -259,6 +264,91 @@ gets past; verification is not needed for an app only its developer uses. A
 token issued while the app was in Testing keeps its seven-day limit, so
 publishing is followed by one more `auth add` with `--force-consent` on both
 steps.
+
+### The agent's gog
+
+`mail.nix` builds gogcli from nixpkgs twice, each with a baked safety profile,
+gog's build-time command policy. A baked profile is checked before any handler
+or API call and cannot be widened by flags, environment variables or config.
+The runtime switches (`--enable-commands`, `GOG_READONLY` and the like) can:
+the agent only has to pass `--enable-commands=...` or `--readonly=false` to
+undo them. The stock gogcli that nix-openclaw puts in the gateway wrapper's
+PATH is filtered out of `extendedTools`, so the restricted build is the only
+`gog` the agent finds.
+
+`gog-hal.yaml` is the agent's `gog`. It can search Gmail, which lists sender,
+subject, date and attachment names, but cannot open a message, so every read
+goes through `mail`. In the calendar it reads, creates and updates, and cannot
+delete, move, subscribe or change sharing. `auth` writes are refused.
+`wrap-untrusted`, `gmail-no-send` and `no-input` are locked on.
+
+`gog-private-calendar.patch` applies to the agent's build only. It makes
+`buildAttendees` return nothing and `validateSendUpdates` always return
+`none`, so an event the agent creates or edits never has guests and never
+mails anyone, whatever an email asked for.
+
+`gog-mail-reader.yaml` is the build `mail` calls by store path. It reads
+messages, threads and attachments and nothing else, with `readonly` locked on.
+The agent runs as the same user as `mail`, so it could find that store path
+and call the reader directly. That shows the same mail `mail read` would, minus
+the attachment text, and writes nothing. Closing it would need a separate user
+behind a setuid or socket boundary, which read-only access to the same data
+does not justify.
+
+### Reading mail
+
+`mail read <id>` takes a message or thread id and prints the whole thread:
+headers, body, and every attachment downloaded to
+`workspace/mail/<thread id>/` with its text extracted. It is the agent's only
+way to open an email, so the attachments are always part of what it reads.
+`--message` limits the output to one message of the thread.
+
+Extraction runs locally:
+
+- PDF: `pdftotext -layout`. Under 200 characters of text the PDF is taken for
+  a scan, and `pdftoppm` renders its first 10 pages at 200 dpi for tesseract,
+  built with French and English data only.
+- Images over 15 KB: tesseract. Smaller ones are logos and signatures and are
+  skipped.
+- docx, xlsx, pptx, odt and ods: read from the zip's XML with the Python
+  standard library.
+- HTML, plain text, ics, csv and attached `.eml`: decoded directly.
+
+A file that yields no text is listed with its path, and the agent is told to
+open it with OpenClaw's `view_image` or `pdf` tool. Those send it to the model
+in `agents.defaults.imageModel` and `pdfModel`, `gemini-3.5-flash-lite` on
+OpenRouter. Without `pdfModel` the pdf tool only registers when it can find a
+model it knows handles documents.
+
+This mirrors OpenClaw's own pdf tool (text first, vision on scanned pages) and
+adds local OCR so ordinary scans cost no model call. The larger converters
+were measured against this host's closure and left out: markitdown adds
+762 MiB, pymupdf 1.1 GiB, docling 3 GiB and pandoc 209 MiB. What is used adds
+about 75 MiB, poppler 23 MiB and the two-language tesseract 49 MiB.
+
+The output has one untrusted-content block per message and per attachment
+instead of gog's marker around every field. Extracted text over 15 000
+characters is cut in the output and kept whole in a `.txt` next to the file.
+Thread directories untouched for 30 days are removed by the next `mail read`.
+
+`mail new` lists inbox mail from the last three days, promotions and social
+excluded, that has not been acknowledged; `mail ack` acknowledges what the last
+`mail new` listed. The state lives in `/var/lib/openclaw/mail-state.json`,
+outside the workspace, where the agent's file tools cannot edit it.
+
+### Email to calendar
+
+An automation, "Mails vers agenda", runs `mail new --json` every 30 minutes
+from 7:00 to 22:30 as a condition script and wakes the agent only when
+something new arrived. The agent reads each new email with `mail read`,
+decides whether it holds a date that matters (appointment, reservation, trip,
+deadline, payment due), looks for an event already tagged with that message
+id, creates or updates the event, runs `mail ack`, and posts what it added to
+`#notify`. Events carry the private properties `source=gmail` and
+`gmail=<message id>`, which is how it finds them again. The script and prompt
+are in `/var/lib/openclaw/automation-src`.
+
+### Running gog by hand
 
 gog is not on an interactive shell's PATH. To run it as the gateway does, as
 `openclaw` with the gateway's keyring password:
