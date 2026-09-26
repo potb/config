@@ -236,6 +236,10 @@ def wanted_regions(catalog):
     requested = []
     entries = list(requests_dir().iterdir()) if requests_dir().exists() else []
     for entry in entries:
+        if entry.name.startswith("."):
+            if time.time() - entry.stat().st_mtime > 3600:
+                entry.unlink(missing_ok=True)
+            continue
         if entry.name not in catalog["regions"]:
             log(f"dropping request for unknown region {entry.name}")
             entry.unlink(missing_ok=True)
@@ -429,6 +433,8 @@ def cmd_status(_args):
     requests = {}
     if requests_dir().exists():
         for entry in requests_dir().iterdir():
+            if entry.name.startswith("."):
+                continue
             requests[entry.name] = datetime.fromtimestamp(entry.stat().st_mtime, timezone.utc).isoformat()
     print(json.dumps({
         "loaded": manifest.get("regions", []),

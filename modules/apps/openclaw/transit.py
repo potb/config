@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -70,18 +71,13 @@ def region_of(lat, lon):
 
 
 def request_region(region_id):
-    path = MOTIS_STATE / "requests" / region_id
+    folder = MOTIS_STATE / "requests"
     try:
-        path.parent.mkdir(exist_ok=True)
-        path.touch()
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{region_id}.")
+        os.fchmod(fd, 0o664)
+        os.close(fd)
+        os.replace(tmp, folder / region_id)
         return True
-    except PermissionError:
-        try:
-            path.unlink(missing_ok=True)
-            path.touch()
-            return True
-        except OSError:
-            return False
     except OSError:
         return False
 
@@ -538,7 +534,7 @@ def cmd_regions(a):
         pass
     requests_dir = MOTIS_STATE / "requests"
     if requests_dir.exists():
-        out["demandees"] = sorted(p.name for p in requests_dir.iterdir())
+        out["demandees"] = sorted(p.name for p in requests_dir.iterdir() if not p.name.startswith("."))
     if a.at:
         coord = as_coord(a.at) or resolve_place(a.at)["coord"]
         region = region_of(*coord)

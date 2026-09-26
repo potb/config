@@ -2,8 +2,10 @@
 import base64
 import hmac
 import json
+import math
 import os
 import sys
+import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -16,6 +18,76 @@ MAX_BODY = 64 * 1024
 
 HISTORY = DATA_DIR / "history.jsonl"
 LATEST = DATA_DIR / "latest.json"
+MOTIS_STATE = Path(os.environ.get("LOC_MOTIS_STATE", "/var/lib/motis"))
+REGION_RECHECK_M = 2000
+
+_regions = {"mtime": None, "data": []}
+_last_region = {"lat": None, "lon": None, "id": None}
+
+
+def point_in_ring(lon, lat, ring):
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def region_catalog():
+    path = MOTIS_STATE / "catalog" / "regions.json"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return []
+    if mtime != _regions["mtime"]:
+        try:
+            _regions["data"] = json.loads(path.read_text())
+            _regions["mtime"] = mtime
+        except (OSError, ValueError):
+            return _regions["data"]
+    return _regions["data"]
+
+
+def region_of(lat, lon):
+    for region in region_catalog():
+        for polygon in region["polygons"]:
+            if point_in_ring(lon, lat, polygon[0]) and not any(point_in_ring(lon, lat, h) for h in polygon[1:]):
+                return region["id"]
+    return None
+
+
+def moved_m(lat, lon):
+    if _last_region["lat"] is None:
+        return float("inf")
+    dlat = (lat - _last_region["lat"]) * 111320
+    dlon = (lon - _last_region["lon"]) * 111320 * math.cos(math.radians(lat))
+    return math.hypot(dlat, dlon)
+
+
+def request_region_for(rec):
+    if time.time() - rec["ts"] > 3600:
+        return
+    moved = moved_m(rec["lat"], rec["lon"])
+    stale = time.time() - _last_region.get("touched", 0) > 86400
+    if moved < REGION_RECHECK_M and not stale:
+        return
+    region = region_of(rec["lat"], rec["lon"]) if moved >= REGION_RECHECK_M else _last_region["id"]
+    _last_region.update(lat=rec["lat"], lon=rec["lon"])
+    if region is None or (region == _last_region["id"] and not stale):
+        return
+    _last_region.update(id=region, touched=time.time())
+    folder = MOTIS_STATE / "requests"
+    try:
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{region}.")
+        os.fchmod(fd, 0o664)
+        os.close(fd)
+        os.replace(tmp, folder / region)
+    except OSError as e:
+        print(f"owntracks-receiver: cannot request region {region}: {e}", file=sys.stderr, flush=True)
 
 
 def load_expected_auth():
@@ -118,7 +190,9 @@ class Handler(BaseHTTPRequestHandler):
         device = self.headers.get("X-Limit-D") or msg.get("tid")
         kind = msg.get("_type")
         if kind == "location" and "lat" in msg and "lon" in msg:
-            store(record_of(msg, device))
+            rec = record_of(msg, device)
+            store(rec)
+            request_region_for(rec)
         elif kind == "transition":
             with (DATA_DIR / "transitions.jsonl").open("a") as f:
                 f.write(json.dumps(transition_of(msg, device), ensure_ascii=False) + "\n")

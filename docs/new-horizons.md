@@ -137,12 +137,21 @@ phone's position, a first departure the user can no longer walk to in time.
 What it saw is stored with the trip, so the same news is never reported twice,
 and a trip is dropped half an hour after it ends.
 
-An automation runs `transit watch` every five minutes as a condition script and
-wakes the agent only when the output is not empty, so the model is not called
-while nothing happens. The job has to be created from a Discord message by the
-owner: jobs created with `openclaw automations add` on the host are invisible to
-the agent (see "What the agent owns"), and condition scripts are an owner-only
-surface.
+An automation, "Surveillance trajets", runs `transit watch` every five minutes
+from 6:00 to 23:55 as a condition script and wakes the agent only when the
+output is not empty, so the model is not called while nothing happens. A
+second one, "Préparation trajets du jour", asks the agent at 6:30 to plan and
+track the day's trips from the calendar and to request any region they need.
+Both post to `#notify`. They are operator-owned, created on this host with
+`openclaw automations add --declaration-key transit-watch` and
+`transit-morning`: they run and deliver normally, but the agent does not see
+them in its own list. The script and prompts they were created from are in
+`/var/lib/openclaw/automation-src`.
+
+The phone also requests regions. When a position arrives more than 2 km from
+the last one checked, the receiver looks up its region and drops a request,
+and it renews that request once a day while the phone stays there, so the
+region the user is in stays loaded without anyone planning a trip.
 
 ## The user's position
 

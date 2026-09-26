@@ -55,6 +55,7 @@ in {
     users.users.owntracks = {
       isSystemUser = true;
       group = "owntracks";
+      extraGroups = ["motis"];
       home = dataDir;
     };
     users.groups.owntracks = {};
@@ -84,6 +85,7 @@ in {
           StateDirectoryMode = "0750";
           UMask = "0027";
           ExecStart = receiver;
+          ReadWritePaths = ["-/var/lib/motis/requests"];
           Restart = "on-failure";
           RestartSec = 5;
           MemoryMax = "128M";
