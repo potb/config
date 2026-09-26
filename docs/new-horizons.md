@@ -78,8 +78,11 @@ A region is wanted when it is pinned, or when a file named after it exists in
 trip touches, and `transit regions --request <region>` writes it on purpose.
 A path unit starts `motis-import` as soon as the directory changes, and a daily
 timer rebuilds anyway to keep timetables current. Requests expire after 14
-days without use, and at most 4 regions are loaded, pinned ones included; past
-that cap the most recently requested win.
+days without use, and at most 3 regions are loaded, pinned ones included; past
+that cap the most recently requested win. The cap is memory, measured on this
+host: three regions, one of them Île-de-France, import in about 7 minutes at a
+3 GB peak and serve at 1.6 GB, inside the router's 2 GB limit, next to a
+gateway at about 1 GB. A fourth needs a new measurement first.
 
 The pinned regions are the ones the user lives and travels in, which says more
 about them than this public repository should. They live in

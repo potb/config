@@ -18,7 +18,7 @@
     inherit stateDir userAgent;
 
     pinnedFile = pinnedRegionsFile;
-    maxRegions = 4;
+    maxRegions = 3;
     requestTtlDays = 14;
     rebuildAfterDays = 3;
 
