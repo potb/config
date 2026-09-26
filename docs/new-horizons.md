@@ -388,7 +388,8 @@ command to run.
 ### Email to calendar
 
 An automation, "Mails vers agenda", runs `mail new --json` every 30 minutes
-from 7:00 to 21:30 Paris time (cron `*/30 7-21`) as a condition script and
+from 6:00 to 21:30 Paris time (cron `*/30 6-21`), so the 6:00 pass lands
+before the 6:30 morning trip job, as a condition script and
 wakes the agent only when something new arrived. The agent reads each new email with `mail read`,
 decides whether it holds a date that matters (appointment, reservation, trip,
 deadline, payment due), looks for an event already tagged with that message
