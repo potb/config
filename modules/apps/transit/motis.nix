@@ -20,6 +20,7 @@
     pinnedFile = pinnedRegionsFile;
     maxRegions = 3;
     requestTtlDays = 14;
+    tripPriorityHours = 48;
     rebuildAfterDays = 3;
 
     nationalFeeds = ["horaires-sncf"];

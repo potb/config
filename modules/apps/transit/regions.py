@@ -230,6 +230,26 @@ def pinned_regions():
         return []
 
 
+def request_kind(entry):
+    try:
+        return entry.read_text().strip() or "trip"
+    except OSError:
+        return "trip"
+
+
+def request_rank(mtime, kind):
+    fresh_trip = kind == "trip" and time.time() - mtime < CFG["tripPriorityHours"] * 3600
+    return (0 if fresh_trip else 1, -mtime)
+
+
+def write_queue(blocked):
+    out = state_dir() / "catalog" / "queue.json"
+    tmp = out.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"blocked_by_cap": blocked, "max_regions": CFG["maxRegions"], "checked_at": int(time.time())}))
+    os.chmod(tmp, 0o644)
+    tmp.replace(out)
+
+
 def wanted_regions(catalog):
     pinned = [r for r in pinned_regions() if r in catalog["regions"]]
     ttl = CFG["requestTtlDays"] * DAY
@@ -247,11 +267,13 @@ def wanted_regions(catalog):
             log(f"request for {entry.name} expired")
             entry.unlink(missing_ok=True)
         elif entry.name not in pinned:
-            requested.append((entry.stat().st_mtime, entry.name))
-    requested.sort(reverse=True)
+            requested.append((request_rank(entry.stat().st_mtime, request_kind(entry)), entry.name))
+    requested.sort()
     room = max(CFG["maxRegions"] - len(pinned), 0)
-    if requested[room:]:
-        log(f"over the {CFG['maxRegions']}-region cap, not loading: {', '.join(n for _, n in requested[room:])}")
+    blocked = [n for _, n in requested[room:]]
+    if blocked:
+        log(f"over the {CFG['maxRegions']}-region cap, not loading: {', '.join(blocked)}")
+    write_queue(blocked)
     return pinned, sorted(n for _, n in requested[:room])
 
 

@@ -76,11 +76,19 @@ old data until the new one is complete, then restarts onto it.
 
 A region is wanted when it is pinned, or when a file named after it exists in
 `/var/lib/motis/requests`. `transit plan` writes that file for every region a
-trip touches, and `transit regions --request <region>` writes it on purpose.
-A path unit starts `motis-import` as soon as the directory changes, and a daily
-timer rebuilds anyway to keep timetables current. Requests expire after 14
-days without use, and at most 3 regions are loaded, pinned ones included; past
-that cap the most recently requested win. The cap is memory, measured on this
+trip touches, and `transit regions --request <region>` or
+`transit regions --at <place> --load` writes it on purpose. The file's content
+says who asked: `trip` from those commands (an empty file counts as `trip`),
+`position` from the phone. A path unit starts `motis-import` as soon as the
+directory changes, and a daily timer rebuilds anyway to keep timetables
+current. Requests expire after 14 days without use, and at most 3 regions are
+loaded, pinned ones included. With two regions pinned there is one free slot,
+so its ranking matters: a `trip` request younger than 48 hours comes first,
+then everything else from the most recent. A trip planned for tomorrow is not
+pushed out by wherever the phone happens to be tonight. The regions left out
+are written to `catalog/queue.json`, which `transit regions` shows as
+`bloquees_par_plafond`, and the agent is told to say so rather than call them
+queued. The cap is memory, measured on this
 host: three regions, one of them Île-de-France, import in about 7 minutes at a
 3 GB peak and serve at 1.6 GB, inside the router's 2 GB limit, next to a
 gateway at about 1 GB. A fourth needs a new measurement first.
@@ -159,10 +167,25 @@ ends"), after 2026.9.5. Until nix-openclaw ships a release with it,
 a detached context created by the entry point. The patch fails the build if
 the code it rewrites has changed, which is the signal to drop it.
 
-The phone also requests regions. When a position arrives more than 2 km from
-the last one checked, the receiver looks up its region and drops a request,
-and it renews that request once a day while the phone stays there, so the
-region the user is in stays loaded without anyone planning a trip.
+The phone also requests regions. The receiver looks up the region of a
+position once it is more than 2 km from the last one checked, and requests it
+only after the phone has stayed in it for 30 minutes, going by the
+positions' own timestamps. Positions faster than 50 km/h are ignored, so a
+train crossing a region, or GPS noise at a border, requests nothing. A
+request is renewed every 48 hours while the phone stays, and never rewritten
+while the file is fresher than that, so a receiver restart does not demote a
+trip request to a position one. OwnTracks in significant-change mode reports
+after about 500 m of movement at most every 5 minutes, and while still it only
+sends a periodic ping, so the request goes out with the first position or
+ping 30 minutes after entering the region. None of this touches Transitous or the model: the lookup is a
+point-in-polygon test on the local catalogue, and the only network traffic is
+the rebuild downloading timetables, mostly from the Transitous GTFS mirror.
+
+The morning job reads 3 days of calendar rather than 36 hours for long
+distance trips: an event titled "A → B" for a train or coach has its arrival
+place resolved with `transit regions --at "<B>" --load`, because the event's
+own location is usually the departure station or free text, which resolves to
+the departure region and so never loaded the destination.
 
 ## The user's position
 

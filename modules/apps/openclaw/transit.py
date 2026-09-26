@@ -74,6 +74,7 @@ def request_region(region_id):
     folder = MOTIS_STATE / "requests"
     try:
         fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{region_id}.")
+        os.write(fd, b"trip\n")
         os.fchmod(fd, 0o664)
         os.close(fd)
         os.replace(tmp, folder / region_id)
@@ -535,11 +536,19 @@ def cmd_regions(a):
     requests_dir = MOTIS_STATE / "requests"
     if requests_dir.exists():
         out["demandees"] = sorted(p.name for p in requests_dir.iterdir() if not p.name.startswith("."))
+    try:
+        queue = json.loads((MOTIS_STATE / "catalog" / "queue.json").read_text())
+        out["bloquees_par_plafond"] = queue.get("blocked_by_cap") or None
+        out["plafond"] = queue.get("max_regions")
+    except (OSError, ValueError):
+        pass
     if a.at:
         coord = as_coord(a.at) or resolve_place(a.at)["coord"]
         region = region_of(*coord)
         out["region_du_lieu"] = region
         out["couverte_localement"] = region in loaded
+        if a.load and region and region not in loaded:
+            out["demande_envoyee"] = request_region(region)
     if a.request:
         known = {r["id"] for r in region_catalog()}
         if a.request not in known:
@@ -577,6 +586,7 @@ def main():
     s = sub.add_parser("regions", help="régions chargées localement")
     s.add_argument("--at", help="lieu ou lat,lon : dans quelle région, couverte ou non")
     s.add_argument("--request", metavar="REGION", help="demander le chargement d'une région")
+    s.add_argument("--load", action="store_true", help="avec --at : demander la région du lieu si elle n'est pas chargée")
     s.set_defaults(fn=cmd_regions)
 
     s = sub.add_parser("track", help="trajets suivis : add '<json>', list, rm <id>")

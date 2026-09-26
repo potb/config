@@ -20,9 +20,14 @@ HISTORY = DATA_DIR / "history.jsonl"
 LATEST = DATA_DIR / "latest.json"
 MOTIS_STATE = Path(os.environ.get("LOC_MOTIS_STATE", "/var/lib/motis"))
 REGION_RECHECK_M = 2000
+REGION_STAY_S = 30 * 60
+REGION_TRANSIT_KMH = 50
+REGION_RENEW_S = 48 * 3600
 
 _regions = {"mtime": None, "data": []}
 _last_region = {"lat": None, "lon": None, "id": None}
+_candidate = {"id": None, "since": None}
+_requested = {"id": None, "at": 0}
 
 
 def point_in_ring(lon, lat, ring):
@@ -71,21 +76,34 @@ def moved_m(lat, lon):
 def request_region_for(rec):
     if time.time() - rec["ts"] > 3600:
         return
-    moved = moved_m(rec["lat"], rec["lon"])
-    stale = time.time() - _last_region.get("touched", 0) > 86400
-    if moved < REGION_RECHECK_M and not stale:
+    if moved_m(rec["lat"], rec["lon"]) >= REGION_RECHECK_M:
+        _last_region.update(lat=rec["lat"], lon=rec["lon"], id=region_of(rec["lat"], rec["lon"]))
+    if (rec.get("speed_kmh") or 0) > REGION_TRANSIT_KMH:
         return
-    region = region_of(rec["lat"], rec["lon"]) if moved >= REGION_RECHECK_M else _last_region["id"]
-    _last_region.update(lat=rec["lat"], lon=rec["lon"])
-    if region is None or (region == _last_region["id"] and not stale):
+    region = _last_region["id"]
+    if region is None:
+        _candidate.update(id=None, since=None)
         return
-    _last_region.update(id=region, touched=time.time())
+    if region != _candidate["id"]:
+        _candidate.update(id=region, since=rec["ts"])
+    if rec["ts"] - _candidate["since"] < REGION_STAY_S:
+        return
+    if region == _requested["id"] and time.time() - _requested["at"] < REGION_RENEW_S:
+        return
     folder = MOTIS_STATE / "requests"
     try:
+        if time.time() - (folder / region).stat().st_mtime < REGION_RENEW_S:
+            _requested.update(id=region, at=time.time())
+            return
+    except OSError:
+        pass
+    try:
         fd, tmp = tempfile.mkstemp(dir=folder, prefix=f".{region}.")
+        os.write(fd, b"position\n")
         os.fchmod(fd, 0o664)
         os.close(fd)
         os.replace(tmp, folder / region)
+        _requested.update(id=region, at=time.time())
     except OSError as e:
         print(f"owntracks-receiver: cannot request region {region}: {e}", file=sys.stderr, flush=True)
 
