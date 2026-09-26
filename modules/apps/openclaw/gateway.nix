@@ -286,7 +286,7 @@ in {
       ];
       RestrictNamespaces = false;
       RestrictRealtime = true;
-      RestrictSUIDSGID = true;
+      RestrictSUIDSGID = false;
       LockPersonality = true;
       MemoryDenyWriteExecute = false;
       SystemCallArchitectures = "native";

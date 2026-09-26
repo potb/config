@@ -417,11 +417,17 @@ sessions and memory, lives only in the backups.
 
 ## Deploying a change
 
+Build on charon, which has the cores and the cache, and send the result. This
+host has 4 vCPUs and builds anything uncached slowly while holding the Nix store
+lock:
+
 ```
-ssh potb@185.163.119.202
-cd /tmp/cfg && git pull
-sudo nixos-rebuild switch --flake .#new-horizons
+nixos-rebuild switch --flake .#new-horizons \
+  --target-host potb@new-horizons --elevate sudo
 ```
+
+The closure is built locally and copied over the tailnet; only activation runs
+here.
 
 ## What the agent owns
 
@@ -546,6 +552,29 @@ megabytes.
   sudo podman exec neko supervisorctl status chromium
   curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
   ```
+
+- OpenClaw 2026.9.5 takes its gateway lock through `openat2`, and systemd's
+  `RestrictSUIDSGID` seccomp filter answers every `openat2` with `ENOSYS`,
+  because the syscall's mode argument sits in a struct the filter cannot
+  inspect. The gateway then dies at start with `openat2 beneath root: Function
+  not implemented (os error 38)`, and the pre-start doctor fails the same way.
+  The units here leave `RestrictSUIDSGID` off; `NoNewPrivileges` and an empty
+  capability set already keep a set-id bit from granting anything. To check a
+  candidate sandbox before deploying:
+
+  ```
+  sudo systemd-run --pipe --wait -p User=openclaw -p RestrictSUIDSGID=yes \
+    python3 -c 'import ctypes,os;l=ctypes.CDLL(None,use_errno=True);print(l.syscall(437,-100,b"/",b"\0"*24,24),os.strerror(ctypes.get_errno()))'
+  ```
+
+- An OpenClaw upgrade is one-way. The pre-start doctor migrates the databases
+  to the new schema even when the new gateway then fails to start, and the old
+  build refuses the newer schema, so rolling the system generation back leaves
+  the agent down. `doctor/pre-migrate.tgz` is rewritten on every doctor run,
+  including the failed ones, so it cannot be trusted after a second attempt;
+  the nightly restic snapshot is the real way back. Build and test a new gateway
+  on charon before a switch, and never rebuild on this host: it builds slowly
+  and holds the Nix store lock for the duration.
 
 - sops-nix installs secrets into a fresh `/run/secrets.d/<n>` on every
   activation and moves the `/run/secrets` symlink, but bind mounts inside a
