@@ -312,6 +312,42 @@ machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
 converted with `ssh-to-age`. A new machine needs its key added to
 `.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
 
+## Gmail through gog
+
+Agents reach Gmail with [gog](https://github.com/openclaw/gogcli), the same
+Google Workspace CLI the OpenClaw gateway uses for the calendar
+(`modules/agents/gog.nix`). The `gog`, `gog-gmail` and `gog-inbox-triage`
+skills are seeded from the gogcli source of the installed package, so they
+always describe the binary on `PATH`.
+
+The account address is personal data, so it lives in `secrets/jcode.yaml` as
+`gog-account` rather than in the Nix tree. `gog` on `PATH` is a small wrapper
+that exports it as `GOG_ACCOUNT` unless the caller already set one. Changing
+the account is `sops set secrets/jcode.yaml '["gog-account"]' '"<address>"'`
+followed by a switch.
+
+The OAuth client and the refresh token are not in the repository at all. gog
+keeps them in the OS keyring: gnome-keyring through the Secret Service on
+Linux, the login Keychain on macOS. They are per machine, so each machine
+connects once:
+
+```
+gog auth credentials ~/Downloads/client_secret_<id>.json
+gog auth add "$(cat ~/.config/sops-nix/secrets/gog-account)" --services gmail
+rm ~/Downloads/client_secret_<id>.json
+```
+
+`auth add` opens the consent page in the default browser and listens on
+localhost for the redirect. The client is a Desktop client named `jcode` in
+the Google Cloud project `hal-calendar-509811`, the project already published
+for the calendar (see `docs/new-horizons.md`), so its refresh tokens do not
+expire after seven days. The Gmail API is enabled in that project. Gmail
+scopes are restricted, so consent shows the "Google hasn't verified this app"
+warning; Advanced, then continue, gets past it.
+
+Agents should keep `--gmail-no-send` and `--readonly` on unless the task is a
+write the user asked for, as the seeded skills describe.
+
 ## Computer use on Linux
 
 jcode ships desktop control only for macOS (`macos_computer_use`). Linux

@@ -53,7 +53,15 @@
       in
         lib.nameValuePair ".jcode/${rel}" path)
       (lib.filesystem.listFilesRecursive seedRoot))
+      // gogSkillFiles
       // {".jcode/mcp.json" = mcpJson;};
+
+    gogSkills = ["gog" "gog-gmail" "gog-inbox-triage"];
+
+    gogSkillFiles = lib.listToAttrs (map (name:
+      lib.nameValuePair ".jcode/skills/${name}/SKILL.md"
+      "${pkgs.gogcli.src}/.agents/skills/${name}/SKILL.md")
+    gogSkills);
 
     # Hooks are spawned by jcode as programs rather than sourced, so they need
     # the exec bit the default 0644 seed mode would strip.
