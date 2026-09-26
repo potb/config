@@ -422,6 +422,17 @@ start at all. `tailscale-serve` owns every route now, `gateway.tailscale.mode`
 is `off`, and loopback is a trusted proxy so forwarded client addresses are
 still honoured. Requests to `/api/*` answer `401` without the token.
 
+The OpenClaw iPhone app pairs through the same route, `wss://` on the default
+port. The pairing code comes from `openclaw qr --url
+wss://new-horizons.taile99a6c.ts.net`, run as `openclaw` inside the gateway's
+mount namespace (`nsenter -t <gateway pid> -m`), because outside it
+`/var/lib/openclaw/config/openclaw.json` is only the empty bind-mount target
+and the CLI reports the config as invalid. The code carries a full-access
+credential, so it goes to the phone as a QR image that is deleted afterwards.
+The paired phone shows up in `openclaw nodes status` as a node with calendar,
+camera, contacts, device, motion, photos, reminders, talk and watch
+capabilities; location appears once the app is granted it.
+
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
 80 from the tailnet. Media rides a single TCP port, 52100, also published
 through Serve, so watching the session from a phone needs no UDP.
