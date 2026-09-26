@@ -361,14 +361,19 @@ command to run.
 ### Email to calendar
 
 An automation, "Mails vers agenda", runs `mail new --json` every 30 minutes
-from 7:00 to 22:30 as a condition script and wakes the agent only when
-something new arrived. The agent reads each new email with `mail read`,
+from 7:00 to 21:30 Paris time (cron `*/30 7-21`) as a condition script and
+wakes the agent only when something new arrived. The agent reads each new email with `mail read`,
 decides whether it holds a date that matters (appointment, reservation, trip,
 deadline, payment due), looks for an event already tagged with that message
-id, creates or updates the event, runs `mail ack`, and posts what it added to
-`#notify`. Events carry the private properties `source=gmail` and
+id or an equivalent event that day, creates or updates the event, runs
+`mail ack`, and posts to `#notify` only when it created or changed something:
+one line per event, date in bold then title. Events carry the private properties `source=gmail` and
 `gmail=<message id>`, which is how it finds them again. The script and prompt
 are in `/var/lib/openclaw/automation-src`.
+
+Titles follow the calendar's existing naming convention, and bookings in a
+third party's name are skipped. The gog skill holds the rule, so it applies to
+any event the agent creates, not only this job.
 
 The condition script calls `exec` with `yieldMs: 60000`. Inside a trigger
 script `exec` backgrounds any command that has not finished almost at once and
