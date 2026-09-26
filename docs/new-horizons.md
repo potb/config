@@ -142,11 +142,17 @@ from 6:00 to 23:55 as a condition script and wakes the agent only when the
 output is not empty, so the model is not called while nothing happens. A
 second one, "Préparation trajets du jour", asks the agent at 6:30 to plan and
 track the day's trips from the calendar and to request any region they need.
-Both post to `#notify`. They are operator-owned, created on this host with
-`openclaw automations add --declaration-key transit-watch` and
-`transit-morning`: they run and deliver normally, but the agent does not see
-them in its own list. The script and prompts they were created from are in
-`/var/lib/openclaw/automation-src`.
+Both post to `#notify`. They belong to the agent (owner `agent:main:main`), so
+it sees and manages them from its own list. Automations created by the
+operator with `openclaw automations add` also run, but the agent never sees
+them, so new ones should be asked of the agent in chat instead. The script and
+prompts they were created from are in `/var/lib/openclaw/automation-src`.
+
+A trigger automation the agent has just created can fail every run with
+`Plugin runtime changed. Continue with the refreshed tool catalog`. The error
+comes from the plugin runtime refresh guard, which the trigger apparently
+inherits from the agent run that created it. Disabling and enabling the
+automation from the host CLI cleared it: the next run passed.
 
 The phone also requests regions. When a position arrives more than 2 km from
 the last one checked, the receiver looks up its region and drops a request,
