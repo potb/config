@@ -6,6 +6,8 @@
     "TOOLS.md"
     "skills/transit/SKILL.md"
     "skills/position/SKILL.md"
+    "skills/mail/SKILL.md"
+    "skills/gog/SKILL.md"
   ];
 
   mkBootstrapSecret = name: {

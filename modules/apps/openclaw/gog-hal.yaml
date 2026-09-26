@@ -1,15 +1,8 @@
 name: hal
-description: The agent's gog. Calendar reads and private event writes, Gmail search only. Message bodies go through the mail command.
+description: The agent's gog. Calendar only, reads and private event writes. Mail goes through the mail command.
 
 version: true
-schema: true
 time: true
-
-gmail:
-  search: true
-  messages:
-    search: true
-  url: true
 
 calendar:
   calendars: true
@@ -27,12 +20,7 @@ calendar:
 auth:
   list: true
   status: true
-  services: true
-  doctor: true
 
 locked-flags:
   wrap-untrusted: true
   no-input: true
-  gmail-no-send: true
-  include-body: false
-  full: false

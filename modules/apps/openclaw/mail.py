@@ -26,6 +26,15 @@ OCR_PAGES = 10
 OCR_LANGS = "fra+eng"
 SMALL_IMAGE = 15 * 1024
 NEW_QUERY = "in:inbox -category:promotions -category:social newer_than:3d"
+HELP = """exemples :
+  mail search                                   les 10 derniers emails de la boîte de réception
+  mail search 'from:sncf newer_than:30d'        recherche Gmail, même syntaxe que dans Gmail
+  mail search 'has:attachment facture' --max 20
+  mail read <id>                                le fil complet, pièces jointes téléchargées et lues
+  mail read --message <id>                      seulement ce message, pièces jointes comprises
+
+Les ids viennent de mail search. mail read est la seule façon de lire un email :
+le texte de chaque pièce jointe (PDF, scan, photo, Word, Excel...) est inclus."""
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif", ".webp", ".pnm"}
 TEXT_EXT = {".txt", ".csv", ".tsv", ".ics", ".vcs", ".vcf", ".json", ".xml", ".md", ".log"}
 HTML_EXT = {".html", ".htm"}
@@ -462,16 +471,10 @@ def save_state(state):
     tmp.replace(STATE)
 
 
-def cmd_new(args):
-    state = load_state()
-    cutoff = time.time() - 7 * 86400
-    state["handled"] = {k: v for k, v in state.get("handled", {}).items() if v > cutoff}
-    data = gog("gmail", "messages", "search", NEW_QUERY, "--max", "50", "--include-attachments")
-    fresh = []
-    for msg in data.get("messages") or []:
-        if msg.get("id") in state["handled"]:
-            continue
-        fresh.append(
+def summarize(messages):
+    rows = []
+    for msg in messages:
+        rows.append(
             {
                 "id": msg.get("id"),
                 "threadId": msg.get("threadId"),
@@ -481,14 +484,36 @@ def cmd_new(args):
                 "attachments": [plain(a.get("filename")) for a in msg.get("attachments") or []],
             }
         )
+    return rows
+
+
+def listing(rows):
+    lines = []
+    for m in rows:
+        extra = f" [{len(m['attachments'])} PJ : {', '.join(m['attachments'])}]" if m["attachments"] else ""
+        lines.append(f"{m['id']}\t{m['date']}\t{m['from']}\t{m['subject']}{extra}")
+    return wrap("\n".join(lines), "gmail") if lines else ""
+
+
+def cmd_search(args):
+    data = gog("gmail", "messages", "search", args.query, "--max", str(args.max), "--include-attachments")
+    rows = summarize(data.get("messages") or [])
+    if not rows:
+        print("Aucun email ne correspond.")
+        return
+    print("id\tdate\tde\tobjet [pièces jointes]\n" + listing(rows) + "\n\nPour lire un email et ses pièces jointes : mail read <id>")
+
+
+def cmd_new(args):
+    state = load_state()
+    cutoff = time.time() - 7 * 86400
+    state["handled"] = {k: v for k, v in state.get("handled", {}).items() if v > cutoff}
+    data = gog("gmail", "messages", "search", NEW_QUERY, "--max", "50", "--include-attachments")
+    fresh = [m for m in summarize(data.get("messages") or []) if m["id"] not in state["handled"]]
     fresh.sort(key=lambda m: m["date"] or "")
     state["listed"] = [m["id"] for m in fresh]
     save_state(state)
-    lines = []
-    for m in fresh:
-        extra = f" [{len(m['attachments'])} PJ : {', '.join(m['attachments'])}]" if m["attachments"] else ""
-        lines.append(f"{m['id']}\t{m['date']}\t{m['from']}\t{m['subject']}{extra}")
-    text = wrap("\n".join(lines), "gmail") if lines else ""
+    text = listing(fresh)
     if args.json:
         print(json.dumps({"count": len(fresh), "ids": [m["id"] for m in fresh], "text": text}, ensure_ascii=False))
     elif text:
@@ -507,8 +532,17 @@ def cmd_ack(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="mail", description="Lecture Gmail avec pièces jointes, en lecture seule.")
+    parser = argparse.ArgumentParser(
+        prog="mail",
+        description="Gmail de Peïo, en lecture seule : chercher et lire les emails, pièces jointes comprises.",
+        epilog=HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = parser.add_subparsers(dest="command", required=True)
+    search = sub.add_parser("search", help="Chercher des emails (syntaxe Gmail), du plus récent au plus ancien")
+    search.add_argument("query", nargs="?", default="in:inbox", help="Requête Gmail, par défaut in:inbox")
+    search.add_argument("--max", type=int, default=10)
+    search.set_defaults(func=cmd_search)
     read = sub.add_parser("read", help="Lire un fil ou un message, pièces jointes comprises")
     read.add_argument("ids", nargs="+", help="Identifiant de message ou de fil")
     read.add_argument("--message", action="store_true", help="Seulement le message donné, pas tout le fil")

@@ -276,13 +276,14 @@ undo them. The stock gogcli that nix-openclaw puts in the gateway wrapper's
 PATH is filtered out of `extendedTools`, so the restricted build is the only
 `gog` the agent finds.
 
-`gog-hal.yaml` is the agent's `gog`. It can search Gmail, which lists sender,
-subject, date and attachment names, but cannot open a message, so every read
-goes through `mail`. In the calendar it reads, creates and updates, and cannot
-delete, move, subscribe or change sharing. `auth` writes are refused.
-`wrap-untrusted`, `gmail-no-send` and `no-input` are locked on, and
-`include-body` and `full` locked off: without them `gmail messages search`
-would print message bodies and skip `mail`.
+`gog-hal.yaml` is the agent's `gog`, and it covers the calendar only: it reads,
+creates and updates events, and cannot delete, move, subscribe or change
+sharing. Gmail is left out entirely. With Gmail search allowed, the agent
+reached for `gog gmail` first on its first real request, spent a dozen calls
+on `--help` and `schema` looking for a way to open the message, and only then
+fell back to a file on disk. With one command per service there is nothing to
+choose between. `auth` writes are refused, and `wrap-untrusted` and
+`no-input` are locked on.
 
 `gog-private-calendar.patch` applies to the agent's build only. It makes
 `buildAttendees` return nothing and `validateSendUpdates` always return
@@ -299,10 +300,12 @@ does not justify.
 
 ### Reading mail
 
-`mail read <id>` takes a message or thread id and prints the whole thread:
-headers, body, and every attachment downloaded to
-`workspace/mail/<thread id>/` with its text extracted. It is the agent's only
-way to open an email, so the attachments are always part of what it reads.
+`mail` is the agent's whole Gmail access, in two steps. `mail search
+'<Gmail query>'` prints one line per message: id, date, sender, subject and
+attachment names. `mail read <id>` takes a message or thread id and prints the
+whole thread: headers, body, and every attachment downloaded to
+`workspace/mail/<thread id>/` with its text extracted. Nothing else opens an
+email, so the attachments are always part of what the agent reads.
 `--message` limits the output to one message of the thread.
 
 Extraction runs locally:
@@ -337,6 +340,23 @@ Thread directories untouched for 30 days are removed by the next `mail read`.
 excluded, that has not been acknowledged; `mail ack` acknowledges what the last
 `mail new` listed. The state lives in `/var/lib/openclaw/mail-state.json`,
 outside the workspace, where the agent's file tools cannot edit it.
+
+### How the agent is told
+
+Two workspace skills, `mail` and `gog`, carry the instructions, next to
+`transit` and `position`. OpenClaw lists every eligible skill's name and
+one-line description in the system prompt and loads the body when one
+matches, so each description names the requests it is for, the command to
+run, and the other skill for the neighbouring case ("not for emails: skill
+mail"). The workspace `gog` skill also replaces the bundled one of the same
+name, which described Gmail sending, Drive and Sheets that this build does not
+have. The bodies give the exact command sequence with real examples, say what
+the output contains and what to do with each part of it, and forbid hunting
+through `--help`. `TOOLS.md` keeps only a two-line router to the skills. This
+follows Anthropic's "Writing effective tools for agents": tools whose purposes
+do not overlap, descriptions written for a new hire, and outputs that tell the
+agent its next step, which is why `mail search` ends with the `mail read`
+command to run.
 
 ### Email to calendar
 

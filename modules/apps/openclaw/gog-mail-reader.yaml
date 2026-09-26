@@ -1,5 +1,5 @@
 name: mail-reader
-description: Used only by the mail command. Reads Gmail messages, threads and attachments, changes nothing.
+description: Used only by the mail command. Searches and reads Gmail messages, threads and attachments, changes nothing.
 
 version: true
 
@@ -9,7 +9,6 @@ gmail:
   messages:
     search: true
   attachment: true
-  history: true
   thread:
     get: true
     attachments: true
