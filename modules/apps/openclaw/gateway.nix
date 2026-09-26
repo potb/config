@@ -7,8 +7,21 @@
 }: let
   openclawPkgs = inputs.nix-openclaw.packages.${pkgs.stdenv.hostPlatform.system};
 
+  openclawGateway = openclawPkgs.openclaw-gateway.overrideAttrs (old: {
+    installPhase = ''
+      ${old.installPhase}
+      OPENCLAW_PACKAGE_ROOT="$out/lib/openclaw" "$NODE_BIN" ${./detach-cron-timer.mjs}
+    '';
+  });
+
+  openclawBundle = openclawPkgs.openclaw.override {
+    openclaw-gateway = openclawGateway;
+  };
+
   runtimePlugins = [
-    openclawPkgs."openclaw-runtime-plugin-exa"
+    (openclawPkgs."openclaw-runtime-plugin-exa".overrideAttrs (old: {
+      env = old.env // {OPENCLAW_GATEWAY_PACKAGE = "${openclawGateway}";};
+    }))
   ];
 
   npmPlugins = {
@@ -93,7 +106,7 @@ in {
   nixos = {
     services.openclaw-gateway = {
       enable = true;
-      package = openclawPkgs.openclaw;
+      package = openclawBundle;
       port = 18789;
       user = "openclaw";
       group = "openclaw";

@@ -148,11 +148,16 @@ operator with `openclaw automations add` also run, but the agent never sees
 them, so new ones should be asked of the agent in chat instead. The script and
 prompts they were created from are in `/var/lib/openclaw/automation-src`.
 
-A trigger automation the agent has just created can fail every run with
-`Plugin runtime changed. Continue with the refreshed tool catalog`. The error
-comes from the plugin runtime refresh guard, which the trigger apparently
-inherits from the agent run that created it. Disabling and enabling the
-automation from the host CLI cleared it: the next run passed.
+OpenClaw 2026.9.5 runs a cron tick inside the async context of whatever
+request last armed the timer. After an agent turn that created or edited an
+automation, or after a gateway restart, trigger scripts then fail on every tick
+with `Plugin runtime changed. Continue with the refreshed tool catalog`,
+because they inherit that turn's finished plugin refresh scope. Upstream fixed
+it in `c7ada2f55` ("keep scheduled jobs alive after their creating request
+ends"), after 2026.9.5. Until nix-openclaw ships a release with it,
+`detach-cron-timer.mjs` patches the gateway at build time so the timer runs in
+a detached context created by the entry point. The patch fails the build if
+the code it rewrites has changed, which is the signal to drop it.
 
 The phone also requests regions. When a position arrives more than 2 km from
 the last one checked, the receiver looks up its region and drops a request,
