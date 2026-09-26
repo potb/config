@@ -231,6 +231,11 @@ The token holds `calendar.readonly` and `gmail.readonly` only. Adding a service
 later means re-running both steps with every service listed, since a new
 consent replaces the old scopes rather than adding to them.
 
+Google treats every client in the project as one app for grants. Revoking any
+refresh token issued in `hal-calendar-509811`, or removing "hal" from the
+account's third-party connections, also revokes the gateway's token, which then
+needs both steps again.
+
 The consent page ignores synthetic clicks on the "unverified app" warning, so
 driving it from an agent needs real input (computer use), not a CDP click.
 
