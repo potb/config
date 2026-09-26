@@ -1337,6 +1337,23 @@
         "type": "github"
       }
     },
+    "openclaw-icloud-calendar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789923908,
+        "narHash": "sha256-GzeBA5hpGl4JWB8Ohfl4K3JR1c+I4Ql4kcMFtnzxjxE=",
+        "owner": "omarshahine",
+        "repo": "openclaw-icloud-calendar",
+        "rev": "558af234b43bf9b832f15aaf65f7862781fba400",
+        "type": "github"
+      },
+      "original": {
+        "owner": "omarshahine",
+        "repo": "openclaw-icloud-calendar",
+        "rev": "558af234b43bf9b832f15aaf65f7862781fba400",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1425,6 +1442,7 @@
         "nixos-apple-silicon": "nixos-apple-silicon",
         "nixpkgs": "nixpkgs_6",
         "nixvim": "nixvim",
+        "openclaw-icloud-calendar": "openclaw-icloud-calendar",
         "qwerty-fr": "qwerty-fr",
         "sops-nix": "sops-nix",
         "stylix": "stylix",

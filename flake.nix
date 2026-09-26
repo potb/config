@@ -113,6 +113,11 @@
       flake = false;
     };
 
+    openclaw-icloud-calendar = {
+      url = "github:omarshahine/openclaw-icloud-calendar/558af234b43bf9b832f15aaf65f7862781fba400";
+      flake = false;
+    };
+
     nixos-apple-silicon = {
       url = "github:nix-community/nixos-apple-silicon/1bf1838b982768c3ece6d719f03e13b9f7408e6d";
       inputs.nixpkgs.follows = "nixpkgs";

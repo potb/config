@@ -402,6 +402,18 @@ Titles follow the calendar's existing naming convention, and bookings in a
 third party's name are skipped. The gog skill holds the rule, so it applies to
 any event the agent creates, not only this job.
 
+Since the iCloud calendar was connected (next section), the job checks both
+calendars before creating anything and writes to the shared iCloud calendar
+unless the event clearly concerns Peïo alone. Each line it posts ends with the
+calendar it used, `(partagé)` or `(Google)`.
+
+An automation's tool allowlist is frozen when the job is created, so a plugin
+added later is not in it. "Mails vers agenda" and "Préparation trajets du jour"
+got `icloud_calendar_list`, `_events`, `_get`, `_create` and `_update` added
+with `openclaw automations edit <id> --tools <list>`. `_delete` was left out
+on purpose, since a scheduled job never deletes. A new job that needs the
+calendar needs the same list.
+
 The condition script calls `exec` with `yieldMs: 60000`. Inside a trigger
 script `exec` backgrounds any command that has not finished almost at once and
 returns `status: "running"` with empty output; `mail new` takes about two
@@ -421,6 +433,63 @@ sudo systemd-run --quiet --collect --wait --pipe \
   -E HOME=/var/lib/openclaw -E GOG_KEYRING_BACKEND=file \
   <gogcli store path>/bin/gog auth list
 ```
+
+## iCloud Calendar
+
+Peïo and Gaby's shared agenda is the iCloud calendar "Gaby & Peïo 🐥". Gaby
+owns it and Peïo has read-write access. Apple has no REST API for calendars, so
+the agent reaches it over CalDAV with the plugin
+[omarshahine/openclaw-icloud-calendar](https://github.com/omarshahine/openclaw-icloud-calendar).
+It adds the `icloud_calendar_list`, `_events`, `_get`, `_create`, `_update`
+and `_delete` tools.
+
+The plugin is not published on npm, and the gateway installer only accepts
+official plugins, so `pkgs/openclaw-icloud-calendar` builds it from a pinned
+flake input. esbuild bundles `src/index.ts` with its only dependency,
+`@sinclair/typebox` (fetched from the npm registry by hash), into
+`dist/index.js`, and `openclaw/*` stays external. `node_modules/openclaw` is a
+link to the gateway package, as nix-openclaw does for its own runtime plugins.
+`gateway.nix` loads it through `plugins.load.paths` next to Exa. To update it,
+change the rev in `flake.nix`, run `nix flake lock`, and check that
+`@sinclair/typebox` in its `package.json` still matches the tarball in the
+package.
+
+Login uses the Apple Account, `peio.thibault@gmail.com`, not the
+`@icloud.com` address: that one is an alias and CalDAV answers 401 for it.
+Only an app-specific password works, from appleid.apple.com, Sign-In and
+Security, App-Specific Passwords. `openclaw-env` carries `ICLOUD_APPLE_ID` and
+`ICLOUD_APP_PASSWORD`. Such a password opens Mail, Contacts and Calendars
+alike, with no scope. The plugin only speaks CalDAV and only sends it to
+`*.icloud.com`, but revoking the password is the way to cut access. Changing
+the Apple Account password revokes every app-specific password.
+
+The plugin's `calendars` allowlist holds the shared calendar's id and `home`
+("Personnel", empty). Reminders (VTODO) and the Birthdays calendar are out of
+reach anyway. Writes are enabled: new shared events go to iCloud by default,
+and to Google only when they clearly concern Peïo alone. The gog skill holds
+these routing rules, and the agent keeps the cases it learns from corrections
+in `memory/agenda-routage.md`. Deleting an iCloud event needs Peïo's
+confirmation in a conversation, and scheduled jobs never delete. The agent
+does not set alarms on iCloud events.
+
+Notion Calendar copies "Gaby & Peïo" into the Google calendar one way. Its
+copies carry `extendedProperties.private["cron.calendarSync"]="true"` and the
+description "Event blocked with Notion Calendar". Not every event gets a copy:
+on 2026-09-26, "Peïo : Offsite", "Option privatisation thé chinois" and older
+trips existed only on iCloud. The agent therefore reads iCloud as the source,
+counts each event once, and never edits or deletes a Notion copy. An event
+created on iCloud shows up in Google a few minutes later, which the agent
+expects.
+
+To check the credentials by hand:
+
+```
+curl -u "$ICLOUD_APPLE_ID:$ICLOUD_APP_PASSWORD" -X PROPFIND -H 'Depth: 0' \
+  --data '<propfind xmlns="DAV:"><prop><current-user-principal/></prop></propfind>' \
+  https://caldav.icloud.com/
+```
+
+A 207 with `/25514345404/principal/` means the login works.
 
 ## Egress through home
 

@@ -23,7 +23,13 @@
     (openclawPkgs."openclaw-runtime-plugin-exa".overrideAttrs (old: {
       env = old.env // {OPENCLAW_GATEWAY_PACKAGE = "${openclawGateway}";};
     }))
+    icloudCalendarPlugin
   ];
+
+  icloudCalendarPlugin = pkgs.callPackage ../../../pkgs/openclaw-icloud-calendar/package.nix {
+    src = inputs.openclaw-icloud-calendar;
+    inherit openclawGateway;
+  };
 
   npmPlugins = {
     discord = {
@@ -283,6 +289,22 @@ in {
           entries = {
             discord.enabled = true;
             exa.enabled = true;
+            openclaw-icloud-calendar = {
+              enabled = true;
+              config = {
+                appleId = "\${ICLOUD_APPLE_ID}";
+                appPassword = {
+                  source = "env";
+                  provider = "default";
+                  id = "ICLOUD_APP_PASSWORD";
+                };
+                timezone = "Europe/Paris";
+                calendars = [
+                  "3bfe4fde743d133f2c5231987acbfcb08d15d3e002e6f7095748a09a5e5161f6"
+                  "home"
+                ];
+              };
+            };
           };
         };
       };
