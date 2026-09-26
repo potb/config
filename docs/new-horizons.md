@@ -570,6 +570,23 @@ nixos-rebuild switch --flake .#new-horizons \
 The closure is built locally and copied over the tailnet; only activation runs
 here.
 
+The gateway bind-mounts its config, so a switch leaves the running process on
+the old file until the unit restarts. After changing anything in
+`openclaw.json`, run `sudo systemctl restart openclaw-gateway` and check the
+value from inside its namespace (`nsenter -t <pid> -m cat
+/var/lib/openclaw/config/openclaw.json`).
+
+## Thinking level
+
+The model is DeepSeek V4.1 Flash through OpenRouter, which accepts `low`,
+`high` and `max` effort and defaults to `high`. `thinkingDefault` is `low`.
+Tried on the agent's own transit questions, `off`, `low` and `high` gave the
+same correct real-time routes, and `low` was also right on every try of a
+connection puzzle that `off` and `high` sometimes got wrong. `max` was the
+slowest and least reliable: OpenClaw sends it to OpenRouter as `xhigh`, and
+some tries ran for over three minutes. The morning planning job runs at `high`
+because nobody waits on it. `/think high` in a message raises one turn.
+
 ## What the agent owns
 
 Nix owns the package, the unit and the base config in
@@ -614,8 +631,10 @@ From a Discord turn the agent sees only the automations it created from that
 same conversation. A job created with `openclaw automations add` on the host
 is operator-owned: it runs and delivers normally, but the agent's list comes
 back with `scope: "caller"` and leaves it out, so asking hal for its jobs
-looks as if nothing is scheduled. Manage those from the CLI or the Control UI
-Automations page, whose administrator turns see the whole Gateway.
+looks as if nothing is scheduled. Ask the agent to create jobs instead, from
+the CLI with `openclaw agent --session-key agent:main:main` or from Discord.
+Operator jobs can still be managed from the CLI or the Control UI Automations
+page, whose administrator turns see the whole Gateway.
 
 `nix flake check` validates the generated OpenClaw config against the gateway's
 own JSON schema, which catches unknown keys, missing required keys and bad enum

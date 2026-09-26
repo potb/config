@@ -156,6 +156,7 @@ in {
               primary = "openrouter/deepseek/deepseek-v4.1-flash";
               fallbacks = ["openrouter/google/gemini-3.5-flash-lite"];
             };
+            thinkingDefault = "low";
             userTimezone = "Europe/Paris";
             skipBootstrap = true;
             contextInjection = "continuation-skip";
