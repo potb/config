@@ -29,3 +29,5 @@ docs/*
 !docs/upstream-warnings.md
 !docs/jcode.md
 *.log
+
+__pycache__/

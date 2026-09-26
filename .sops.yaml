@@ -20,6 +20,18 @@ creation_rules:
           - *admin
           - *new-horizons
 
+  - path_regex: secrets/workspace/skills/.+\.md$
+    key_groups:
+      - age:
+          - *admin
+          - *new-horizons
+
+  - path_regex: secrets/transit\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *new-horizons
+
   - path_regex: secrets/new-horizons\.yaml$
     key_groups:
       - age:

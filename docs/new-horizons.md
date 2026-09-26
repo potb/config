@@ -43,9 +43,84 @@ the way back in.
 | `podman-neko`      | Neko, a browser a human and the agent share             |
 | `neko-cdp-bridge`  | relays Neko's debugging port out of its netns           |
 | `restic`           | nightly backup of agent state and browser profile       |
+| `motis`            | public transport router, loopback on 8090               |
+| `motis-import`     | rebuilds the router's data when the regions in use change |
 | `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
 
 Nothing listens on a public port except SSH.
+
+## Public transport
+
+The agent answers transit questions through `transit`, a command on its `PATH`
+that returns JSON. It asks the local MOTIS router when the trip lies in a region
+loaded on this host, and Transitous, the volunteer-run MOTIS for all of Europe,
+otherwise. Trip and stop identifiers are the same on both, because the local
+import names its datasets exactly as Transitous does, so a trip found on one
+can be followed on the other.
+
+Why run a router at all when Transitous exists: a query to Transitous carries
+the exact start and end coordinates, and Transitous keeps request logs, with
+the URL and the IP address, for two days. Local routing keeps the places the
+user comes and goes from on this machine. Transitous also lacks live data for
+some networks that publish it; the local import takes the producers' live
+feeds directly.
+
+### Regions on demand
+
+MOTIS reads one OpenStreetMap file and cannot add a region while it runs, so
+"on demand" is rebuild and swap. `motis-import` works out the regions wanted,
+and when that set differs from what is loaded, builds a new import next to the
+running one and moves the `current` link. The router keeps answering from the
+old data until the new one is complete, then restarts onto it.
+
+A region is wanted when it is pinned, or when a file named after it exists in
+`/var/lib/motis/requests`. `transit plan` writes that file for every region a
+trip touches, and `transit regions --request <region>` writes it on purpose.
+A path unit starts `motis-import` as soon as the directory changes, and a daily
+timer rebuilds anyway to keep timetables current. Requests expire after 14
+days without use, and at most 4 regions are loaded, pinned ones included; past
+that cap the most recently requested win.
+
+The pinned regions are the ones the user lives and travels in, which says more
+about them than this public repository should. They live in
+`secrets/transit.yaml` under `pinned-regions`, as Geofabrik region ids
+separated by spaces:
+
+```
+./scripts/sops-unlock
+sops secrets/transit.yaml
+```
+
+Regions are Geofabrik's French extracts, which still follow the regions that
+existed before 2016; `regions.py` maps each to its départements by hand, and
+that map cannot drift. Feeds come from the Transitous catalogue for France,
+which already picks the best source per network, SNCF as NeTEx with SIRI live
+data for instance. Each feed is placed on the map through the area its dataset
+declares on transport.data.gouv.fr, resolved to départements through
+geo.api.gouv.fr. Timetables are downloaded from the Transitous mirror, which
+serves them cleaned and deduplicated, with the producer's own URL as a
+fallback. A build where more than half of the timetables are unavailable is
+abandoned and the running import stays.
+
+Measured with two of the largest French regions loaded: the import takes about
+a minute and peaks at 3.7 GB inside its 4 GB cap, the data is 1.4 GB, and the
+router serves in about 1 GB with live data applied.
+
+```
+motis-regions status
+transit regions --at "Lyon Part-Dieu"
+journalctl -u motis-import -n 50
+systemctl status motis
+```
+
+### The agent's instructions
+
+The `transit` skill tells the agent how to read the output: say whether a time
+is live or scheduled, check what the geocoder understood, read the alerts, and
+watch planned trips without repeating an alert it already sent. Like the other
+workspace files, it describes the assistant and so is encrypted, at
+`secrets/workspace/skills/transit/SKILL.md`, and bind-mounted into the
+workspace.
 
 ## Egress through home
 

@@ -19,7 +19,16 @@
     "AGENTS.md"
     "USER.md"
     "TOOLS.md"
+    "skills/transit/SKILL.md"
   ];
+
+  bootstrapDirs = lib.unique (lib.concatMap (
+      name: let
+        parents = lib.init (lib.splitString "/" name);
+      in
+        lib.genList (i: "${workspace}/${lib.concatStringsSep "/" (lib.take (i + 1) parents)}") (builtins.length parents)
+    )
+    bootstrapFiles);
 
   gatewayPackage = config.services.openclaw-gateway.package;
 
@@ -309,6 +318,7 @@ in {
         section: "f ${runtimeConfigDir}/${section}.json5 0600 openclaw openclaw - {}"
       )
       agentOwnedSections
+      ++ map (dir: "d ${dir} 0750 openclaw openclaw - -") bootstrapDirs
       ++ lib.concatMap (name: [
         "r ${workspace}/${name} - - - - -"
         "f ${workspace}/${name} 0440 openclaw openclaw - -"

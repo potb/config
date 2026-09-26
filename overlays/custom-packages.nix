@@ -15,6 +15,7 @@
     src = inputs.tsm-app;
     version = "1.1.15";
   };
+  motis = final.callPackage ../pkgs/motis/package.nix {};
   computer-use-linux = final.callPackage ../pkgs/computer-use-linux/package.nix {
     src = inputs.computer-use-linux;
   };

@@ -295,6 +295,7 @@
       hardened = ./modules/hardened;
       lan = ./modules/lan;
       openclaw = ./modules/apps/openclaw;
+      transit = ./modules/apps/transit;
       darwin = ./modules/darwin;
     };
 
@@ -674,6 +675,7 @@
           "tailscale"
           "exit-node-client"
           "openclaw"
+          "transit"
         ];
         homeDirectory = "/home/potb";
         extraModules = [

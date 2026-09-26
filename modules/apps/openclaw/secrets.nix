@@ -4,6 +4,7 @@
     "AGENTS.md"
     "USER.md"
     "TOOLS.md"
+    "skills/transit/SKILL.md"
   ];
 
   mkBootstrapSecret = name: {
@@ -44,6 +45,14 @@ in {
           };
 
           restic-password = {mode = "0400";};
+
+          transit-pinned-regions = {
+            sopsFile = ../../../secrets/transit.yaml;
+            key = "pinned-regions";
+            group = "motis";
+            mode = "0440";
+            restartUnits = ["motis-import.service"];
+          };
         }
         // builtins.listToAttrs (map mkBootstrapSecret bootstrapFiles);
     };
