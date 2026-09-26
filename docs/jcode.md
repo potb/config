@@ -326,28 +326,19 @@ that exports it as `GOG_ACCOUNT` unless the caller already set one. Changing
 the account is `sops set secrets/jcode.yaml '["gog-account"]' '"<address>"'`
 followed by a switch.
 
-The OAuth client secret and the refresh token are not in the repository. As
-on new-horizons for the calendar, gog uses its file keyring rather than the OS
-one: the wrapper sets `GOG_KEYRING_BACKEND=file` and reads
-`GOG_KEYRING_PASSWORD` from `gog-keyring-password` in `secrets/jcode.yaml`, so
-both end up encrypted under `~/.local/share/gogcli/keyring`. That directory is
-per machine, so each machine connects once:
+The OAuth client and the refresh token are not in the repository at all. gog
+keeps them in the OS keyring: gnome-keyring through the Secret Service on
+Linux, the login Keychain on macOS. They are per machine, so each machine
+connects once:
 
 ```
-gog auth credentials set ~/Downloads/client_secret_<id>.json
+gog auth credentials ~/Downloads/client_secret_<id>.json
 gog auth add "$(cat ~/.config/sops-nix/secrets/gog-account)" --services gmail
 rm ~/Downloads/client_secret_<id>.json
 ```
 
 `auth add` opens the consent page in the default browser and listens on
-localhost for the redirect. With browser automation, run it in tmux with
-`--timeout 15m`, capture the URL with `tmux capture-pane -p -J` (without `-J`
-the URL is hard-wrapped and Google answers `Invalid response_type`), and open
-it with `&login_hint=<account>` appended. Google ignores synthetic clicks on
-the unverified-app warning, so "Advanced", "Go to hal (unsafe)" and the
-following buttons need real input (computer use), not a CDP click.
-
-The client is a Desktop client named `jcode` in
+localhost for the redirect. The client is a Desktop client named `jcode` in
 the Google Cloud project `hal-calendar-509811`, the project already published
 for the calendar (see `docs/new-horizons.md`), so its refresh tokens do not
 expire after seven days. The Gmail API is enabled in that project. Gmail
