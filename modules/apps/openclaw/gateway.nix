@@ -247,7 +247,10 @@ in {
           ];
 
           fs.workspaceOnly = true;
-          exec.applyPatch.workspaceOnly = true;
+          exec = {
+            applyPatch.workspaceOnly = true;
+            notifyOnExit = false;
+          };
 
           web.search = {
             enabled = true;
