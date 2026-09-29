@@ -1050,6 +1050,25 @@ megabytes.
   the mount points at, which is harmless: the requirement is at most one link,
   and the content is still the installed secret.
 
+- #notify used to receive fragments such as a truncated `ls -la` of the
+  workspace or a list of `/nix/store` paths, followed by the agent saying it
+  never ran the command. They are exec completion notices
+  (`tools.exec.notifyOnExit`, on by default). An automation run backgrounds any
+  command still running after 10 seconds (`backgroundMs`) and ends without
+  waiting. When the command exits, or is killed with SIGTERM, the gateway queues
+  a system event holding about 200 characters of its output and wakes the
+  session that started it. That turn carries the event but not the command,
+  hence the agent's confusion. Nothing leaks: the `secrets/**` paths in the
+  output are copies of the flake in the store, and their contents are
+  sops-encrypted. The commands come from the agent searching for `transit` and
+  `gog` with `find /nix/store` after an earlier call returned empty output, see
+  the `yieldMs` note under Email to calendar. The setting is off, which also
+  drops notices for background commands started on purpose; none exist today.
+  The originating runs can be found on the host with
+  `sudo rg -l 'find /nix/store' /var/lib/openclaw/agents/`. Upstream tracks a
+  failure-only mode in openclaw#141973, which should replace `false` when it
+  lands. `agents.defaults.heartbeat.target = "none"` would not help, because
+  completions return to the session that owns the work.
 - Memory search defaults to OpenAI embeddings. With only an OpenRouter key the
   index cannot be built and recall stays paused, which the agent reports as
   its memory being unavailable. `models.providers.<id>.api` must be
