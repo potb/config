@@ -249,9 +249,6 @@ in {
           fs.workspaceOnly = true;
           exec = {
             applyPatch.workspaceOnly = true;
-            # A command backgrounded during an automation run reports back
-            # after the run has ended, and the woken session posts a phantom
-            # fragment to #notify, see docs/new-horizons.md.
             notifyOnExit = false;
           };
 
