@@ -1056,14 +1056,15 @@ megabytes.
   (`tools.exec.notifyOnExit`, on by default). An automation run backgrounds any
   command still running after 10 seconds (`backgroundMs`) and ends without
   waiting. When the command exits, or is killed with SIGTERM, the gateway queues
-  a system event holding about 200 characters of its output and wakes the
+  a system event holding a short preview of its output and wakes the
   session that started it. That turn carries the event but not the command,
   hence the agent's confusion. Nothing leaks: the `secrets/**` paths in the
   output are copies of the flake in the store, and their contents are
   sops-encrypted. The commands come from the agent searching for `transit` and
   `gog` with `find /nix/store` after an earlier call returned empty output, see
   the `yieldMs` note under Email to calendar. The setting is off, which also
-  drops notices for background commands started on purpose; none exist today.
+  drops notices for background commands started on purpose, whose results then
+  have to be collected with `process poll`; none exist today.
   The originating runs can be found on the host with
   `sudo rg -l 'find /nix/store' /var/lib/openclaw/agents/`. Upstream tracks a
   failure-only mode in openclaw#141973, which should replace `false` when it
