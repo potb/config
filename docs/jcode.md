@@ -58,8 +58,15 @@ and its [tracking issue](https://github.com/NixOS/nix/issues/6316).
 
 The overlay in `overlays/custom-packages.nix` exposes the result as
 `pkgs.jcode`, and `modules/agents/jcode.nix` installs it into the user profile.
-The systemd user unit still starts `~/.local/bin/jcode`, so a self-dev build can
-take over the daemon without a rebuild of this repository.
+No service supervises the daemon. The first client spawns it, and it resolves
+its binary through the channel links under `~/.jcode/builds` (`shared-server`,
+then `stable`) before falling back to its own executable. A nix install has no
+use for that tree, so it should not exist: with it gone, clients, the daemon
+and the menu bar helper all run the profile binary. A leftover tree from a
+release install or self-dev build silently wins over the nix package, and
+`jcode server reload` cannot move off it, because its downgrade guard compares
+mtimes and every store path is dated 1970. Stop the daemon, then remove
+`~/.jcode/builds`.
 
 ## How a build runs
 
@@ -291,14 +298,68 @@ setting cannot be lost to a live edit of `~/.jcode/config.toml`:
 - `JCODE_NO_AUTO_UPDATE=1` covers `update::should_auto_update()`, the
   release-channel installer path, in case a release build ever runs here.
 
-Both are set twice on purpose. `home.sessionVariables` reaches interactive
-shells, and an `environment.d` file reaches the systemd user manager, which
-does not read shell profiles. Running jcode from one of the agent's own
-scheduled jobs inherits the latter.
+Both are set through `home.sessionVariables`, which reaches interactive shells
+and everything they launch, including the daemon a client spawns.
 
 Setting `check_updates = false` in `~/.jcode/config.toml` has the same effect
 for shell-launched sessions. It is not used here because that file is seeded,
 not managed, so an edit through the UI would silently win.
+
+## MCP servers and secrets
+
+`modules/agents/jcode/mcp.json` is seeded into `~/.jcode/mcp.json` like the
+rest of the seed tree. It holds no secrets. The Exa server reads its API key
+at launch from `~/.config/sops-nix/secrets/exa-api-key`, which the Home
+Manager sops module decrypts from `secrets/jcode.yaml` on every activation.
+
+The recipients of `secrets/jcode.yaml` are the admin age key plus each
+machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
+converted with `ssh-to-age`. A new machine needs its key added to
+`.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
+
+## Computer use on Linux
+
+jcode ships desktop control only for macOS (`macos_computer_use`). Linux
+machines get it from
+[computer-use-linux](https://github.com/agent-sh/computer-use-linux), packaged
+in `pkgs/computer-use-linux` and enabled by `modules/agents/linux/computer-use.nix`.
+The seeded `mcp.json` is generated rather than copied: on Linux the
+`computer-use` server is merged into the shared file, so nyx never tries to
+launch a binary it cannot run.
+
+It was picked over cua-driver, zavora-ai/computer-use-mcp and da-mcp because
+it is the only one whose pointer is exact on Hyprland without an experimental
+compositor plugin, and it still covers GNOME, KDE, i3, COSMIC and X11.
+
+How each capability is served on Hyprland:
+
+| Capability | Backend | Needs |
+| ---------- | ------- | ----- |
+| Screenshots | XDG screenshot portal (grim) | a normal login session |
+| Windows | `hyprctl` | nothing extra |
+| Clicks, drags | its own absolute uinput pointer | `uinput` group |
+| Typing, Unicode | `wtype` virtual keyboard | nothing extra |
+| Key chords, scroll | `ydotoold` | `ydotool` group |
+| Semantic clicks | AT-SPI | `services.gnome.at-spi2-core` |
+
+The package wrapper suffixes `hyprctl`, `wtype`, `ydotool` and `grim` onto
+`PATH`, and the MCP entry pins `YDOTOOL_SOCKET` to the NixOS daemon's socket.
+
+Traps:
+
+- Group changes need a fresh login. Borrowing a group with `sg` is not a
+  substitute: the portal rejects screenshots from that subshell, and the
+  absolute pointer, which sizes itself from a screenshot, then silently falls
+  back to `ydotool`.
+- With at-spi2-core disabled NixOS exports `GTK_A11Y=none` and
+  `NO_AT_BRIDGE=1`, and a session started before enabling it keeps them. Apps
+  launched in that session expose no accessibility tree until the next login.
+- Semantic clicks read a tree cached by `get_app_state`, so call it first in
+  the same MCP session.
+- The absolute pointer is sized once per server process. After a monitor
+  change, restart jcode (or the MCP) before clicking by coordinates.
+- Chords go through `ydotool` keycodes. On qwerty-fr, `ctrl+a` and `Return`
+  were verified; layout-dependent symbols in chords may map differently.
 
 ## Updating
 

@@ -35,7 +35,7 @@
   cargoDeps = pkgs.rustPlatform.importCargoLock {
     lockFile = src + "/Cargo.lock";
     outputHashes = {
-      "agentgrep-0.1.6" = "0i9xxsv60xd0wgi47njpvkzvp4jy83cjwil63m9ljwbshvcyq4n8";
+      "agentgrep-0.1.7" = "09p7yi27hgmp0yw0f6vgmqw2xyq3lnw4bnm9bhj5hyyvl9vbwi7m";
       "mermaid-rs-renderer-0.3.1" = "1nsbw3kkfchsb10ki92bjq1b764lj8m3xf5z7w7x1xbmybb23sdr";
     };
   };

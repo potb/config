@@ -14,9 +14,6 @@ scroll_prompt_down = "ctrl+j"
 show_thinking = false
 reasoning_display = "off"
 
-[tools]
-disabled = ["browser"]
-
 [provider]
 default_provider = "claude"
 default_model = "claude-opus-5-5"
