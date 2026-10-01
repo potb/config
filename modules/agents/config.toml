@@ -16,12 +16,12 @@ reasoning_display = "off"
 
 [provider]
 default_provider = "claude"
-default_model = "claude-opus-5-5"
-anthropic_reasoning_effort = "low"
+default_model = "claude-sonnet-5-5"
+anthropic_reasoning_effort = "medium"
 cross_provider_failover = "manual"
 
 [agents]
-swarm_model = "claude-sonnet-5"
+swarm_model = "claude-sonnet-5-5"
 swarm_deep_root_effort = "xhigh"
 memory_jev_provider = "typesafe"
 
