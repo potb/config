@@ -28,4 +28,5 @@ docs/*
 !docs/kerberos.md
 !docs/upstream-warnings.md
 !docs/jcode.md
+!docs/herdr.md
 *.log
