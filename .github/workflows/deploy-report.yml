@@ -1,0 +1,73 @@
+name: Deploy report
+run-name: new-horizons ${{ inputs.state }} ${{ inputs.sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit the host deployed
+        required: true
+        type: string
+      state:
+        description: Where the deploy stands
+        required: true
+        type: choice
+        options: [pending, success, failure]
+      description:
+        description: One line for the commit status
+        required: true
+        type: string
+      log:
+        description: Tail of the build log, for failures
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: deploy-report-${{ inputs.sha }}
+  cancel-in-progress: false
+
+permissions:
+  statuses: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SHA: ${{ inputs.sha }}
+      STATE: ${{ inputs.state }}
+      DESCRIPTION: ${{ inputs.description }}
+      LOG: ${{ inputs.log }}
+    steps:
+      - name: Set the commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ $SHA =~ ^[0-9a-f]{40}$ ]] || { echo "not a commit sha: $SHA" >&2; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -f state="$STATE" \
+            -f context=deploy/new-horizons \
+            -f description="${DESCRIPTION:0:140}" \
+            -f target_url="$RUN_URL" > /dev/null
+
+      - name: Summarise
+        run: |
+          {
+            echo "### new-horizons: $STATE"
+            echo
+            echo "$DESCRIPTION for $SHA"
+            if [ -n "$LOG" ]; then
+              echo
+              echo '````'
+              printf '%s\n' "$LOG"
+              echo '````'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail with the deploy
+        if: inputs.state == 'failure'
+        run: |
+          echo "::error::$DESCRIPTION"
+          exit 1

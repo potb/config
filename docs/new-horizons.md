@@ -47,6 +47,7 @@ the way back in.
 | `motis-import`     | rebuilds the router's data when the regions in use change |
 | `owntracks-receiver` | stores the phone's position, loopback on 8765          |
 | `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
+| `nixos-deploy`     | builds master and switches to it when GitHub asks       |
 
 Nothing listens on a public port except SSH.
 
@@ -804,9 +805,95 @@ sessions and memory, lives only in the backups.
 
 ## Deploying a change
 
-Build on charon, which has the cores and the cache, and send the result. This
-host has 4 vCPUs and builds anything uncached slowly while holding the Nix store
-lock:
+A push to master deploys this host. Nothing builds on GitHub: the workflow in
+`.github/workflows/deploy-new-horizons.yml` only asks, and this host builds and
+switches on its own afterwards.
+
+The workflow logs in over SSH as `deploy`, whose key is pinned to one forced
+command, `nixos-deploy-request`. It accepts a commit sha and nothing else,
+drops a file in `/var/lib/nixos-deploy/requests` and returns, so the run on
+GitHub is green within seconds whatever the build costs. That file is the whole
+interface: `nixos-deploy.path` sees the directory become non-empty and starts
+`nixos-deploy.service`. A leaked key can therefore ask for a deploy of what is
+already on master, and nothing more. That is why it may come in on the public
+port, which is already open and hardened, see Access, rather than through the
+tailnet. The `deploy` user has bash as its login shell rather than nologin,
+because sshd runs the forced command through the login shell; the `restrict`
+option on the key still forbids a pty, forwarding and anything else.
+
+The workflow does not run at all for a push that only touches `docs/`,
+`README.md`, `lefthook.yaml` or another host's directory under `hosts/`, since
+none of those reach this host. Anything else that turns out not to change it
+costs one evaluation here, which then reports no change.
+
+The address is the repository secret `NEW_HORIZONS_HOST`, an IP or a DNS name,
+and appears nowhere in the repository. The workflow checks the host key under
+the name `new-horizons` rather than under that address, so after a move the
+secret is the only thing to update.
+
+The service clears the requests first, fetches master into
+`/var/lib/nixos-deploy/repo` and evaluates the system. When the result is the
+system already running, it stops there: an evaluation, no build. Otherwise it
+builds and switches. Pushes that arrive during a build leave a new request
+behind and get one more run once this one ends, so a burst of pushes costs two
+builds, not one per push.
+
+`/var/lib/nixos-deploy/deployed` holds the last commit and system deployed. A
+second request for that same commit is skipped without even an evaluation,
+unless the running system has changed since, as it does after a deploy by hand
+from charon; master is then deployed again.
+
+The switch may change `nixos-deploy.service` itself. The unit sets
+`restartIfChanged` and `stopIfChanged` off, so activation leaves the running
+deploy alone, and the switch itself runs in its own transient unit, as
+`nixos-rebuild` does, so it survives whatever activation restarts.
+
+This host runs the agent on 4 vCPUs and 7 GB, so builds take only what the
+agent leaves: nice 19, a fifth of the default CPU and IO weight, idle IO class,
+and an OOM score that makes the kernel kill a build before the agent. Expect an
+uncached build, such as an OpenClaw bump, to take a while.
+
+### How a deploy reports back
+
+The host has a fine-grained GitHub token, `github-deploy-token` in
+`secrets/new-horizons.yaml`, limited to this repository with only
+**Actions: read and write**. It can start workflows and nothing else: it cannot
+push, so a compromise of this host does not reach the other machines through
+the repository. With it the service starts `deploy-report.yml` at the start of a
+build and again with the outcome. That workflow, running with GitHub's own
+token:
+
+- sets the `deploy/new-horizons` status on the commit, which links to the run,
+- writes the outcome and, for a failed evaluation or build, the tail of the log
+  into the run summary,
+- fails when the deploy failed, so GitHub sends its usual failed-run
+  notification to the token's owner.
+
+Report runs for the same commit queue behind each other, so a slow runner for
+the pending report cannot finish after the outcome and leave the commit stuck
+on pending.
+
+The repository is public and so is that summary. A failed switch therefore
+reports only the names of the units that failed, never the activation output,
+which quotes the journal of a failing unit and can carry the agent's
+conversations. Read the full log on the host:
+
+```
+journalctl -u nixos-deploy -n 200
+systemctl list-units --failed
+```
+
+Without the token, or with an expired one, deploys still happen and only the
+reports stop. A token rotation is an edit to the sops secret and a deploy.
+
+### By hand
+
+`sudo systemctl start nixos-deploy` deploys master now, and the **Run
+workflow** button on the deploy workflow does the same from GitHub. Both skip
+the work when master is already running.
+
+Building on charon and sending the result still works, and is the way to try a
+branch before merging it:
 
 ```
 nixos-rebuild switch --flake .#new-horizons \
@@ -820,8 +907,33 @@ of prompting:
 nh os switch . -H new-horizons --target-host potb@new-horizons -e passwordless
 ```
 
-The closure is built locally and copied over the tailnet; only activation runs
-here.
+The next push to master switches back to master, since only master deploys.
+
+### Setting it up
+
+Done once, and again for a key or token rotation:
+
+1. Create the token: a fine-grained personal access token on `potb/config`,
+   repository permission **Actions: read and write**. Add it to the host's
+   secrets as `github-deploy-token` with `sops secrets/new-horizons.yaml`. The
+   build checks the key exists, so this has to happen before the module is
+   deployed.
+2. Store the private half of `keys.github-actions` as the repository secret
+   `NEW_HORIZONS_DEPLOY_KEY`, the host's public address as the secret
+   `NEW_HORIZONS_HOST`, and its host key, under the name `new-horizons`, as the
+   repository variable `NEW_HORIZONS_KNOWN_HOSTS`. From charon, which reaches
+   that name over the tailnet:
+
+   ```
+   gh secret set NEW_HORIZONS_DEPLOY_KEY < deploy-key
+   gh secret set NEW_HORIZONS_HOST
+   ssh-keyscan -t ed25519 new-horizons | gh variable set NEW_HORIZONS_KNOWN_HOSTS
+   ```
+
+   Check the scanned key against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+   on the host rather than trusting the scan.
+3. Deploy once from charon, which creates the `deploy` user. Until then the
+   workflow cannot log in.
 
 The gateway bind-mounts its config, so a switch leaves the running process on
 the old file until the unit restarts. After changing anything in
@@ -1005,8 +1117,8 @@ megabytes.
   the agent down. `doctor/pre-migrate.tgz` is rewritten on every doctor run,
   including the failed ones, so it cannot be trusted after a second attempt;
   the nightly restic snapshot is the real way back. Build and test a new gateway
-  on charon before a switch, and never rebuild on this host: it builds slowly
-  and holds the Nix store lock for the duration.
+  on charon before merging it: a merge to master deploys it here, see
+  Deploying a change.
 
 - sops-nix installs secrets into a fresh `/run/secrets.d/<n>` on every
   activation and moves the `/run/secrets` symlink, but bind mounts inside a

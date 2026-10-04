@@ -1,0 +1,43 @@
+name: Deploy new-horizons
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "hosts/charon/**"
+      - "hosts/kerberos/**"
+      - "hosts/nyx/**"
+      - "lefthook.yaml"
+      - ".github/workflows/deploy-report.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-new-horizons
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Queue a deploy on new-horizons
+        env:
+          HOST: ${{ secrets.NEW_HORIZONS_HOST }}
+          DEPLOY_KEY: ${{ secrets.NEW_HORIZONS_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ vars.NEW_HORIZONS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy \
+            -o IdentitiesOnly=yes \
+            -o HostKeyAlias=new-horizons \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            deploy@"$HOST" "$GITHUB_SHA"
