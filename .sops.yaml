@@ -20,6 +20,8 @@ creation_rules:
           - *admin
           - *new-horizons
           - *potb-nyx
+          - *potb-charon
+          - *potb-kerberos
 
   - path_regex: secrets/workspace/skills/.+\.md$
     key_groups:
@@ -27,6 +29,8 @@ creation_rules:
           - *admin
           - *new-horizons
           - *potb-nyx
+          - *potb-charon
+          - *potb-kerberos
 
   - path_regex: secrets/transit\.yaml$
     key_groups:
@@ -34,6 +38,8 @@ creation_rules:
           - *admin
           - *new-horizons
           - *potb-nyx
+          - *potb-charon
+          - *potb-kerberos
 
   - path_regex: secrets/new-horizons\.yaml$
     key_groups:
@@ -41,3 +47,5 @@ creation_rules:
           - *admin
           - *new-horizons
           - *potb-nyx
+          - *potb-charon
+          - *potb-kerberos
