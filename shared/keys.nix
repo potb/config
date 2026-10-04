@@ -3,4 +3,5 @@
   nyx = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDBNj+8QbPM+G7odRtOWOWZ/A+UQ6FvnYMnurBgXWXfk potb@nyx";
   kerberos = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAmy7vOw/pHg/H41HtEjlapdHm+nWMRhhMmqqiIuFIP+ potb@kerberos";
   new-horizons = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGxlxiQwn4tzGwT2mGfgNbZcTh+Et8cuUdZV78XdKZvI potb@new-horizons";
+  github-actions = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAI9oRgbLCZYWck5DvXa7/OfXeJX3gYUqaCJnlcNrN9a github-actions@potb/config";
 }

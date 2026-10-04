@@ -22,8 +22,8 @@ nh os switch .
 # macOS (nyx)
 darwin-rebuild switch --flake .#nyx    # see Setup for the first run
 
-# server (new-horizons), from a checkout on the machine itself
-sudo nixos-rebuild switch --flake .#new-horizons
+# server (new-horizons): a push to master deploys it, see docs/new-horizons.md
+git push origin master
 
 # kerberos, which must build on kerberos: see docs/kerberos.md
 sudo nixos-rebuild switch --flake .#kerberos
