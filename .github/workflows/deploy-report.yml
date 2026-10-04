@@ -1,10 +1,6 @@
 name: Deploy report
 run-name: new-horizons ${{ inputs.state }} ${{ inputs.sha }}
 
-# Started by new-horizons itself, see hosts/new-horizons/modules/deploy.nix.
-# The run sets the deploy/new-horizons status on the commit, links it back to
-# itself, and fails when the deploy did, which is what sends a notification.
-
 on:
   workflow_dispatch:
     inputs:
@@ -27,8 +23,6 @@ on:
         type: string
         default: ""
 
-# The host reports pending, then the outcome. Queued in order per commit, so a
-# slow runner for the first cannot leave the commit stuck on pending.
 concurrency:
   group: deploy-report-${{ inputs.sha }}
   cancel-in-progress: false

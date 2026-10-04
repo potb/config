@@ -817,26 +817,41 @@ interface: `nixos-deploy.path` sees the directory become non-empty and starts
 `nixos-deploy.service`. A leaked key can therefore ask for a deploy of what is
 already on master, and nothing more. That is why it may come in on the public
 port, which is already open and hardened, see Access, rather than through the
-tailnet.
+tailnet. The `deploy` user has bash as its login shell rather than nologin,
+because sshd runs the forced command through the login shell; the `restrict`
+option on the key still forbids a pty, forwarding and anything else.
+
+The workflow does not run at all for a push that only touches `docs/`,
+`README.md`, `lefthook.yaml` or another host's directory under `hosts/`, since
+none of those reach this host. Anything else that turns out not to change it
+costs one evaluation here, which then reports no change.
 
 The address is the repository secret `NEW_HORIZONS_HOST`, an IP or a DNS name,
 and appears nowhere in the repository. The workflow checks the host key under
 the name `new-horizons` rather than under that address, so after a move the
 secret is the only thing to update.
 
-The service clears the requests, fetches master into
+The service clears the requests first, fetches master into
 `/var/lib/nixos-deploy/repo` and evaluates the system. When the result is the
-system already running, which it is for docs and other hosts, it stops there:
-an evaluation, no build. Otherwise it builds and switches, the switch in its own
-transient unit like `nixos-rebuild` does, so that a deploy changing this unit
-does not kill itself halfway. Pushes that arrive during a build leave a new
-request behind and get one more run once this one ends, so a burst of pushes
-costs two builds, not one per push.
+system already running, it stops there: an evaluation, no build. Otherwise it
+builds and switches. Pushes that arrive during a build leave a new request
+behind and get one more run once this one ends, so a burst of pushes costs two
+builds, not one per push.
 
-Builds run at low priority: nice 19, a fifth of the default CPU and IO weight,
-idle IO class, and an OOM score that makes the kernel kill a build before the
-agent. Expect an uncached build, such as an OpenClaw
-bump, to take a while.
+`/var/lib/nixos-deploy/deployed` holds the last commit and system deployed. A
+second request for that same commit is skipped without even an evaluation,
+unless the running system has changed since, as it does after a deploy by hand
+from charon; master is then deployed again.
+
+The switch may change `nixos-deploy.service` itself. The unit sets
+`restartIfChanged` and `stopIfChanged` off, so activation leaves the running
+deploy alone, and the switch itself runs in its own transient unit, as
+`nixos-rebuild` does, so it survives whatever activation restarts.
+
+This host runs the agent on 4 vCPUs and 7 GB, so builds take only what the
+agent leaves: nice 19, a fifth of the default CPU and IO weight, idle IO class,
+and an OOM score that makes the kernel kill a build before the agent. Expect an
+uncached build, such as an OpenClaw bump, to take a while.
 
 ### How a deploy reports back
 
@@ -853,6 +868,10 @@ token:
   into the run summary,
 - fails when the deploy failed, so GitHub sends its usual failed-run
   notification to the token's owner.
+
+Report runs for the same commit queue behind each other, so a slow runner for
+the pending report cannot finish after the outcome and leave the commit stuck
+on pending.
 
 The repository is public and so is that summary. A failed switch therefore
 reports only the names of the units that failed, never the activation output,

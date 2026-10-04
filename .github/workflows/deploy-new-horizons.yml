@@ -1,14 +1,8 @@
 name: Deploy new-horizons
 
-# Only asks. new-horizons builds and switches on its own afterwards and reports
-# back through deploy-report.yml, so this run is green once the request is
-# queued, not once the host is deployed.
-
 on:
   push:
     branches: [master]
-    # Nothing here reaches new-horizons. Anything else that turns out not to
-    # change it costs one evaluation on the host, which then reports no change.
     paths-ignore:
       - "docs/**"
       - "README.md"
@@ -30,9 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # The address lives in a secret, so it stays out of the repository and
-      # the logs, and a move is one secret to update. The host key is checked
-      # under the name rather than the address, so it survives the move.
       - name: Queue a deploy on new-horizons
         env:
           HOST: ${{ secrets.NEW_HORIZONS_HOST }}
