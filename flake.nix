@@ -35,12 +35,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Pinned: newer commits (post aca4b8b) chase a Hyprland header layout
-    # that predates hy3's own bundled hyprland input pin (build breaks with
-    # "hyprland/src/desktop/view/window/Window.hpp: No such file"). Bump
-    # once upstream re-syncs their hyprland pin with their source.
-    hy3.url = "github:outfoxxed/hy3/aca4b8bf4702f2b7bbc3d032b0206265a282c8af";
-
     nix-rosetta-builder = {
       url = "github:cpick/nix-rosetta-builder";
       inputs.nixpkgs.follows = "nixpkgs";

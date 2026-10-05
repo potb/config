@@ -31,7 +31,7 @@
       sed = "${pkgs.gnused}/bin/sed";
       awww = "${pkgs.awww}/bin/awww";
       hyprctl = "${
-        inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland
+        pkgs.hyprland
       }/bin/hyprctl";
       magick = "${pkgs.imagemagick}/bin/magick";
       jq = "${pkgs.jq}/bin/jq";

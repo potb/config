@@ -12,10 +12,7 @@
   }: let
     fonts = import ../../../shared/fonts.nix {inherit pkgs;};
 
-    hy3PluginConf = let
-      hy3 = inputs.hy3.packages.${pkgs.stdenv.hostPlatform.system}.hy3;
-    in
-      pkgs.writeText "hypr-hy3-plugin.conf" "plugin = ${hy3}/lib/libhy3.so";
+    hy3PluginConf = pkgs.writeText "hypr-hy3-plugin.conf" "plugin = ${pkgs.hyprlandPlugins.hy3}/lib/libhy3.so";
   in {
     wayland.windowManager.hyprland = {
       enable = true;
