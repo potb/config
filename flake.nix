@@ -395,6 +395,7 @@
               ];
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.backupFileExtension = "backup";
+              home-manager.overwriteBackup = true;
               home-manager.users.potb.home.homeDirectory =
                 nixpkgs.lib.mkForce homeDirectory;
             }
