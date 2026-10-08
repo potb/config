@@ -17,13 +17,17 @@ reasoning_display = "off"
 [provider]
 default_provider = "claude"
 default_model = "claude-sonnet-5-5"
-anthropic_reasoning_effort = "medium"
+anthropic_reasoning_effort = "high"
+same_provider_account_failover = true
 cross_provider_failover = "manual"
 
 [agents]
 swarm_model = "claude-sonnet-5-5"
 swarm_deep_root_effort = "xhigh"
 memory_jev_provider = "typesafe"
+
+[tools]
+mcp_tools = "eager"
 
 [hooks]
 pre_tool = "~/.jcode/hooks/dispatch"
