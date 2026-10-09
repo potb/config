@@ -105,8 +105,24 @@ Started from the store path on Hyprland: all 169 migrations ran into
 `~/.config/Wispr Flow/flow.sqlite`, the helper came up with the Wayland
 uinput backend and the AT-SPI active-app tracker, the Hub and the status pill
 mapped, and `wispr-flow wispr-flow://hub` sent to the running app reached its
-deep-link router. Not yet exercised: sign-in, dictation into another app, and
-push-to-talk, which needs the udev rule applied by a system switch.
+deep-link router. The packaged helper also passed its own live injection test
+(`live_inject_test.py` from the helper repo, against mousepad): PasteText
+landed in the editor through uinput and wl-clipboard, and a Ctrl+S chord saved
+the file. Not yet exercised: sign-in, and push-to-talk.
+
+Push-to-talk needs the keyboards readable by the session. The rule tags
+`input` event nodes `uaccess`, and `73-seat-late.rules` turns that tag into an
+ACL, but a switch only reloads the rules. Already-present devices keep their
+old permissions until they are replugged or retriggered:
+
+```bash
+sudo udevadm trigger --subsystem-match=input --action=change
+wispr-flow --doctor   # expects several readable event devices, not 1
+```
+
+This is the access upstream ships, and it is broad: any process in the active
+session can then read every keystroke. charon is single-user, which is why it
+is acceptable here; drop the rule on a shared machine.
 
 ## Upstream state (2026-10-09)
 
