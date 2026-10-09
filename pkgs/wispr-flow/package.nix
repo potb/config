@@ -212,6 +212,8 @@ in
         drop_patch_backups "$WORK_DIR/app.asar.contents"
         mv app.asar.contents contents
       )
+      python3 ${./warm-deeplink.py} contents/.webpack/main/index.js
+      node --check contents/.webpack/main/index.js
 
       native=contents/.webpack/main/native_modules
       install -m755 ${node_sqlite3}/node_sqlite3.node "$native/build/Release/node_sqlite3.node"

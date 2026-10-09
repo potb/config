@@ -22,7 +22,11 @@ The build is pure: no `--impure`, no hand-supplied installer.
    `scripts/build-linux.sh`) runs the upstream tripwire check and then all
    thirteen patches that give the minified bundle a Linux code path. Reusing
    the driver means the list of patches cannot drift from upstream's.
-   `verify-patches.sh` then refuses an asar that misses any marker.
+   `verify-patches.sh` then refuses an asar that misses any marker. One more
+   patch, `warm-deeplink.py`, widens the win32-only `wispr-flow:` parse in the
+   `second-instance` handler, so a link opened while the app already runs is
+   routed instead of only focusing the window. It fails the build unless its
+   anchor matches exactly once.
 4. The Windows `node_sqlite3.node` is replaced by one compiled from the
    `sqlite3` npm tarball against the nixpkgs Electron 42 headers (see below).
    The Windows-only crypt32, Jabra and roots binaries are dropped, and the
@@ -92,8 +96,17 @@ redefines `process.resourcesPath` and `app.isPackaged` and then requires
   computer-use trait.
 
 Login goes through the browser with a device code and a server-sent event
-stream back to the app, so it works without the `wispr-flow://` handler. The
-handler is still registered for the app's other deep links.
+stream back to the app, so it does not depend on the `wispr-flow://` handler.
+The handler is still registered, for the app's other deep links.
+
+## Verified on charon
+
+Started from the store path on Hyprland: all 169 migrations ran into
+`~/.config/Wispr Flow/flow.sqlite`, the helper came up with the Wayland
+uinput backend and the AT-SPI active-app tracker, the Hub and the status pill
+mapped, and `wispr-flow wispr-flow://hub` sent to the running app reached its
+deep-link router. Not yet exercised: sign-in, dictation into another app, and
+push-to-talk, which needs the udev rule applied by a system switch.
 
 ## Upstream state (2026-10-09)
 
