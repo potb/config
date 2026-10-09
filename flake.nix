@@ -108,12 +108,7 @@
     };
 
     wispr-flow-linux = {
-      url = "github:wispr-flow-linux/wispr-flow-linux/v1.0.4+wispr1.6.1102";
-      flake = false;
-    };
-
-    wispr-flow-linux-helper = {
-      url = "github:wispr-flow-linux/helper/v0.1.2";
+      url = "github:wispr-flow-linux/wispr-flow-linux";
       flake = false;
     };
 

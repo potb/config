@@ -1001,8 +1001,7 @@
         "sops-nix": "sops-nix",
         "stylix": "stylix",
         "tsm-app": "tsm-app",
-        "wispr-flow-linux": "wispr-flow-linux",
-        "wispr-flow-linux-helper": "wispr-flow-linux-helper"
+        "wispr-flow-linux": "wispr-flow-linux"
       }
     },
     "sops-nix": {
@@ -1199,25 +1198,7 @@
       },
       "original": {
         "owner": "wispr-flow-linux",
-        "ref": "v1.0.4+wispr1.6.1102",
         "repo": "wispr-flow-linux",
-        "type": "github"
-      }
-    },
-    "wispr-flow-linux-helper": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1781205638,
-        "narHash": "sha256-VH5rJ2wZd482TcDZKAQZHqeqLk443wkEIStxIjouVlU=",
-        "owner": "wispr-flow-linux",
-        "repo": "helper",
-        "rev": "fa93fcf31d9ee7a9591a8dce1852f815d1b0dec5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "wispr-flow-linux",
-        "ref": "v0.1.2",
-        "repo": "helper",
         "type": "github"
       }
     }

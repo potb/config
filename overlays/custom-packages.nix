@@ -21,6 +21,5 @@
   };
   wispr-flow = final.callPackage ../pkgs/wispr-flow/package.nix {
     src = inputs.wispr-flow-linux;
-    helperSrc = inputs.wispr-flow-linux-helper;
   };
 }

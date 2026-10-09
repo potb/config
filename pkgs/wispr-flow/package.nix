@@ -4,12 +4,13 @@
   stdenvNoCC,
   rustPlatform,
   fetchurl,
+  fetchFromGitHub,
   writeText,
   makeWrapper,
   makeDesktopItem,
   copyDesktopItems,
   autoPatchelfHook,
-  electron_42,
+  pkgs,
   nodejs,
   python3,
   asar,
@@ -26,16 +27,36 @@
   xclip,
   xsel,
   src,
-  helperSrc,
 }: let
   pin = builtins.readFile (src + "/scripts/setup/installer-pin.sh");
   pinned = name: builtins.head (builtins.match ".*\n${name}='([^']*)'\n.*" pin);
 
   version = pinned "WISPR_VERSION";
-  helperVersion = lib.removePrefix "v" (lib.trim (builtins.readFile (src + "/helper-version.txt")));
   wmClass = "wispr-flow";
 
-  electron = electron_42;
+  upstreamNix = builtins.readFile (src + "/nix/wispr-flow.nix");
+  upstreamField = name: let
+    found = builtins.match ".*helperSrc = fetchFromGitHub \\{[^}]*${name} = \"([^\"]*)\";.*" upstreamNix;
+  in
+    if found == null
+    then throw "wispr-flow: cannot find the helper ${name} in wispr-flow-linux's nix/wispr-flow.nix"
+    else builtins.head found;
+
+  helperTag = lib.trim (builtins.readFile (src + "/helper-version.txt"));
+  helperSrc =
+    if upstreamField "rev" != helperTag
+    then throw "wispr-flow: helper-version.txt pins ${helperTag} but nix/wispr-flow.nix fetches ${upstreamField "rev"}"
+    else
+      fetchFromGitHub {
+        owner = "wispr-flow-linux";
+        repo = "helper";
+        rev = helperTag;
+        hash = upstreamField "hash";
+      };
+
+  buildLinux = builtins.readFile (src + "/scripts/build-linux.sh");
+  electronMajor = builtins.head (builtins.match ".*\nELECTRON_MAJOR=\"\\$\\{ELECTRON_MAJOR:-([0-9]+)}\".*" buildLinux);
+  electron = pkgs."electron_${electronMajor}" or (throw "wispr-flow: Wispr Flow now needs Electron ${electronMajor}, which this nixpkgs does not have");
 
   installer = fetchurl {
     name = "wispr-flow-setup-${version}.exe";
@@ -45,7 +66,7 @@
 
   helper = rustPlatform.buildRustPackage {
     pname = "wispr-flow-linux-helper";
-    version = helperVersion;
+    version = lib.removePrefix "v" helperTag;
     src = helperSrc;
     cargoLock.lockFile = helperSrc + "/Cargo.lock";
     doCheck = false;
@@ -58,20 +79,20 @@
     };
   };
 
-  sqlite3Version = "5.1.7";
+  npmLock = (lib.importJSON (src + "/scripts/native-modules/package-lock.json")).packages;
+  npmTarball = name:
+    fetchurl {
+      url = npmLock."node_modules/${name}".resolved;
+      hash = npmLock."node_modules/${name}".integrity;
+    };
+  sqlite3Version = npmLock."node_modules/sqlite3".version;
   nodeGyp = "${nodejs}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js";
   node_sqlite3 = stdenv.mkDerivation {
     pname = "node-sqlite3-electron";
     version = "${sqlite3Version}-electron${electron.version}";
 
-    src = fetchurl {
-      url = "https://registry.npmjs.org/sqlite3/-/sqlite3-${sqlite3Version}.tgz";
-      hash = "sha512-GGIyOiFaG+TUra3JIfkI/zGP8yZYLPQ0pl1bH+ODjiX57sPhrLU5sQJn1y9bDKZUFYkX1crlrPfSYt0BKKdkog==";
-    };
-    nodeAddonApi = fetchurl {
-      url = "https://registry.npmjs.org/node-addon-api/-/node-addon-api-7.1.1.tgz";
-      hash = "sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==";
-    };
+    src = npmTarball "sqlite3";
+    nodeAddonApi = npmTarball "node-addon-api";
 
     nativeBuildInputs = [nodejs python3];
 
@@ -117,10 +138,12 @@
       export HOME=$TMPDIR
       install -Dm755 $out/node_sqlite3.node build/Release/node_sqlite3.node
       echo 'module.exports = require("../build/Release/node_sqlite3.node");' > lib/sqlite3-binding.js
+      bundled=$(sed -n "s/.*'sqlite_version%':'\([0-9]*\)'.*/\1/p" deps/common-sqlite.gypi)
+      export EXPECTED_SQLITE="$((10#''${bundled:0:1})).$((10#''${bundled:1:2})).$((10#''${bundled:3:2}))"
       ELECTRON_RUN_AS_NODE=1 ${electron}/bin/electron -e '
         const sqlite3 = require("./lib/sqlite3.js");
-        if (sqlite3.VERSION !== "3.44.2") {
-          console.error("addon resolved sqlite " + sqlite3.VERSION + " instead of its bundled 3.44.2");
+        if (sqlite3.VERSION !== process.env.EXPECTED_SQLITE) {
+          console.error("addon resolved sqlite " + sqlite3.VERSION + " instead of its bundled " + process.env.EXPECTED_SQLITE);
           process.exit(1);
         }
         const db = new sqlite3.Database(":memory:");
@@ -203,6 +226,10 @@ in
       asar extract "$payload/app.asar" contents
       grep -q '"version": "${version}"' contents/package.json \
         || { echo "installer payload is not Wispr Flow ${version}" >&2; exit 1; }
+      grep -q '"sqlite3": "${sqlite3Version}"' contents/package.json \
+        || { echo "Wispr Flow ${version} no longer bundles sqlite3 ${sqlite3Version}, the rebuilt addon would not match" >&2; exit 1; }
+      grep -q '"electron": "${electronMajor}\.' contents/package.json \
+        || { echo "Wispr Flow ${version} is not built for Electron ${electronMajor}" >&2; exit 1; }
 
       (
         source scripts/build-linux.sh

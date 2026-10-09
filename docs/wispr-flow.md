@@ -3,8 +3,9 @@
 Wispr Flow ships only for macOS and Windows. charon runs it from the Windows
 installer, repackaged by `pkgs/wispr-flow` with the know-how of the unofficial
 [wispr-flow-linux](https://github.com/wispr-flow-linux/wispr-flow-linux)
-project and its clean-room [helper](https://github.com/wispr-flow-linux/helper),
-both pinned as flake inputs. The trait lives in
+project and its clean-room [helper](https://github.com/wispr-flow-linux/helper).
+The project is the single flake input, `wispr-flow-linux`, tracking its `main`
+branch. The trait lives in
 `modules/desktop-apps/linux/wispr-flow.nix` and only applies where the package
 builds (x86_64-linux), so kerberos skips it without a host override.
 
@@ -14,8 +15,7 @@ The build is pure: no `--impure`, no hand-supplied installer.
 
 1. The installer URL and sha256 come from the project's
    `scripts/setup/installer-pin.sh`, read at evaluation time, so the installer
-   is an ordinary fixed-output fetch. Bumping the `wispr-flow-linux` input to a
-   new release tag bumps Wispr Flow with it.
+   is an ordinary fixed-output fetch.
 2. The Squirrel `.exe` is unpacked to the Electron payload, and `app.asar` is
    extracted.
 3. The project's own `step3_patch_bundle` (sourced from
@@ -123,6 +123,50 @@ wispr-flow --doctor   # expects several readable event devices, not 1
 This is the access upstream ships, and it is broad: any process in the active
 session can then read every keystroke. charon is single-user, which is why it
 is acceptable here; drop the rule on a shared machine.
+
+## Updates
+
+Wispr Flow updates with the rest of the flake: `nix flake update` (or
+`nix flake update wispr-flow-linux`) moves the input to the project's latest
+`main`, and every version the package needs is read from that checkout, so
+nothing in this repository has to be edited:
+
+| What | Read from |
+|------|-----------|
+| Wispr Flow version, installer URL and sha256 | `scripts/setup/installer-pin.sh` |
+| Helper tag | `helper-version.txt` |
+| Helper source hash | the `helperSrc` fetch in `nix/wispr-flow.nix` |
+| Electron major | `ELECTRON_MAJOR` in `scripts/build-linux.sh`, mapped to `pkgs.electron_<major>` |
+| `sqlite3` and `node-addon-api` tarballs | `scripts/native-modules/package-lock.json` |
+| Patches and their order | `step3_patch_bundle` in `scripts/build-linux.sh` |
+
+The project's nightly job bumps the pin when Wispr publishes a release, runs
+its patch-stage test against the new bundle, and only then pushes, so `main`
+is the tested state.
+
+An update that the package cannot follow fails loudly instead of building
+something broken:
+
+- the helper tag moved but the project's Nix hash did not: evaluation stops
+  with "helper-version.txt pins X but nix/wispr-flow.nix fetches Y";
+- Wispr moved to an Electron major this nixpkgs lacks: evaluation stops with
+  "Wispr Flow now needs Electron N";
+- the app stopped bundling the pinned `sqlite3`, or targets another Electron
+  major than the project declares: the build stops before patching;
+- upstream code moved under a patch: the tripwires or `verify-patches.sh`
+  stop the build, as does `warm-deeplink.py` if its anchor drifts;
+- the rebuilt addon does not load its own sqlite under the chosen Electron:
+  the install check stops the build.
+
+Verified on 2026-10-09 by building the package from three upstream releases
+(1.6.1034, 1.6.1074, 1.6.1102) through the same expression, by running
+`nix flake update wispr-flow-linux` followed by the flake checks and the
+charon system build, and by evaluating doctored checkouts for the first two
+failures above.
+
+If the project stops publishing, pin the input to its last good commit in
+`flake.nix`; Wispr only keeps recent installers for download, so an old pin
+will eventually fail to fetch.
 
 ## Upstream state (2026-10-09)
 
