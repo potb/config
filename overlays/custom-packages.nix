@@ -19,4 +19,8 @@
   computer-use-linux = final.callPackage ../pkgs/computer-use-linux/package.nix {
     src = inputs.computer-use-linux;
   };
+  wispr-flow = final.callPackage ../pkgs/wispr-flow/package.nix {
+    src = inputs.wispr-flow-linux;
+    helperSrc = inputs.wispr-flow-linux-helper;
+  };
 }

@@ -29,6 +29,7 @@ docs/*
 !docs/upstream-warnings.md
 !docs/jcode.md
 !docs/herdr.md
+!docs/wispr-flow.md
 *.log
 
 __pycache__/

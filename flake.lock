@@ -1000,7 +1000,9 @@
         "qwerty-fr": "qwerty-fr",
         "sops-nix": "sops-nix",
         "stylix": "stylix",
-        "tsm-app": "tsm-app"
+        "tsm-app": "tsm-app",
+        "wispr-flow-linux": "wispr-flow-linux",
+        "wispr-flow-linux-helper": "wispr-flow-linux-helper"
       }
     },
     "sops-nix": {
@@ -1182,6 +1184,40 @@
         "owner": "exceptionptr",
         "ref": "v1.1.15",
         "repo": "tsm-app-linux",
+        "type": "github"
+      }
+    },
+    "wispr-flow-linux": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791530051,
+        "narHash": "sha256-sam5MPUs5AUGNj3tb5Vd9z6kuHGEFXAw4I3LcXIHWKU=",
+        "owner": "wispr-flow-linux",
+        "repo": "wispr-flow-linux",
+        "rev": "affe9d0935882923ed29e4647a32199096b7d4cf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "wispr-flow-linux",
+        "ref": "v1.0.4+wispr1.6.1102",
+        "repo": "wispr-flow-linux",
+        "type": "github"
+      }
+    },
+    "wispr-flow-linux-helper": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781205638,
+        "narHash": "sha256-VH5rJ2wZd482TcDZKAQZHqeqLk443wkEIStxIjouVlU=",
+        "owner": "wispr-flow-linux",
+        "repo": "helper",
+        "rev": "fa93fcf31d9ee7a9591a8dce1852f815d1b0dec5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "wispr-flow-linux",
+        "ref": "v0.1.2",
+        "repo": "helper",
         "type": "github"
       }
     }
