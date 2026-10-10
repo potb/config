@@ -8,7 +8,10 @@
   jcode = final.callPackage ../pkgs/jcode/package.nix {
     pkgs = final;
     src = inputs.jcode;
-    patches = [../pkgs/jcode/no-macos-option-char-shortcuts.patch];
+    patches = [
+      ../pkgs/jcode/no-macos-option-char-shortcuts.patch
+      ../pkgs/jcode/claude-account-failover.patch
+    ];
     drowse = inputs.drowse.lib.${final.stdenv.hostPlatform.system};
   };
   tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {

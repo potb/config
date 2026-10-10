@@ -365,6 +365,74 @@ Traps:
 - Chords go through `ydotool` keycodes. On qwerty-fr, `ctrl+a` and `Return`
   were verified; layout-dependent symbols in chords may map differently.
 
+## Local patches
+
+`overlays/custom-packages.nix` applies these patches to the flake input, in
+order, through `pkgs.applyPatches` in `package.nix`:
+
+- `no-macos-option-char-shortcuts.patch`: `JCODE_NO_MACOS_OPTION_CHAR_SHORTCUTS`
+  disables the translation of macOS Option+Shift characters into Alt
+  shortcuts.
+- `claude-account-failover.patch`: unattended failover between stored Claude
+  subscription accounts when the active one is rate or usage limited.
+
+### Claude account failover
+
+Upstream has the plumbing (`[provider].same_provider_account_failover`, the
+account pool) but it never fires on a real limit: the Anthropic runtime returns
+the response stream at once and reports the 429 inside it, while failover only
+runs when `complete()` itself returns an error. A plain 429 was retried three
+times on the same account and then failed the turn. Upstream tracks this as
+issues #1130 and #1612, with the fix proposed in PR #1613. That PR also changes
+the account model (per window pins) and does not apply to the pinned revision,
+so this patch is a smaller, independent version of the same idea.
+
+What it changes:
+
+- The runtime classifies a 429 as an account usage limit when
+  `anthropic-ratelimit-unified-status` is `rejected` with a reset more than two
+  minutes away, or when the body says "usage limit". That case is not retried
+  on the same account. The error carries a stable marker,
+  `[account-usage-limit resets_at=<unix>]`, and the account is remembered as
+  exhausted until the reset (15 minutes when the reset is unknown). Every 429
+  logs its `anthropic-ratelimit-*` headers.
+- `MultiProvider` reads the start of the stream before handing it on. If it
+  fails before any output with a rate or usage limit (marked, or a plain 429
+  that survived the runtime's retries), the same turn is resent on the next
+  stored account in pool order, skipping exhausted ones. Nothing has reached
+  the user at that point, so output is never duplicated. Errors after output
+  started are surfaced unchanged.
+- The winning account is persisted (`active_anthropic_account` in
+  `~/.jcode/auth.json`) and an account generation counter is bumped. Every
+  provider fork in the server, which includes swarm agents and other windows,
+  drops its cached token on the next request or retry and follows the switch.
+  The stream also carries a status line naming the switch.
+- The usage precheck treats the account as exhausted when either the 5 hour or
+  the 7 day window is full (upstream required both), and tries the other
+  accounts before the cross-provider prompt. With a single stored account the
+  upstream rule (both windows full) is kept, so a full 5 hour window alone
+  never blocks the only account.
+- Failover only runs for OAuth subscription accounts with at least two stored
+  accounts. API key mode is untouched.
+- A known exhausted account is skipped without sending a request, and a failed
+  rotation never resets the account another session just switched to.
+- Every read-modify-write of `~/.jcode/auth.json` for Claude accounts holds a
+  process mutex and an `flock` on `auth.json.lock`, so an account switch can
+  no longer overwrite a refresh token that another session rotated at the same
+  moment.
+- `JCODE_ANTHROPIC_OAUTH_API_URL` overrides the OAuth Messages endpoint. It
+  exists for the offline failover test and is unset in normal use.
+
+Cross-provider failover is unchanged and still follows
+`[provider].cross_provider_failover`. Set
+`[provider].same_provider_account_failover = false` to turn the account switch
+off.
+
+The patch is generated from the `fix/claude-account-failover` branch against
+the pinned revision (`git diff <locked rev> HEAD`). When `nix flake update
+jcode` moves the input, rebase that branch and regenerate the patch; drop it
+once upstream ships equivalent behaviour.
+
 ## Updating
 
 Bumping the input to a newer upstream master is the whole procedure:
