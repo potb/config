@@ -317,6 +317,10 @@ machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
 converted with `ssh-to-age`. A new machine needs its key added to
 `.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
 
+The Linear and Sentry servers are remote MCP endpoints bridged through
+`mcp-remote`, which handles OAuth in the browser on first use and caches the
+token under `~/.mcp-auth`. Neither needs a secret in this repo.
+
 ## Computer use on Linux
 
 jcode ships desktop control only for macOS (`macos_computer_use`). Linux

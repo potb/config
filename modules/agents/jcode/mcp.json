@@ -4,6 +4,10 @@
       "command": "/etc/profiles/per-user/potb/bin/bunx",
       "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
     },
+    "sentry": {
+      "command": "/etc/profiles/per-user/potb/bin/bunx",
+      "args": ["-y", "mcp-remote", "https://mcp.sentry.dev/mcp"]
+    },
     "exa": {
       "command": "/bin/sh",
       "args": [
