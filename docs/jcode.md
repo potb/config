@@ -471,9 +471,11 @@ Behaviour after the patch:
   needs approval stays stuck until a terminal reattaches.
 - Root sessions and coordinators are unchanged.
 
-Two tests in `client_lifecycle_tests.rs` drive a real socket connection with a
-slow provider and drop the client mid turn: the worker's turn must finish, the
-root's must not. Reverting the fix makes the worker test fail.
+Three tests in `client_lifecycle_tests.rs` drive a real socket connection with a
+slow provider and drop the client mid turn. A worker's turn must finish and its
+spawner must receive the completion notification, whether the turn was started
+by a prompt or by a soft interrupt. A root session's turn must still be
+aborted. Reverting the fix makes both worker tests fail.
 
 `server::client_lifecycle::tests::sdk_socket_configure_list_callback_and_busy_rejection`
 fails with a 5 second timeout on the unpatched pinned revision as well, so this

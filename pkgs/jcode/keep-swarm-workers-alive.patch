@@ -44,10 +44,10 @@ index bf51ee09f..c85d4b34b 100644
              active_terminal_env.clone(),
              cleanup_client_connection(
 diff --git a/crates/jcode-app-core/src/server/client_lifecycle_tests.rs b/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
-index e9675a073..d4de309a8 100644
+index e9675a073..f132ca024 100644
 --- a/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
 +++ b/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
-@@ -2191,3 +2191,198 @@ async fn system_prompt_socket_creation_attach_resume_fork_and_no_leaking() {
+@@ -2191,3 +2191,256 @@ async fn system_prompt_socket_creation_attach_resume_fork_and_no_leaking() {
          .unwrap()
          .unwrap();
  }
@@ -100,7 +100,15 @@ index e9675a073..d4de309a8 100644
 +    }
 +}
 +
-+async fn turn_finishes_after_client_disconnect(spawned_worker: bool) -> bool {
++struct DisconnectOutcome {
++    turn_finished: bool,
++    spawner_notified: bool,
++}
++
++async fn run_turn_and_disconnect_client(
++    spawned_worker: bool,
++    start_with_soft_interrupt: bool,
++) -> DisconnectOutcome {
 +    let _lock = crate::storage::lock_test_env();
 +    let home = IsolatedReloadRecoveryEnv::new();
 +    let finished = Arc::new(AtomicBool::new(false));
@@ -200,21 +208,48 @@ index e9675a073..d4de309a8 100644
 +    })
 +    .await;
 +
++    let (spawner_tx, mut spawner_rx) = mpsc::unbounded_channel::<ServerEvent>();
 +    if spawned_worker {
 +        let session_id = sessions.read().await.keys().next().unwrap().clone();
-+        swarm_members
-+            .write()
-+            .await
++        let mut members = swarm_members.write().await;
++        let worker = members
 +            .get_mut(&session_id)
-+            .expect("subscribed session is a swarm member")
-+            .report_back_to_session_id = Some("coordinator".to_string());
++            .expect("subscribed session is a swarm member");
++        worker.report_back_to_session_id = Some("coordinator".to_string());
++        worker.swarm_id = Some("test-swarm".to_string());
++        members.insert(
++            "coordinator".to_string(),
++            SwarmMember {
++                session_id: "coordinator".to_string(),
++                event_tx: spawner_tx.clone(),
++                event_txs: HashMap::from([("coordinator".to_string(), spawner_tx)]),
++                working_dir: None,
++                swarm_id: Some("test-swarm".to_string()),
++                swarm_enabled: true,
++                status: "ready".to_string(),
++                detail: None,
++                task_label: None,
++                friendly_name: Some("coordinator".to_string()),
++                report_back_to_session_id: None,
++                latest_completion_report: None,
++                role: "coordinator".to_string(),
++                joined_at: Instant::now(),
++                last_status_change: Instant::now(),
++                is_headless: false,
++                output_tail: None,
++                todo_progress: None,
++                todo_items: Vec::new(),
++                runtime: crate::protocol::SwarmMemberRuntime::default(),
++            },
++        );
 +    }
 +
-+    send(
-+        &mut client_writer,
-+        serde_json::json!({"type":"message","id":2,"content":"run a slow turn"}),
-+    )
-+    .await;
++    let start_request = if start_with_soft_interrupt {
++        serde_json::json!({"type":"soft_interrupt","id":2,"content":"run a slow turn"})
++    } else {
++        serde_json::json!({"type":"message","id":2,"content":"run a slow turn"})
++    };
++    send(&mut client_writer, start_request).await;
 +    until(&mut client_reader, |e| {
 +        matches!(e, ServerEvent::TextDelta { text } if text == "turn started")
 +    })
@@ -228,21 +263,44 @@ index e9675a073..d4de309a8 100644
 +        .unwrap()
 +        .unwrap();
 +    tokio::time::sleep(Duration::from_millis(800)).await;
-+    finished.load(Ordering::SeqCst)
++    let mut spawner_notified = false;
++    while let Ok(event) = spawner_rx.try_recv() {
++        spawner_notified |= matches!(event, ServerEvent::Notification { .. });
++    }
++    DisconnectOutcome {
++        turn_finished: finished.load(Ordering::SeqCst),
++        spawner_notified,
++    }
 +}
 +
 +#[tokio::test]
 +async fn spawned_worker_turn_survives_client_disconnect() {
++    let outcome = run_turn_and_disconnect_client(true, false).await;
 +    assert!(
-+        turn_finishes_after_client_disconnect(true).await,
++        outcome.turn_finished,
 +        "a spawned worker must finish its turn after its terminal closes"
++    );
++    assert!(
++        outcome.spawner_notified,
++        "the spawner must still receive the worker's completion notification"
 +    );
 +}
 +
 +#[tokio::test]
-+async fn root_session_turn_is_aborted_by_client_disconnect() {
++async fn spawned_worker_turn_started_by_soft_interrupt_survives_client_disconnect() {
++    let outcome = run_turn_and_disconnect_client(true, true).await;
 +    assert!(
-+        !turn_finishes_after_client_disconnect(false).await,
++        outcome.turn_finished,
++        "a worker turn started by a soft interrupt must also outlive its terminal"
++    );
++    assert!(outcome.spawner_notified);
++}
++
++#[tokio::test]
++async fn root_session_turn_is_aborted_by_client_disconnect() {
++    let outcome = run_turn_and_disconnect_client(false, false).await;
++    assert!(
++        !outcome.turn_finished,
 +        "a root session keeps its existing abort-on-disconnect behavior"
 +    );
 +}
