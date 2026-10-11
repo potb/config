@@ -5,7 +5,7 @@
   ...
 }: let
   features = import ../../shared/nix-features.nix;
-  flakeInputs = inputs |> lib.filterAttrs (_: lib.isType "flake");
+  flakeInputs = inputs |> lib.filterAttrs (n: v: n != "self" && lib.isType "flake" v);
   nixPath = flakeInputs |> lib.mapAttrsToList (n: _: "${n}=flake:${n}");
 in {
   nixos = {
