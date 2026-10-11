@@ -232,11 +232,11 @@
     "dnscrypt-resolvers": {
       "flake": false,
       "locked": {
-        "lastModified": 1791659176,
-        "narHash": "sha256-5doKqboeZvJYT+005fTPoH7sT7q23x7HtakyXdtfcpM=",
+        "lastModified": 1791673443,
+        "narHash": "sha256-YpT30/rR2F/ohiq3JDKGbiJeikYzyDzhnMsDHDDnJkw=",
         "owner": "DNSCrypt",
         "repo": "dnscrypt-resolvers",
-        "rev": "6d506050242ba30a30878b84cd8ff36f3f390f8e",
+        "rev": "b5279b0e249d532b44f3ee6c35f8a69870e9314d",
         "type": "github"
       },
       "original": {
@@ -539,11 +539,11 @@
     "homebrew-cask": {
       "flake": false,
       "locked": {
-        "lastModified": 1791664849,
-        "narHash": "sha256-d6M2PDo1s6bNY6EZEZyR3bcEQG0lreyod8frjAakFxI=",
+        "lastModified": 1791674063,
+        "narHash": "sha256-xZESZVk1M4ll20HvlPPG51yOWbit2CcYrrFQcb2Lzc8=",
         "owner": "homebrew",
         "repo": "homebrew-cask",
-        "rev": "487dcdf242e8b0b871d12014fd8cb58631c5a7ca",
+        "rev": "086dfbab8a72cd87eab20a8ff7e974db70051883",
         "type": "github"
       },
       "original": {
@@ -555,11 +555,11 @@
     "homebrew-core": {
       "flake": false,
       "locked": {
-        "lastModified": 1791665284,
-        "narHash": "sha256-xKmYrVVf6PcK/ImIZ3jdN9Zg0k1Sl4HKDuxPdjGauPw=",
+        "lastModified": 1791675701,
+        "narHash": "sha256-seebF/585ImLKp71GP9ybYv2HpNpXaztMVeFqUia5SM=",
         "owner": "homebrew",
         "repo": "homebrew-core",
-        "rev": "9cc65bc4f49c16cf259e24242f9af9de8eeb17c4",
+        "rev": "3c09418e50ad51f7f241f4062ffcd7bffe36e3ce",
         "type": "github"
       },
       "original": {
