@@ -375,6 +375,8 @@ order, through `pkgs.applyPatches` in `package.nix`:
   shortcuts.
 - `claude-account-failover.patch`: unattended failover between stored Claude
   subscription accounts when the active one is rate or usage limited.
+- `keep-swarm-workers-alive.patch`: a swarm worker's turn survives its terminal
+  being closed.
 
 ### Claude account failover
 
@@ -432,6 +434,55 @@ The patch is generated from the `fix/claude-account-failover` branch against
 the pinned revision (`git diff <locked rev> HEAD`). When `nix flake update
 jcode` moves the input, rebase that branch and regenerate the patch; drop it
 once upstream ships equivalent behaviour.
+
+### Keeping swarm workers alive
+
+A visible swarm worker is an ordinary session with a TUI client attached over a
+socket. Upstream aborts the running turn and marks the session `Crashed` when
+that socket closes, unless the client asked to continue on disconnect. Only the
+native SSH client asks, so closing the terminal of a local worker mid turn threw
+away the work its coordinator was waiting on.
+
+This patch makes the server retain the turn when the disconnecting session is a
+spawned worker, meaning its swarm member has `report_back_to_session_id` set.
+Root sessions have no spawner and keep the abort behaviour. The retained turn
+uses the path that already exists for SSH: the connection is detached, the turn
+runs to completion, and its result is reported to the coordinator as usual.
+
+What it changes, all in `server/client_lifecycle.rs`:
+
+- `is_spawned_worker` reads the swarm member for the session.
+- The disconnect path takes the retain branch when `continue_on_disconnect` or
+  `is_spawned_worker` holds, instead of `continue_on_disconnect` alone.
+- A client that reattaches to a worker and sends a prompt gets its stdin channel
+  restored under the same condition, so tools that ask for input in later turns
+  reach the new terminal instead of the dead one.
+
+Behaviour after the patch:
+
+- Close the terminal of a worker mid turn: the turn finishes and reports back.
+  `jcode --resume <session-id>` attaches to the live turn.
+- Close the terminal of an idle worker: unchanged, the session is saved and can
+  be resumed.
+- Ctrl+C and Esc still cancel, because they send an explicit cancel request
+  rather than closing the socket. `swarm stop` is unaffected.
+- A permission or stdin prompt raised while no terminal is attached does not
+  migrate: its pending response fails closed, as in the SSH case. A worker that
+  needs approval stays stuck until a terminal reattaches.
+- Root sessions and coordinators are unchanged.
+
+Two tests in `client_lifecycle_tests.rs` drive a real socket connection with a
+slow provider and drop the client mid turn: the worker's turn must finish, the
+root's must not. Reverting the fix makes the worker test fail.
+
+`server::client_lifecycle::tests::sdk_socket_configure_list_callback_and_busy_rejection`
+fails with a 5 second timeout on the unpatched pinned revision as well, so this
+patch does not cause it.
+
+The patch is generated from the `fix/keep-swarm-workers-alive` branch against
+the pinned revision with the other two patches applied. After `nix flake update
+jcode`, rebase that branch and regenerate it; drop it once upstream ships
+equivalent behaviour.
 
 ## Updating
 

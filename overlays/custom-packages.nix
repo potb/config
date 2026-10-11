@@ -11,6 +11,7 @@
     patches = [
       ../pkgs/jcode/no-macos-option-char-shortcuts.patch
       ../pkgs/jcode/claude-account-failover.patch
+      ../pkgs/jcode/keep-swarm-workers-alive.patch
     ];
     drowse = inputs.drowse.lib.${final.stdenv.hostPlatform.system};
   };

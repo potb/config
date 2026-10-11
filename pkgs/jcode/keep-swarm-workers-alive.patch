@@ -1,0 +1,248 @@
+diff --git a/crates/jcode-app-core/src/server/client_lifecycle.rs b/crates/jcode-app-core/src/server/client_lifecycle.rs
+index bf51ee09f..c85d4b34b 100644
+--- a/crates/jcode-app-core/src/server/client_lifecycle.rs
++++ b/crates/jcode-app-core/src/server/client_lifecycle.rs
+@@ -164,6 +164,17 @@ fn validated_subscribe_working_dir(
+     Ok(working_dir)
+ }
+ 
++async fn is_spawned_worker(
++    members: &Arc<RwLock<HashMap<String, SwarmMember>>>,
++    session_id: &str,
++) -> bool {
++    members
++        .read()
++        .await
++        .get(session_id)
++        .is_some_and(|member| member.report_back_to_session_id.is_some())
++}
++
+ fn new_session_system_prompt<'a>(
+     provisional_session: bool,
+     target_session_id: Option<&str>,
+@@ -1264,7 +1275,10 @@ pub(super) async fn handle_client(
+                     // A live resume cannot replace stdin routing while the old
+                     // turn owns the agent. Restore it when this client starts a
+                     // later turn, without reviving any disconnected prompt.
+-                    if continue_on_disconnect && let Ok(mut agent) = agent.try_lock() {
++                    if (continue_on_disconnect
++                        || is_spawned_worker(&swarm_members, &client_session_id).await)
++                        && let Ok(mut agent) = agent.try_lock()
++                    {
+                         agent.set_stdin_request_tx(stdin_req_tx.clone());
+                     }
+                     let mut connections = client_connections.write().await;
+@@ -3199,7 +3213,9 @@ pub(super) async fn handle_client(
+     // Cleanup serializes the successor decision against live attachment claims.
+     // A successor must inherit the active owner, including its completion receiver,
+     // rather than just an Agent whose processing task was already aborted.
+-    let event_handle = if !continue_on_disconnect {
++    let retain_turn = continue_on_disconnect
++        || is_spawned_worker(&swarm_members, &client_session_id).await;
++    let event_handle = if !retain_turn {
+         let retained = crate::hooks::with_client_terminal_env(
+             active_terminal_env.clone(),
+             cleanup_client_connection(
+diff --git a/crates/jcode-app-core/src/server/client_lifecycle_tests.rs b/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
+index e9675a073..d4de309a8 100644
+--- a/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
++++ b/crates/jcode-app-core/src/server/client_lifecycle_tests.rs
+@@ -2191,3 +2191,198 @@ async fn system_prompt_socket_creation_attach_resume_fork_and_no_leaking() {
+         .unwrap()
+         .unwrap();
+ }
++
++#[derive(Clone)]
++struct SlowTurnProvider {
++    finished: Arc<AtomicBool>,
++}
++
++#[async_trait]
++impl Provider for SlowTurnProvider {
++    async fn complete(
++        &self,
++        _: &[Message],
++        _: &[ToolDefinition],
++        _: &str,
++        _: Option<&str>,
++    ) -> Result<EventStream> {
++        let finished = Arc::clone(&self.finished);
++        Ok(Box::pin(stream::unfold(0_u8, move |step| {
++            let finished = Arc::clone(&finished);
++            async move {
++                match step {
++                    0 => Some((Ok(StreamEvent::TextDelta("turn started".to_string())), 1)),
++                    1 => {
++                        tokio::time::sleep(Duration::from_millis(600)).await;
++                        Some((Ok(StreamEvent::TextDelta("turn finishing".to_string())), 2))
++                    }
++                    2 => {
++                        finished.store(true, Ordering::SeqCst);
++                        Some((
++                            Ok(StreamEvent::MessageEnd {
++                                stop_reason: Some("end_turn".to_string()),
++                            }),
++                            3,
++                        ))
++                    }
++                    _ => None,
++                }
++            }
++        })))
++    }
++
++    fn name(&self) -> &str {
++        "slow-turn"
++    }
++
++    fn fork(&self) -> Arc<dyn Provider> {
++        Arc::new(self.clone())
++    }
++}
++
++async fn turn_finishes_after_client_disconnect(spawned_worker: bool) -> bool {
++    let _lock = crate::storage::lock_test_env();
++    let home = IsolatedReloadRecoveryEnv::new();
++    let finished = Arc::new(AtomicBool::new(false));
++    let provider_template: Arc<dyn Provider> = Arc::new(SlowTurnProvider {
++        finished: Arc::clone(&finished),
++    });
++
++    let sessions: SessionAgents = Arc::new(RwLock::new(HashMap::new()));
++    let global_session_id = Arc::new(RwLock::new(String::new()));
++    let client_count = Arc::new(RwLock::new(0usize));
++    let client_connections = Arc::new(RwLock::new(HashMap::new()));
++    let swarm_members = Arc::new(RwLock::new(HashMap::new()));
++    let swarms_by_id = Arc::new(RwLock::new(HashMap::new()));
++    let shared_context = Arc::new(RwLock::new(HashMap::new()));
++    let swarm_plans = Arc::new(RwLock::new(HashMap::new()));
++    let swarm_coordinators = Arc::new(RwLock::new(HashMap::new()));
++    let file_touch = FileTouchService::new();
++    let channel_subscriptions = Arc::new(RwLock::new(HashMap::new()));
++    let channel_subscriptions_by_session = Arc::new(RwLock::new(HashMap::new()));
++    let client_debug_state = Arc::new(RwLock::new(ClientDebugState::default()));
++    let (debug_response_tx, _) = broadcast::channel(8);
++    let event_history = Arc::new(RwLock::new(std::collections::VecDeque::new()));
++    let event_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
++    let (swarm_event_tx, _) = broadcast::channel(8);
++    let (global_event_tx, _) = broadcast::channel(8);
++    let global_is_processing = Arc::new(RwLock::new(false));
++    let shutdown_signals = Arc::new(RwLock::new(HashMap::new()));
++    let soft_interrupt_queues: SessionInterruptQueues = Arc::new(RwLock::new(HashMap::new()));
++    let mcp_pool = Arc::new(crate::mcp::SharedMcpPool::from_default_config());
++
++    let (server_stream, client_stream) = crate::transport::Stream::pair().expect("socket pair");
++    let server_task = tokio::spawn(handle_client(
++        server_stream,
++        Arc::clone(&sessions),
++        global_event_tx,
++        provider_template,
++        global_is_processing,
++        global_session_id,
++        client_count,
++        Arc::clone(&client_connections),
++        Arc::clone(&swarm_members),
++        swarms_by_id,
++        shared_context,
++        swarm_plans,
++        swarm_coordinators,
++        file_touch,
++        channel_subscriptions,
++        channel_subscriptions_by_session,
++        client_debug_state,
++        debug_response_tx,
++        event_history,
++        event_counter,
++        swarm_event_tx,
++        "jcode-test".to_string(),
++        "T".to_string(),
++        mcp_pool,
++        shutdown_signals,
++        soft_interrupt_queues,
++        AwaitMembersRuntime::default(),
++        SwarmMutationRuntime::default(),
++    ));
++
++    let (client_reader, mut client_writer) = client_stream.into_split();
++    let mut client_reader = BufReader::new(client_reader);
++
++    async fn send(writer: &mut crate::transport::WriteHalf, value: serde_json::Value) {
++        writer
++            .write_all(format!("{value}\n").as_bytes())
++            .await
++            .unwrap();
++    }
++    async fn until(
++        reader: &mut BufReader<crate::transport::ReadHalf>,
++        predicate: impl Fn(&ServerEvent) -> bool,
++    ) -> ServerEvent {
++        tokio::time::timeout(Duration::from_secs(10), async {
++            loop {
++                let mut line = String::new();
++                assert!(reader.read_line(&mut line).await.unwrap() > 0);
++                let event: ServerEvent = serde_json::from_str(&line).unwrap();
++                if predicate(&event) {
++                    return event;
++                }
++            }
++        })
++        .await
++        .expect("server event timeout")
++    }
++
++    send(
++        &mut client_writer,
++        serde_json::json!({"type":"subscribe","id":1,"working_dir":home._home.path()}),
++    )
++    .await;
++    until(&mut client_reader, |e| {
++        matches!(e, ServerEvent::Done { id: 1 })
++    })
++    .await;
++
++    if spawned_worker {
++        let session_id = sessions.read().await.keys().next().unwrap().clone();
++        swarm_members
++            .write()
++            .await
++            .get_mut(&session_id)
++            .expect("subscribed session is a swarm member")
++            .report_back_to_session_id = Some("coordinator".to_string());
++    }
++
++    send(
++        &mut client_writer,
++        serde_json::json!({"type":"message","id":2,"content":"run a slow turn"}),
++    )
++    .await;
++    until(&mut client_reader, |e| {
++        matches!(e, ServerEvent::TextDelta { text } if text == "turn started")
++    })
++    .await;
++
++    drop(client_writer);
++    drop(client_reader);
++    tokio::time::timeout(Duration::from_secs(10), server_task)
++        .await
++        .expect("server connection task should end after disconnect")
++        .unwrap()
++        .unwrap();
++    tokio::time::sleep(Duration::from_millis(800)).await;
++    finished.load(Ordering::SeqCst)
++}
++
++#[tokio::test]
++async fn spawned_worker_turn_survives_client_disconnect() {
++    assert!(
++        turn_finishes_after_client_disconnect(true).await,
++        "a spawned worker must finish its turn after its terminal closes"
++    );
++}
++
++#[tokio::test]
++async fn root_session_turn_is_aborted_by_client_disconnect() {
++    assert!(
++        !turn_finishes_after_client_disconnect(false).await,
++        "a root session keeps its existing abort-on-disconnect behavior"
++    );
++}
