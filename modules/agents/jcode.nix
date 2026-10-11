@@ -124,6 +124,12 @@
       run install -m 0644 ${./config.toml} "$dest"
     '';
 
+    programs.zsh.initContent = lib.mkAfter ''
+      if [[ -n "$HERDR_ENV" ]]; then
+        export JCODE_MERMAID_PICKER_PROBE=1
+      fi
+    '';
+
     home.sessionVariables = {
       JCODE_CHECK_UPDATES = "false";
       JCODE_NO_AUTO_UPDATE = "1";
