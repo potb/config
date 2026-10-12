@@ -2789,3 +2789,129 @@ index 000000000..2247aafe5
 +        ));
 +    }
 +}
+diff --git a/crates/jcode-base/src/usage.rs b/crates/jcode-base/src/usage.rs
+index 3277e8549..619c470d2 100644
+--- a/crates/jcode-base/src/usage.rs
++++ b/crates/jcode-base/src/usage.rs
+@@ -275,7 +275,10 @@ where
+         map.clear();
+         let now = Instant::now();
+         for r in &results {
+-            map.insert(r.provider_name.clone(), (now, r.clone()));
++            map.insert(
++                provider_usage_identity(&r.provider_name).to_string(),
++                (now, r.clone()),
++            );
+         }
+     }
+ 
+@@ -290,15 +293,16 @@ where
+     results
+ }
+ 
++fn provider_usage_identity(provider_name: &str) -> &str {
++    provider_name
++        .strip_suffix(ACTIVE_ACCOUNT_MARKER)
++        .unwrap_or(provider_name)
++}
++
+ fn upsert_provider_usage(results: &mut Vec<ProviderUsage>, report: ProviderUsage) {
+-    if let Some(existing) = results
+-        .iter_mut()
+-        .find(|existing| existing.provider_name == report.provider_name)
+-    {
+-        *existing = report;
+-    } else {
+-        results.push(report);
+-    }
++    let identity = provider_usage_identity(&report.provider_name).to_string();
++    results.retain(|existing| provider_usage_identity(&existing.provider_name) != identity);
++    results.push(report);
+     sort_reports_most_recent_first(results);
+ }
+ 
+@@ -506,7 +510,7 @@ fn enqueue_anthropic_usage_tasks(tasks: &mut tokio::task::JoinSet<Option<Provide
+     for account in accounts {
+         let label = if account_count > 1 {
+             let active_marker = if active_label.as_deref() == Some(&account.label) {
+-                " ✦"
++                ACTIVE_ACCOUNT_MARKER
+             } else {
+                 ""
+             };
+@@ -674,7 +678,8 @@ fn active_anthropic_usage_report(results: &[ProviderUsage]) -> Option<&ProviderU
+     results
+         .iter()
+         .find(|report| {
+-            report.provider_name.starts_with("Anthropic") && report.provider_name.contains(" ✦")
++            report.provider_name.starts_with("Anthropic")
++                && report.provider_name.contains(ACTIVE_ACCOUNT_MARKER)
+         })
+         .or(Some(first))
+ }
+diff --git a/crates/jcode-base/src/usage/model.rs b/crates/jcode-base/src/usage/model.rs
+index 2f633ef88..3a10e658a 100644
+--- a/crates/jcode-base/src/usage/model.rs
++++ b/crates/jcode-base/src/usage/model.rs
+@@ -49,6 +49,8 @@ pub(super) fn reset_timestamp_from_json_value(value: &serde_json::Value) -> Opti
+     value.as_str().map(|text| text.to_string())
+ }
+ 
++pub(super) const ACTIVE_ACCOUNT_MARKER: &str = " ✦";
++
+ pub(super) fn openai_provider_display_name(
+     label: &str,
+     email: Option<&str>,
+@@ -63,7 +65,7 @@ pub(super) fn openai_provider_display_name(
+     if account_count <= 1 {
+         format!("OpenAI (ChatGPT){}", email_suffix)
+     } else {
+-        let active_marker = if is_active { " ✦" } else { "" };
++        let active_marker = if is_active { ACTIVE_ACCOUNT_MARKER } else { "" };
+         format!("OpenAI - {}{}{}", label, email_suffix, active_marker)
+     }
+ }
+diff --git a/crates/jcode-base/src/usage/tests.rs b/crates/jcode-base/src/usage/tests.rs
+index bf0d4f51e..9545d7b39 100644
+--- a/crates/jcode-base/src/usage/tests.rs
++++ b/crates/jcode-base/src/usage/tests.rs
+@@ -1149,3 +1149,39 @@ fn zai_quota_url_follows_profile_region() {
+         "https://api.z.ai/api/monitor/usage/quota/limit"
+     );
+ }
++
++#[test]
++fn test_upsert_replaces_report_when_active_marker_moves() {
++    let report = |name: &str, used: f32| ProviderUsage {
++        provider_name: name.to_string(),
++        limits: vec![UsageLimit {
++            name: "5-hour window".to_string(),
++            usage_percent: used,
++            resets_at: None,
++        }],
++        ..Default::default()
++    };
++
++    let mut results = vec![
++        report("Anthropic - fox (q***n@example.com) ✦", 97.0),
++        report("Anthropic - otter (p***t@example.com)", 1.0),
++    ];
++    upsert_provider_usage(
++        &mut results,
++        report("Anthropic - otter (p***t@example.com) ✦", 10.0),
++    );
++    upsert_provider_usage(
++        &mut results,
++        report("Anthropic - fox (q***n@example.com)", 0.0),
++    );
++
++    let mut names: Vec<&str> = results.iter().map(|r| r.provider_name.as_str()).collect();
++    names.sort_unstable();
++    assert_eq!(
++        names,
++        [
++            "Anthropic - fox (q***n@example.com)",
++            "Anthropic - otter (p***t@example.com) ✦",
++        ]
++    );
++}
