@@ -78,7 +78,10 @@
       secrets.typesafe-api-key = {};
       templates."jcode-typesafe.env" = {
         content = "TYPESAFE_API_KEY=${config.sops.placeholder.typesafe-api-key}\n";
-        path = "${config.xdg.configHome}/jcode/typesafe.env";
+        path =
+          if pkgs.stdenv.hostPlatform.isDarwin
+          then "${config.home.homeDirectory}/Library/Application Support/jcode/typesafe.env"
+          else "${config.xdg.configHome}/jcode/typesafe.env";
       };
     };
 

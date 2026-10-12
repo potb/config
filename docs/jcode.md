@@ -317,6 +317,13 @@ machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
 converted with `ssh-to-age`. A new machine needs its key added to
 `.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
 
+The TypeSafe key for Jev memory recall is rendered as `typesafe.env` into
+jcode's provider config directory. jcode resolves that through the platform
+config dir, so it is `~/.config/jcode` on Linux but
+`~/Library/Application Support/jcode` on macOS. Rendering it to `~/.config`
+on a Mac leaves jcode reporting "No credential for the selected Jev provider
+typesafe".
+
 The Linear and Sentry servers are remote MCP endpoints bridged through
 `mcp-remote`, which handles OAuth in the browser on first use and caches the
 token under `~/.mcp-auth`. Neither needs a secret in this repo.
