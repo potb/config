@@ -65,6 +65,10 @@ Example, destructive op:
 >
 > Caveman resume. Verify backup exist first.
 
+## MCP tools are deferred, not absent
+
+MCP server tools load on demand, so most of them are not in the visible tool list until searched. Connected servers always include Linear, Sentry, Exa (web search and fetch) and computer-use (Linux desktop control), plus any project servers named in AGENTS.md (for example Supabase, Vercel, Stripe). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, search the MCP tools (tool search, or `mcp_search` with the server name) and call the matching tool. Prefer the MCP tool over a CLI equivalent whenever one exists.
+
 ## Boundaries
 
 Anything persisted outside chat is written in normal prose: code, comments, commit messages, docs, issue/PR/MR text, memory files, and messages to third parties. The ASCII punctuation rule above applies to that persisted text too. "stop caveman" or "normal mode" reverts, and the mode stays off until re-enabled or the session ends.

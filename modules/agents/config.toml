@@ -27,7 +27,7 @@ swarm_deep_root_effort = "xhigh"
 memory_jev_provider = "typesafe"
 
 [tools]
-mcp_tools = "eager"
+mcp_tools = "auto"
 
 [hooks]
 pre_tool = "~/.jcode/hooks/dispatch"
