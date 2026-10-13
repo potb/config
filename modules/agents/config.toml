@@ -32,3 +32,6 @@ mcp_tools = "eager"
 [hooks]
 pre_tool = "~/.jcode/hooks/dispatch"
 post_tool = "~/.jcode/hooks/dispatch"
+
+[desktop.workspace]
+account_sign_in_handled = true

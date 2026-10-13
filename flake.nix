@@ -92,6 +92,11 @@
       flake = false;
     };
 
+    jcode-desktop = {
+      url = "github:1jehuang/jcode-desktop";
+      flake = false;
+    };
+
     drowse = {
       url = "github:figsoda/drowse";
       inputs.nixpkgs.follows = "nixpkgs";

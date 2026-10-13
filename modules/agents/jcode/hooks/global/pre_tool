@@ -25,6 +25,8 @@ HASH = {
     "toml", "yaml", "yml", "ini", "cfg", "conf", "just", "mk", "dockerfile",
     "env",
 }
+SHELL = {"sh", "bash", "zsh", "fish"}
+SHELL_WORD_START = set(" \t\n;&|()")
 
 DIRECTIVE = re.compile(
     r"^(?:@|#!)|^(?:type:|noqa|pyright:|ruff:|mypy:|pylint:|flake8:|pyre:|pytype:"
@@ -71,13 +73,13 @@ def is_exempt(raw: str) -> bool:
 def scan(text: str, ext: str) -> list[str]:
     """Return raw comment texts found in `text`, skipping strings."""
     if ext in HASH:
-        return scan_hash(text)
+        return scan_hash(text, word_start_only=ext in SHELL)
     if ext in SLASH_STAR:
         return scan_slash(text)
     return []
 
 
-def scan_hash(text: str) -> list[str]:
+def scan_hash(text: str, word_start_only: bool = False) -> list[str]:
     found, quote, i, n = [], None, 0, len(text)
     while i < n:
         ch = text[i]
@@ -99,7 +101,7 @@ def scan_hash(text: str) -> list[str]:
             quote = ch
             i += 1
             continue
-        if ch == "#":
+        if ch == "#" and (not word_start_only or i == 0 or text[i - 1] in SHELL_WORD_START):
             end = text.find("\n", i)
             end = n if end == -1 else end
             found.append(text[i:end])
