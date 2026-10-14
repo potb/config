@@ -18,7 +18,6 @@
       "1password"
       "aldente"
       "claude"
-      "claude-code"
       "google-drive"
       "granola"
       "karabiner-elements"
