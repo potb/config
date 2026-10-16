@@ -31,6 +31,7 @@ docs/*
 !docs/jcode-desktop.md
 !docs/herdr.md
 !docs/wispr-flow.md
+!docs/gaming.md
 *.log
 
 __pycache__/
