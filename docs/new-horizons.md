@@ -167,10 +167,10 @@ automation, or after a gateway restart, trigger scripts then fail on every tick
 with `Plugin runtime changed. Continue with the refreshed tool catalog`,
 because they inherit that turn's finished plugin refresh scope. Upstream fixed
 it in `c7ada2f55` ("keep scheduled jobs alive after their creating request
-ends"), after 2026.9.5. Until nix-openclaw ships a release with it,
-`detach-cron-timer.mjs` patches the gateway at build time so the timer runs in
-a detached context created by the entry point. The patch fails the build if
-the code it rewrites has changed, which is the signal to drop it.
+ends"), after 2026.9.5. A build-time backport (`detach-cron-timer.mjs`) carried
+the fix until 2026.10.4, which runs both the cron timer and the capacity
+recheck through `runInDetachedAsyncContext`, a process-wide detached
+`AsyncResource`. The backport was dropped then.
 
 The phone also requests regions. The receiver looks up the region of a
 position once it is more than 2 km from the last one checked, and requests it

@@ -7,12 +7,7 @@
 }: let
   openclawPkgs = inputs.nix-openclaw.packages.${pkgs.stdenv.hostPlatform.system};
 
-  openclawGateway = openclawPkgs.openclaw-gateway.overrideAttrs (old: {
-    installPhase = ''
-      ${old.installPhase}
-      OPENCLAW_PACKAGE_ROOT="$out/lib/openclaw" "$NODE_BIN" ${./detach-cron-timer.mjs}
-    '';
-  });
+  openclawGateway = openclawPkgs.openclaw-gateway;
 
   openclawBundle = openclawPkgs.openclaw.override (old: {
     openclaw-gateway = openclawGateway;
