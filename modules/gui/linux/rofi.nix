@@ -41,8 +41,7 @@
         IMAGE_DIR="$HOME/Pictures/nasa-apod"
         IMAGE_PATH="$IMAGE_DIR/apod.jpg"
         TEMP_IMAGE_PATH="$IMAGE_DIR/apod_temp.jpg"
-        APOD_URL="https://apod.nasa.gov/apod/astropix.html"
-        APOD_BASE="https://apod.nasa.gov/apod/"
+        APOD_URL="https://science.nasa.gov/apod/"
         BAR_HEIGHT=0
 
         mkdir -p "$IMAGE_DIR"
@@ -54,8 +53,8 @@
         SUCCESS=false
 
         while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
-          if PAGE_CONTENT=$(${curl} -sL --max-time 15 "$APOD_URL"); then
-            IMAGE_REL=$(echo "$PAGE_CONTENT" | ${grep} -oP 'href="image/[^"]+' | head -1 | ${sed} 's/href="//')
+          if PAGE_CONTENT=$(${curl} -sL --max-time 15 -A 'Mozilla/5.0' "$APOD_URL"); then
+            IMAGE_REL=$(echo "$PAGE_CONTENT" | ${grep} -oP 'https://assets\.science\.nasa\.gov/dynamicimage/assets/science/cds/apod/apod/[^"?\s]+\.(jpe?g|png)' | head -1 || true)
             if [ -n "$IMAGE_REL" ]; then
               SUCCESS=true
             else
@@ -77,10 +76,10 @@
           exit 0
         fi
 
-        IMAGE_URL="$APOD_BASE$IMAGE_REL"
+        IMAGE_URL=$(echo "$IMAGE_REL" | ${sed} 's|/dynamicimage/assets/science/|/content/dam/science/|')
         echo "Image URL: $IMAGE_URL"
 
-        TITLE=$(echo "$PAGE_CONTENT" | ${grep} -oP '(?<=<b>)[^<]+' | head -1 || echo "Unknown")
+        TITLE=$(echo "$PAGE_CONTENT" | ${grep} -oP '(?<=<h2 class="display-48 margin-top-0 margin-bottom-3">)[^<]+' | head -1 || echo "Unknown")
         echo "Title: $TITLE"
 
         echo "Downloading image..."
@@ -89,7 +88,7 @@
         SUCCESS=false
 
         while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = "false" ]; do
-          if ${curl} -sL --max-time 60 "$IMAGE_URL" -o "$TEMP_IMAGE_PATH"; then
+          if ${curl} -sfL --max-time 60 -A 'Mozilla/5.0' "$IMAGE_URL" -o "$TEMP_IMAGE_PATH"; then
             SUCCESS=true
           else
             RETRY_COUNT=$((RETRY_COUNT + 1))
