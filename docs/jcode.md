@@ -51,20 +51,13 @@ and its [tracking issue](https://github.com/NixOS/nix/issues/6316).
 
 | Path | Purpose |
 | --- | --- |
-| `pkgs/jcode/package.nix` | Feature, version, and compatibility guards, the shared graph derivation, and one `outputOf` generator per binary. Returns `jcode`, `jcode-desktop-unwrapped`, `graph`, and `compat`. |
-| `pkgs/jcode/dyn.nix` | The expression evaluated inside each generator. Per-crate sources, native dependencies, compiler settings, and the unified feature root. |
-| `pkgs/jcode/compat.nix` | The evaluation-time check that the jcode and jcode-desktop inputs belong together. See [jcode desktop](jcode-desktop.md). |
-| `pkgs/jcode/combine-workspace.py` | Merges the jcode and jcode-desktop checkouts into one cargo workspace. |
-| `pkgs/jcode/align-lock.py` | Resolves that workspace's `Cargo.lock` offline, preferring every version jcode locks. |
-| `pkgs/jcode/members.py` | Writes `members.json`, the workspace member to directory map `dyn.nix` reads. |
-| `pkgs/jcode/git-hashes.json`, `desktop-git-hashes.json` | Fixed-output hashes for each input's git dependencies, used to vendor its `Cargo.lock`. |
-| `pkgs/jcode/crate-hashes.json` | The same git dependencies keyed the way crate2nix expects. |
-| `scripts/update-jcode` | Moves both flake inputs to a matching pair. |
+| `pkgs/jcode/package.nix` | Feature and version guards, vendored deps, and the `outputOf` indirection. |
+| `pkgs/jcode/dyn.nix` | The expression evaluated inside the generator. Per-crate sources, native dependencies, and compiler settings. |
+| `pkgs/jcode/crate-hashes.json` | Fixed-output hashes for the two git dependencies (`agentgrep`, `mermaid-rs-renderer`). |
 | `shared/nix-features.nix` | The experimental features this configuration enables, read by both `modules/base/nix.nix` and this package. |
 
-The overlay in `overlays/custom-packages.nix` exposes the package set as
-`pkgs.jcode-build`, and from it `pkgs.jcode` and `pkgs.jcode-desktop-unwrapped`.
-`modules/agents/jcode.nix` installs `pkgs.jcode` into the user profile.
+The overlay in `overlays/custom-packages.nix` exposes the result as
+`pkgs.jcode`, and `modules/agents/jcode.nix` installs it into the user profile.
 No service supervises the daemon. The first client spawns it, and it resolves
 its binary through the channel links under `~/.jcode/builds` (`shared-server`,
 then `stable`) before falling back to its own executable. A nix install has no
@@ -77,103 +70,27 @@ mtimes and every store path is dated 1970. Stop the daemon, then remove
 
 ## How a build runs
 
-jcode and [jcode desktop](jcode-desktop.md) are built from one crate graph, so
-a crate both binaries link is one derivation and compiles once.
-
-1. `package.nix` checks the guards below and vendors each input's
-   `Cargo.lock` with `rustPlatform.importCargoLock`.
-2. The `graph` derivation copies the patched jcode tree and the jcode-desktop
-   tree side by side, merges them into one cargo workspace, resolves one
-   `Cargo.lock` for it (see [Lock alignment](#lock-alignment)), and runs
-   `crate2nix generate` over the result. Its output is the workspace, the
-   generated `Cargo.nix`, `members.json`, `alignment.json`, and `dyn.nix`.
-3. One drowse generator per binary: a content-addressed derivation named
-   `jcode-0.94.0.drv` or `jcode-desktop-unwrapped-0.5.1.drv` whose build runs
-   `nix-instantiate` over `dyn.nix` inside the graph output.
-4. `dyn.nix` imports `Cargo.nix`, applies the crate overrides, resolves
-   features once for both roots, and yields the requested binary.
-5. `builtins.outputOf` turns each generator's output into a normal store path
+1. `package.nix` checks the guards below, then builds a vendor directory with
+   `rustPlatform.importCargoLock`, pinning the two git dependencies by hash.
+2. drowse builds the generator: a content-addressed derivation named
+   `jcode-0.84.0.drv` whose output is itself a derivation. Its build runs
+   `crate2nix generate` over the flake input, then `nix-instantiate` over
+   `dyn.nix`.
+3. `dyn.nix` imports the freshly generated `Cargo.nix`, applies the crate
+   overrides, and yields `workspaceMembers.jcode.build`.
+4. `builtins.outputOf` turns the generator's output into a normal store path
    dependency, and `runCommand` symlinks it so the final path carries a
    readable name.
 
-Step 2 is serial and takes about two minutes cold, most of it the lock
-resolution and crate2nix. It reruns when either input, a patch, or one of the
-scripts changes. Step 3 is a few seconds per binary. Steps 4 and 5 are the
-usual parallel crate builds.
+Step 2 is serial and takes roughly three minutes cold: a vendor directory of
+434 crates, then crate2nix, then instantiation of about 900 derivations. It is
+cached like any other derivation, so it reruns only when the jcode input or the
+settings change. Steps 3 and 4 are the usual parallel crate builds.
 
-`dyn.nix` is read from the graph output and evaluated in the sandbox against
-`<nixpkgs>`, so it cannot import anything else from this repository. Settings
-that need to cross that boundary (`optLevel`, `codegenUnits`, the feature
-roots, the build target, and the output name) are passed as a JSON file through
-`passAsFile`.
-
-## Shared crates
-
-Two things decide whether a crate both binaries use is one derivation or two:
-its version, and its enabled features. `buildRustCrate` hashes the crate name,
-version, feature flags, and the metadata of every dependency into the
-derivation, so a single differing feature anywhere below a crate splits it.
-
-Versions come from one `Cargo.lock` for both, described next.
-
-Features are resolved once. `dyn.nix` adds a synthetic `nix-build-roots` crate
-that depends on `jcode` (with `rootFeatures`, no defaults) and on
-`jcode-desktop` (defaults), and builds both binaries out of that one resolution,
-the same way cargo unifies features across a workspace. Resolving each binary on
-its own was measured first: only 193 of the 407 crates both graphs contain came
-out identical, because desktop turns on extra features of shared crates (for
-example `jcode-base`'s `voice-capture`, `arboard`'s Wayland clipboard,
-`async-compression`'s bzip2). With one resolution all of them match.
-
-The cost is that jcode is compiled with the union of features. It links
-`libxcb` and `alsa-lib` as a result, which the `jcode` override provides.
-Darwin has no desktop root, so its jcode graph is resolved for jcode alone,
-although its lock is still the aligned one.
-
-Measured on charon at jcode `29d17a9` and desktop `5439b26`:
-
-| | crate derivations |
-| --- | --- |
-| jcode | 699 |
-| jcode desktop | 821 |
-| shared | 572 |
-| shared jcode workspace crates | 45 of 45 desktop links |
-
-Adding a one-line change to `jcode-base` through a patch rebuilds 18 crates
-for both binaries together, in 204 s: `jcode-base` once, the jcode crates
-above it, and the desktop crates that depend on them. Every other crate,
-including the GPUI stack, comes from the store.
-
-## Lock alignment
-
-jcode and jcode desktop each ship a `Cargo.lock`, and the two drift: at the
-revisions above, 188 crate names were locked to versions the other side did
-not use. One workspace needs one lock, and the useful one keeps jcode's
-versions wherever it can, so that jcode itself is built from what upstream
-tested.
-
-`align-lock.py` builds it offline from the two vendor directories:
-
-1. It offers cargo only the versions jcode locks for every crate jcode uses,
-   plus desktop's versions for crates only desktop uses, and seeds the lock
-   from both files.
-2. When cargo cannot resolve, it reads the crate that failed from the error
-   and also offers desktop's version of it. It repeats until the workspace
-   resolves.
-3. It then tries `cargo update --precise` back down to jcode's version for
-   every crate that ended up with another one, and keeps each that resolves.
-
-The result at the revisions above: 790 registry crates at exactly jcode's
-version, and 56 crates where the lock also carries a second version. 25 jcode
-versions are replaced outright, all patch or minor bumps forced by a
-requirement on the desktop side, for example `serde_json = "1.0.151"` in
-every desktop crate, `futures ^0.3.34` and `serde_json ^1.0.144` in GPUI,
-`anyhow ^1.0.103` in handterm, and `unicode-properties = "=0.1.3"` in
-`gpui_web`. The full list is in `alignment.json` in the graph output.
-
-Git dependencies are not aligned, since they are pinned by revision. jcode and
-desktop use different revisions of `mermaid-rs-renderer` 0.3.1, so the lock
-carries both and crate2nix builds both.
+`dyn.nix` is read as text and evaluated in the sandbox against `<nixpkgs>`, so
+it cannot import anything from this repository. Settings that need to cross
+that boundary (`optLevel`, `codegenUnits`, `rootFeatures`, and the output name)
+are passed as a JSON file through `passAsFile`.
 
 ## Guards
 
@@ -222,9 +139,9 @@ declared in the repository and asserted against, not probed.
 
 ## Source granularity
 
-Each crate gets the workspace `Cargo.toml` and `Cargo.lock`, its checkout's
-`Cargo.toml`, and its own directory, which is what keeps the derivations
-independent. A few crates read files outside their own directory:
+Each crate gets only `Cargo.toml`, `Cargo.lock`, and its own directory, which is
+what keeps the derivations independent. Three crates read files outside their
+own directory:
 
 - `jcode-build-meta` parses the root `Cargo.toml` and shells out to `git` for the
   hash, date, tag, and changelog. The store has no git repository, so the
@@ -236,15 +153,6 @@ independent. A few crates read files outside their own directory:
 - `jcode-setup-hints` uses `include_bytes!` on
   `assets/app-icons/Jcode.icns`. Only that subdirectory is added, not the 113 MB
   of demo assets.
-- The jcode desktop crates embed icons, previews, and applets with
-  `include_bytes!` and `include_str!` from `jcode-desktop/assets` and
-  `jcode-desktop/applets` (1.4 MB together). `jcode-desktop-api` reads the
-  desktop `Cargo.toml` in a test, and `jcode-desktop-ui` embeds
-  `CHANGELOG.md`. `extraPathsFor` in `dyn.nix` lists each.
-
-Because the shared lock is part of every crate's source, a change that moves
-the lock (a new jcode or desktop revision) rebuilds every workspace crate, as it
-did before. A patch moves no lock entry, so it rebuilds only what it touches.
 
 Unrelated repository content never becomes a build input, so touching it cannot
 invalidate a crate derivation.
@@ -252,10 +160,8 @@ invalidate a crate derivation.
 ## Features
 
 `rootFeatures` is `["pdf" "embeddings"]`. Upstream's `default` also includes
-`bedrock`, which pulls in the AWS SDK stack for live Bedrock support. Nothing
-here uses it, so it is left out of the jcode root. jcode desktop's crates still
-enable it through their `jcode-base` dependency, so the unified build carries
-it for both.
+`bedrock`, which pulls in the AWS SDK stack for live Bedrock support; nothing
+here uses it, so it is left out.
 
 ## Compiler tuning
 

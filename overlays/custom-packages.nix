@@ -5,22 +5,15 @@
   agent-browser = final.callPackage ../pkgs/agent-browser/package.nix {
     src = inputs.agent-browser;
   };
-  jcode-build = import ../pkgs/jcode/package.nix {
-    inherit (final) lib;
+  jcode = final.callPackage ../pkgs/jcode/package.nix {
     pkgs = final;
     src = inputs.jcode;
-    desktopSrc = inputs.jcode-desktop;
     patches = [
       ../pkgs/jcode/no-macos-option-char-shortcuts.patch
       ../pkgs/jcode/claude-account-auth-lock.patch
       ../pkgs/jcode/keep-swarm-workers-alive.patch
     ];
     drowse = inputs.drowse.lib.${final.stdenv.hostPlatform.system};
-  };
-  inherit (final.jcode-build) jcode jcode-desktop-unwrapped;
-  jcode-desktop = final.callPackage ../pkgs/jcode-desktop/package.nix {
-    src = inputs.jcode-desktop;
-    unwrapped = final.jcode-desktop-unwrapped;
   };
   tsm-app = final.callPackage ../pkgs/tsm-app/package.nix {
     src = inputs.tsm-app;

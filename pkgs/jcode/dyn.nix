@@ -3,7 +3,7 @@ let
   inherit (pkgs) lib;
 
   settings = builtins.fromJSON (builtins.readFile (builtins.getEnv "jcodeSettingsPath"));
-  inherit (settings) optLevel codegenUnits name target roots;
+  inherit (settings) optLevel codegenUnits rootFeatures name;
 
   rustcOpts = ["-C opt-level=${toString optLevel}"];
 
@@ -29,24 +29,30 @@ let
       filter = keep;
     };
 
-  memberDirs = builtins.fromJSON (builtins.readFile ./members.json);
-
-  checkoutOf = crate: builtins.head (lib.splitString "/" memberDirs.${crate});
-
-  ownPaths = {
-    jcode = ["jcode/src" "jcode/tests"];
-    jcode-desktop = ["jcode-desktop/src" "jcode-desktop/build.rs"];
-  };
+  workspaceCrates =
+    builtins.attrNames
+    (import ./Cargo.nix {
+      inherit pkgs;
+      buildRustCrateForPkgs = _: _: null;
+    })
+    .workspaceMembers;
 
   extraPathsFor = {
-    jcode-app-core = ["jcode/README.md" "jcode/docs"];
-    jcode-setup-hints = ["jcode/assets/app-icons"];
-    jcode-desktop-api = ["jcode-desktop/Cargo.toml"];
-    jcode-desktop-harness = ["jcode-desktop/assets" "jcode-desktop/applets"];
-    jcode-desktop-model = ["jcode-desktop/assets" "jcode-desktop/applets"];
-    jcode-desktop-ui = ["jcode-desktop/assets" "jcode-desktop/applets" "jcode-desktop/CHANGELOG.md"];
-    jcode-desktop-ui-core = ["jcode-desktop/assets" "jcode-desktop/applets"];
-    jcode-desktop-voice = ["jcode-desktop/assets"];
+    jcode-app-core = ["README.md" "docs"];
+    jcode-setup-hints = ["assets/app-icons"];
+  };
+
+  extraAttrsFor = {
+    jcode = {
+      crateBin = [
+        {
+          name = "jcode";
+          path = "src/main.rs";
+          requiredFeatures = [];
+        }
+      ];
+      extraRustcOpts = rustcOpts ++ ["-C strip=symbols"];
+    };
   };
 
   extraEnvFor = {
@@ -57,144 +63,88 @@ let
       JCODE_BUILD_GIT_TAG = "";
       JCODE_BUILD_CHANGELOG_RAW = "";
     };
-    jcode-desktop-ui = {
-      JCODE_DESKTOP_VERSION = settings.desktopVersion;
-      SOURCE_DATE_EPOCH = "1";
-    };
   };
 
-  binary = crate: {
-    crateBin = [
-      {
-        name = crate;
-        path = "src/main.rs";
-        requiredFeatures = [];
-      }
-    ];
-    extraRustcOpts = rustcOpts ++ ["-C strip=symbols"];
-  };
+  memberDir = crate:
+    if crate == "jcode"
+    then "."
+    else "crates/${crate}";
 
-  extraAttrsFor = {
-    jcode = binary "jcode";
-    jcode-desktop = binary "jcode-desktop";
-    jcode-desktop-ui.type = ["lib"];
-  };
+  ownPaths = crate:
+    if crate == "jcode"
+    then ["src" "tests"]
+    else ["crates/${crate}"];
 
   workspaceCrateOverride = crate: _attrs:
     {
       src = repoSubset {
         name = "jcode-src-${crate}";
         paths =
-          ["Cargo.toml" "Cargo.lock" "${checkoutOf crate}/Cargo.toml"]
-          ++ ownPaths.${crate} or [memberDirs.${crate}]
+          ["Cargo.toml" "Cargo.lock"]
+          ++ ownPaths crate
           ++ extraPathsFor.${crate} or [];
       };
-      workspace_member = memberDirs.${crate};
+      workspace_member = memberDir crate;
       inherit codegenUnits;
       extraRustcOpts = rustcOpts;
     }
     // extraEnvFor.${crate} or {}
     // extraAttrsFor.${crate} or {};
 
-  nativeOverrides = {
-    aws-lc-sys = _attrs: {
-      nativeBuildInputs = [pkgs.cmake pkgs.perl];
-      env.AWS_LC_SYS_CMAKE_BUILDER = 1;
-      dontUseCmakeConfigure = true;
-    };
-
-    openssl-sys = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config pkgs.perl];
-      buildInputs = [pkgs.openssl];
-    };
-
-    libsqlite3-sys = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-      buildInputs = [pkgs.sqlite];
-    };
-
-    onig_sys = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-    };
-
-    tikv-jemalloc-sys = _attrs: {
-      nativeBuildInputs = [pkgs.perl];
-    };
-
-    fontdb = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-      buildInputs = [pkgs.fontconfig];
-    };
-
-    yeslogic-fontconfig-sys = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-      buildInputs = [pkgs.fontconfig];
-    };
-
-    jcode-tui-mermaid = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-      buildInputs = [pkgs.fontconfig];
-    };
-
-    jcode-notify-email = _attrs: {
-      nativeBuildInputs = [pkgs.pkg-config];
-      buildInputs = [pkgs.openssl];
-    };
-
-    jcode = _attrs: {
-      buildInputs = [pkgs.openssl] ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [pkgs.libxcb pkgs.alsa-lib];
-    };
-
-    jcode-desktop = _attrs: {
-      buildInputs = [pkgs.libxcb pkgs.libxkbcommon pkgs.alsa-lib pkgs.fontconfig pkgs.freetype];
-    };
-  };
-
   crateOverrides =
-    nativeOverrides
-    // lib.mapAttrs (crate: _: attrs:
-      workspaceCrateOverride crate attrs
-      // lib.optionalAttrs (nativeOverrides ? ${crate}) (nativeOverrides.${crate} attrs))
-    memberDirs;
+    lib.genAttrs workspaceCrates workspaceCrateOverride
+    // {
+      aws-lc-sys = _attrs: {
+        nativeBuildInputs = [pkgs.cmake pkgs.perl];
+        env.AWS_LC_SYS_CMAKE_BUILDER = 1;
+        dontUseCmakeConfigure = true;
+      };
 
-  buildRustCrateForPkgs = p:
-    p.buildRustCrate.override {
-      defaultCrateOverrides = pkgs.defaultCrateOverrides // crateOverrides;
+      openssl-sys = _attrs: {
+        nativeBuildInputs = [pkgs.pkg-config pkgs.perl];
+        buildInputs = [pkgs.openssl];
+      };
+
+      libsqlite3-sys = _attrs: {
+        nativeBuildInputs = [pkgs.pkg-config];
+        buildInputs = [pkgs.sqlite];
+      };
+
+      onig_sys = _attrs: {
+        nativeBuildInputs = [pkgs.pkg-config];
+      };
+
+      tikv-jemalloc-sys = _attrs: {
+        nativeBuildInputs = [pkgs.perl];
+      };
+
+      fontdb = _attrs: {
+        nativeBuildInputs = [pkgs.pkg-config];
+        buildInputs = [pkgs.fontconfig];
+      };
+
+      jcode-tui-mermaid = attrs:
+        workspaceCrateOverride "jcode-tui-mermaid" attrs
+        // {
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs = [pkgs.fontconfig];
+        };
+
+      jcode-notify-email = attrs:
+        workspaceCrateOverride "jcode-notify-email" attrs
+        // {
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs = [pkgs.openssl];
+        };
     };
 
   cargoNix = import ./Cargo.nix {
-    inherit pkgs buildRustCrateForPkgs;
+    inherit pkgs rootFeatures;
     release = true;
-  };
-
-  inherit (cargoNix) internal workspaceMembers;
-
-  umbrella = "nix-build-roots";
-
-  crateConfigs =
-    internal.crates
-    // {
-      ${umbrella} = {
-        crateName = umbrella;
-        version = "0.0.0";
-        edition = "2021";
-        dependencies =
-          lib.mapAttrsToList (crate: root: {
-            name = crate;
-            inherit (workspaceMembers.${crate}) packageId;
-            inherit (root) features;
-            usesDefaultFeatures = root.defaultFeatures;
-          })
-          roots;
+    buildRustCrateForPkgs = p:
+      p.buildRustCrate.override {
+        defaultCrateOverrides = pkgs.defaultCrateOverrides // crateOverrides;
       };
-    };
-
-  built = internal.builtRustCratesWithFeatures {
-    inherit crateConfigs;
-    packageId = umbrella;
-    features = [];
-    runTests = false;
-    buildRustCrateForPkgsFunc = buildRustCrateForPkgs;
   };
 in
-  built.crates.${workspaceMembers.${target}.packageId}.overrideAttrs {inherit name;}
+  cargoNix.workspaceMembers."jcode".build.overrideAttrs {inherit name;}

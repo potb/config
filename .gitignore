@@ -28,7 +28,6 @@ docs/*
 !docs/kerberos.md
 !docs/upstream-warnings.md
 !docs/jcode.md
-!docs/jcode-desktop.md
 !docs/herdr.md
 !docs/wispr-flow.md
 !docs/gaming.md
