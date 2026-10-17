@@ -56,6 +56,15 @@ in {
             restartUnits = ["owntracks-receiver.service"];
           };
 
+          transit-prim-api-key = {
+            sopsFile = ../../../secrets/transit.yaml;
+            key = "prim-api-key";
+            owner = "openclaw";
+            group = "openclaw";
+            mode = "0400";
+            restartUnits = ["openclaw-gateway.service"];
+          };
+
           transit-pinned-regions = {
             sopsFile = ../../../secrets/transit.yaml;
             key = "pinned-regions";

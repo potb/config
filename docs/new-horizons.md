@@ -67,6 +67,58 @@ user comes and goes from on this machine. Transitous also lacks live data for
 some networks that publish it; the local import takes the producers' live
 feeds directly.
 
+### PRIM, the Île-de-France source
+
+For Île-de-France `transit` also speaks to PRIM, the Île-de-France Mobilités
+API platform. It adds what neither MOTIS has: the operators' live SIRI feed for
+metro, tram and bus (`stop-monitoring`), and IDFM's own disruption messages
+with their application periods. `transit_prim.py` translates the Navitia and
+SIRI answers into the MOTIS v6 shapes `transit.py` already reads, so `plan`,
+`departures`, `trip`, `track` and `watch` work on a PRIM answer without a
+second code path. Adding another provider means writing another adapter with
+the same four calls (`v1/geocode`, `v6/plan`, `v6/trip`, `v6/stoptimes`) and
+a name in `SOURCE_NAMES`.
+
+Which source answers is decided by the shape of the question:
+
+- `plan` asks PRIM only when both ends lie in Île-de-France (a bounding box),
+  then the order in `TRANSIT_SOURCE_ORDER` (default `prim,local,transitous`),
+  with the local router moved last when its region is not loaded yet.
+- `departures` and `trip` follow the identifier. PRIM ids (`stop_area:IDFM:…`,
+  `vehicle_journey:IDFM:…@stop_point:IDFM:…@20261017T180100`) go to PRIM. A
+  MOTIS stop id of the IDFM dataset also works on PRIM, because the numbers are
+  the same.
+- `geocode` asks PRIM first, then Transitous, then the local router.
+- `--source prim|local|transitous` forces one source, for testing.
+
+A Navitia vehicle journey runs on many days, so a PRIM `trip_id` carries the
+boarding stop and the scheduled departure after two `@`. They pin the service
+day, and `trip` rebuilds each stop's date from them, midnight crossings
+included. Real-time delays come from the trip's disruption (`impacted_stops`
+with amended times), and on departures and plans a SIRI passage within 15
+minutes of the scheduled time replaces a schedule-only time when the departure
+is under an hour away. Lift outages, which are most of what PRIM publishes,
+are dropped from alerts.
+
+PRIM sees the exact coordinates of a plan, like Transitous does, and unlike
+the local router, and the key ties them to one account. To keep a place on this
+machine, set `TRANSIT_SOURCE_ORDER=local,prim,transitous`, or ask with
+`--source local`. The quota is 1000 requests a day per key (the
+`x-ratelimit-remaining-day` header). `transit watch` makes one `trip` request
+per tracked leg on every tick, 215 ticks a day, so two legs tracked all day
+would use 430 of them; a plan is one to three requests. A refused or exhausted
+key only removes PRIM from the list, and the error shows in `erreurs`.
+
+The key is `prim-api-key` in `secrets/transit.yaml`, exposed to the gateway as
+`PRIM_API_KEY_FILE`:
+
+```
+./scripts/sops-unlock
+sops secrets/transit.yaml
+```
+
+Without the key, or outside Île-de-France, nothing changes from before.
+
 ### Regions on demand
 
 MOTIS reads one OpenStreetMap file and cannot add a region while it runs, so

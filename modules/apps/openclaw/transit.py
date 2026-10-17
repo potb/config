@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -12,11 +13,20 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import transit_prim as prim
+from transit_prim import NoResult
+
 TZ = ZoneInfo("Europe/Paris")
-SOURCES = {
+MOTIS_URLS = {
     "local": os.environ.get("TRANSIT_LOCAL_URL", "http://127.0.0.1:8090"),
     "transitous": os.environ.get("TRANSIT_FALLBACK_URL", "https://api.transitous.org"),
 }
+SOURCE_NAMES = ("prim", "local", "transitous")
+SOURCE_ORDER = tuple(
+    name for name in os.environ.get("TRANSIT_SOURCE_ORDER", ",".join(SOURCE_NAMES)).split(",") if name in SOURCE_NAMES
+)
+GEOCODE_ORDER = ("prim", "transitous", "local")
+DEBUG = bool(os.environ.get("TRANSIT_DEBUG"))
 UA = os.environ.get("TRANSIT_USER_AGENT", "potb-transit/1.0 (+https://github.com/potb/config)")
 MOTIS_STATE = Path(os.environ.get("TRANSIT_MOTIS_STATE", "/var/lib/motis"))
 NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, ConnectionError, ValueError, KeyError)
@@ -24,13 +34,11 @@ HERE_WORDS = {"ici", "here", "moi"}
 HERE_MAX_AGE_S = 30 * 60
 
 
-class NoResult(Exception):
-    pass
-
-
 def call(source, path, **params):
     params = {k: v for k, v in params.items() if v is not None}
-    url = f"{SOURCES[source]}/api/{path}?{urllib.parse.urlencode(params)}"
+    if source == "prim":
+        return prim.call(path, params)
+    url = f"{MOTIS_URLS[source]}/api/{path}?{urllib.parse.urlencode(params)}"
     request = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.load(response)
@@ -94,7 +102,7 @@ def note_regions(points):
     return local_covers, requested
 
 
-def with_fallback(fn, sources=("local", "transitous")):
+def with_fallback(fn, sources):
     errors = {}
     for source in sources:
         try:
@@ -108,7 +116,47 @@ def with_fallback(fn, sources=("local", "transitous")):
             errors[source] = f"HTTP {e.code}"
         except NETWORK_ERRORS as e:
             errors[source] = str(e)[:200]
+            if DEBUG:
+                traceback.print_exc()
     return None, None, errors
+
+
+class Sources:
+    forced = None
+
+    @classmethod
+    def pick(cls, candidates):
+        if cls.forced:
+            return [cls.forced]
+        return [name for name in candidates if name != "prim" or prim.configured()]
+
+    @classmethod
+    def planning(cls, places, local_covers, requested):
+        names = [name for name in SOURCE_ORDER if name != "prim" or all(prim.in_idf(*p) for p in places)]
+        if requested and not local_covers:
+            names = [name for name in names if name != "local"] + ["local"]
+        return cls.pick(names)
+
+    @classmethod
+    def for_trip(cls, trip_id):
+        if prim.is_trip_id(trip_id):
+            return cls.pick(["prim"])
+        return cls.pick([name for name in SOURCE_ORDER if name != "prim"])
+
+    @classmethod
+    def for_stop(cls, stop_id):
+        if prim.is_stop_id(stop_id):
+            return cls.pick(["prim"])
+        names = [name for name in SOURCE_ORDER if name != "prim" or prim.covers_stop(stop_id)]
+        return cls.pick(names)
+
+    @classmethod
+    def for_text(cls):
+        return cls.pick(list(SOURCE_ORDER))
+
+    @classmethod
+    def for_geocode(cls):
+        return cls.pick(list(GEOCODE_ORDER))
 
 
 def parse_time(iso):
@@ -174,7 +222,7 @@ def resolve_place(text):
     if coord:
         return {"coord": coord, "name": text, "stop": None}
     errors = []
-    for source in ("transitous", "local"):
+    for source in Sources.for_geocode():
         try:
             hit = geocode(source, text)[0]
             return {
@@ -239,8 +287,7 @@ def cmd_plan(a):
             "etapes": [leg_view(leg) for leg in it["legs"] if leg["mode"] != "WALK"],
         } for it in its[: a.n]]
 
-    order = ("local", "transitous") if local_covers or not requested else ("transitous", "local")
-    source, res, errors = with_fallback(run, order)
+    source, res, errors = with_fallback(run, Sources.planning([frm["coord"], to["coord"]], local_covers, requested))
     return {
         "source": source, "de": frm["name"], "vers": to["name"], "itineraires": res,
         "regions_demandees": requested or None, "erreurs": errors or None,
@@ -248,6 +295,8 @@ def cmd_plan(a):
 
 
 def cmd_trip(a):
+    sources = Sources.for_trip(a.trip_id)
+
     def run(source):
         d = call(source, "v6/trip", tripId=a.trip_id)
         leg = next((leg for leg in d.get("legs", []) if leg["mode"] != "WALK"), None)
@@ -272,7 +321,7 @@ def cmd_trip(a):
             } for s in stops],
         }
 
-    source, res, errors = with_fallback(run)
+    source, res, errors = with_fallback(run, sources)
     return {"source": source, **(res or {}), "erreurs": errors or None}
 
 
@@ -286,6 +335,8 @@ def stop_ids(source, text):
 
 
 def cmd_departures(a):
+    sources = Sources.for_stop(a.stop) if ":" in a.stop or "_" in a.stop else Sources.for_text()
+
     def run(source):
         stop_id = stop_ids(source, a.stop)[0]
         d = call(source, "v6/stoptimes", stopId=stop_id, n=a.n, time=a.at, withAlerts="true")
@@ -305,7 +356,7 @@ def cmd_departures(a):
             "trip_id": st["tripId"],
         } for st in d["stopTimes"]]
 
-    source, res, errors = with_fallback(run)
+    source, res, errors = with_fallback(run, sources)
     return {"source": source, "departs": res, "erreurs": errors or None}
 
 
@@ -318,7 +369,7 @@ def cmd_geocode(a):
             "coord": f"{h['lat']},{h['lon']}",
         } for h in geocode(source, a.text)[:5]]
 
-    source, res, errors = with_fallback(run, ("transitous", "local"))
+    source, res, errors = with_fallback(run, Sources.for_geocode())
     return {"source": source, "resultats": res, "erreurs": errors or None}
 
 
@@ -350,7 +401,7 @@ def trip_status(trip_id):
             raise NoResult("course introuvable")
         return leg
 
-    source, leg, errors = with_fallback(run)
+    source, leg, errors = with_fallback(run, Sources.for_trip(trip_id))
     return source, leg, errors
 
 
@@ -558,7 +609,8 @@ def cmd_regions(a):
 
 
 def main():
-    p = argparse.ArgumentParser(prog="transit", description="Transports en commun : MOTIS local puis Transitous.")
+    p = argparse.ArgumentParser(prog="transit", description="Transports en commun : PRIM, MOTIS local puis Transitous.")
+    p.add_argument("--source", choices=SOURCE_NAMES, help="n'interroger que cette source")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("plan", help="itinéraire de A à B")
@@ -600,6 +652,7 @@ def main():
     s.set_defaults(fn=cmd_watch)
 
     a = p.parse_args()
+    Sources.forced = a.source
     started = time.monotonic()
     try:
         out = a.fn(a)
