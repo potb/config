@@ -231,6 +231,14 @@ def geocode(text, stop_only):
     return hits
 
 
+def scheduled_departure(times):
+    return times.get("base_departure_date_time") or times.get("departure_date_time")
+
+
+def scheduled_arrival(times):
+    return times.get("base_arrival_date_time") or times.get("arrival_date_time")
+
+
 def stop_view(row):
     stop = row["stop_point"]
     lat, lon = coord_of(stop)
@@ -240,9 +248,9 @@ def stop_view(row):
         "parentId": (stop.get("stop_area") or {}).get("id"),
         "lat": lat,
         "lon": lon,
-        "scheduledDeparture": iso(row.get("base_departure_date_time")),
+        "scheduledDeparture": iso(scheduled_departure(row)),
         "departure": iso(row.get("departure_date_time")),
-        "scheduledArrival": iso(row.get("base_arrival_date_time")),
+        "scheduledArrival": iso(scheduled_arrival(row)),
         "arrival": iso(row.get("arrival_date_time")),
     }
 
@@ -284,7 +292,7 @@ def transit_leg(section, disruptions, live):
         "realTime": section.get("data_freshness") == "realtime",
         "cancelled": False,
         "alerts": alerts,
-        "tripId": trip_id_of(vehicle_journey, rows[0]["stop_point"]["id"], rows[0]["base_departure_date_time"]),
+        "tripId": trip_id_of(vehicle_journey, rows[0]["stop_point"]["id"], scheduled_departure(rows[0])),
     }
     visit = live(line, rows[0]["stop_point"]["id"], boarding) if live and not leg["realTime"] else None
     if visit:
@@ -349,6 +357,8 @@ class ServiceDay:
         time_of_day = self.boarding.hour * 3600 + self.boarding.minute * 60 + self.boarding.second
         visits = [row for row in self.rows if row[0]["stop_point"]["id"] == boarding_stop]
         if not visits:
+            visits = [row for row in self.rows if row[2] % DAY_S == time_of_day]
+        if not visits:
             raise NoResult("arrêt de montée absent de la course : horaires modifiés ?")
         match = next((row for row in visits if row[2] % DAY_S == time_of_day), visits[0])
         self.midnight = self.boarding - timedelta(seconds=match[2])
@@ -360,6 +370,24 @@ class ServiceDay:
         base = seconds_of_day(time_of_day)
         candidates = (self.midnight + timedelta(seconds=base + shift) for shift in (-DAY_S, 0, DAY_S))
         return min(candidates, key=lambda candidate: abs(candidate - scheduled))
+
+
+def stop_place_alias(stop):
+    for code in stop.get("codes", []):
+        if code.get("type") == "netex_monomodal_stopplace":
+            return f"stop_point:IDFM:{code['value']}"
+    return None
+
+
+def amendments_by_stop(impacted_stops):
+    amendments = {}
+    for impacted in impacted_stops:
+        stop = impacted["stop_point"]
+        amendments[stop["id"]] = impacted
+        alias = stop_place_alias(stop)
+        if alias and impacted.get("stop_time_effect") == "added":
+            amendments[alias] = impacted
+    return amendments
 
 
 def trip_update(disruptions, bare_id, boarding):
@@ -402,7 +430,7 @@ def trip(trip_id):
     if update:
         disruption, impacted = update
         cancelled = disruption.get("severity", {}).get("effect") == "NO_SERVICE"
-        amendments = {s["stop_point"]["id"]: s for s in impacted.get("impacted_stops", [])}
+        amendments = amendments_by_stop(impacted.get("impacted_stops", []))
     stops = []
     for stop_time, arrival, departure in day.rows:
         stop = stop_time["stop_point"]
@@ -414,6 +442,7 @@ def trip(trip_id):
         if amendment.get("amended_departure_time"):
             real_departure = day.amended(amendment["amended_departure_time"], scheduled_departure)
         lat, lon = coord_of(stop)
+        unserved = amendment.get("stop_time_effect") == "deleted" or stop_time.get("skipped_stop", False)
         stops.append(
             {
                 "name": stop["name"],
@@ -421,11 +450,11 @@ def trip(trip_id):
                 "parentId": (stop.get("stop_area") or {}).get("id"),
                 "lat": lat,
                 "lon": lon,
-                "scheduledArrival": iso(scheduled_arrival),
-                "arrival": iso(real_arrival),
-                "scheduledDeparture": iso(scheduled_departure),
-                "departure": iso(real_departure),
-                "cancelled": amendment.get("stop_time_effect") == "deleted" or stop_time.get("skipped_stop", False),
+                "scheduledArrival": None if unserved else iso(scheduled_arrival),
+                "arrival": None if unserved else iso(real_arrival),
+                "scheduledDeparture": None if unserved else iso(scheduled_departure),
+                "departure": None if unserved else iso(real_departure),
+                "cancelled": unserved,
             }
         )
     route = journey.get("journey_pattern", {}).get("route", {})
@@ -520,8 +549,8 @@ def departure_row(departure):
     return {
         "place": {
             "name": stop["name"],
-            "scheduledDeparture": iso(times["base_departure_date_time"]),
-            "departure": iso(times["departure_date_time"]),
+            "scheduledDeparture": iso(scheduled_departure(times)),
+            "departure": iso(times.get("departure_date_time") or times.get("arrival_date_time")),
         },
         "routeShortName": info.get("code") or line.get("code"),
         "displayName": info.get("name"),
@@ -529,7 +558,7 @@ def departure_row(departure):
         "mode": mode_of(physical_mode_of(departure["route"])),
         "realTime": times.get("data_freshness") == "realtime",
         "cancelled": False,
-        "tripId": trip_id_of(vehicle_journey, stop["id"], times["base_departure_date_time"]),
+        "tripId": trip_id_of(vehicle_journey, stop["id"], scheduled_departure(times)),
     }
 
 
@@ -539,12 +568,12 @@ def overlay_passages(departures, rows, stop_ref):
         return
     pool = passages(monitoring)
     taken = set()
-    for departure, row in sorted(zip(departures, rows), key=lambda pair: pair[0]["stop_date_time"]["base_departure_date_time"]):
+    for departure, row in sorted(zip(departures, rows), key=lambda pair: scheduled_departure(pair[0]["stop_date_time"])):
         if row["realTime"]:
             continue
         stop_point = departure["stop_point"]["id"]
         line = departure["route"].get("line", {}).get("id")
-        scheduled = navitia_time(departure["stop_date_time"]["base_departure_date_time"]).replace(tzinfo=TZ)
+        scheduled = navitia_time(scheduled_departure(departure["stop_date_time"])).replace(tzinfo=TZ)
         visit = closest_visit(pool.get((line, stop_point), []), scheduled, taken)
         if visit and visit["status"] != "noReport":
             taken.add(id(visit))
