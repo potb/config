@@ -24,6 +24,7 @@ LIVE_WINDOW_S = 3600
 LIVE_MATCH_S = 15 * 60
 BOARDING_SLACK = timedelta(hours=1)
 MAX_ALERTS = 6
+MAX_LINE_REPORTS = 6
 SOUTH_WEST_NORTH_EAST = (48.10, 1.40, 49.30, 3.60)
 
 PHYSICAL_MODES = {
@@ -270,15 +271,61 @@ def apply_live(leg, visit):
     leg["cancelled"] = visit["status"] == "cancelled"
 
 
-def transit_leg(section, disruptions, live):
+def line_of(section):
+    return (link_ids(section["links"], "line") or [None])[0]
+
+
+def line_disruptions(line, since, until):
+    try:
+        data = get(
+            f"{NAVITIA}/lines/{line}/line_reports",
+            count=100,
+            depth=0,
+            since=since.strftime(NAVITIA_TIME),
+            until=until.strftime(NAVITIA_TIME),
+        )
+    except NoResult:
+        return []
+    return data.get("disruptions", [])
+
+
+def line_reports_for(journeys):
+    lines = []
+    for journey in journeys:
+        for section in journey["sections"]:
+            line = line_of(section) if section["type"] == "public_transport" else None
+            if line and line not in lines:
+                lines.append(line)
+    reports = {}
+    for line in lines[:MAX_LINE_REPORTS]:
+        times = [navitia_time(j[key]) for j in journeys for key in ("departure_date_time", "arrival_date_time")]
+        reports[line] = line_disruptions(line, min(times), max(times))
+    return reports
+
+
+def reported_alerts(disruptions, wanted, boarding):
+    alerts = []
+    for disruption in disruptions:
+        for impacted in disruption.get("impacted_objects", []):
+            pt = impacted["pt_object"]
+            if pt.get("embedded_type") in ("line", "route", "stop_point", "stop_area") and pt["id"] in wanted:
+                add_alert(alerts, alert_of(disruption, boarding))
+                break
+    return alerts
+
+
+def transit_leg(section, disruptions, live, reports):
     info = section["display_informations"]
     rows = section["stop_date_times"]
     boarding = navitia_time(section["departure_date_time"])
     alerts = []
     for ident in link_ids(section.get("links"), "disruption") + link_ids(info.get("links"), "disruption"):
         add_alert(alerts, alert_of(disruptions.get(ident, {}), boarding))
+    line = line_of(section)
+    wanted = {line} | {row["stop_point"]["id"] for row in rows} | {(row["stop_point"].get("stop_area") or {}).get("id") for row in rows}
+    for alert in reported_alerts(reports.get(line, []), wanted, boarding):
+        add_alert(alerts, alert)
     vehicle_journey = link_ids(section["links"], "vehicle_journey")[0]
-    line = (link_ids(section["links"], "line") or [None])[0]
     leg = {
         "mode": mode_of((link_ids(section["links"], "physical_mode") or [""])[0]),
         "duration": section["duration"],
@@ -300,13 +347,13 @@ def transit_leg(section, disruptions, live):
     return leg
 
 
-def journey_legs(journey, disruptions):
+def journey_legs(journey, disruptions, reports):
     legs, first_transit = [], True
     for section in journey["sections"]:
         if section["type"] in ("street_network", "crow_fly", "transfer"):
             legs.append(walking_leg(section))
         elif section["type"] == "public_transport":
-            legs.append(transit_leg(section, disruptions, live_visit if first_transit else None))
+            legs.append(transit_leg(section, disruptions, live_visit if first_transit else None, reports))
             first_transit = False
     return legs
 
@@ -326,6 +373,7 @@ def plan(origin, destination, at, arrive_by, count):
     if data.get("error"):
         raise NoResult(f"PRIM : {data['error'].get('message') or data['error'].get('id')}")
     disruptions = {d["id"]: d for d in data.get("disruptions", [])}
+    reports = line_reports_for(data.get("journeys", []))
     return {
         "itineraries": [
             {
@@ -333,7 +381,7 @@ def plan(origin, destination, at, arrive_by, count):
                 "endTime": iso(journey["arrival_date_time"]),
                 "duration": journey["duration"],
                 "transfers": journey["nb_transfers"],
-                "legs": journey_legs(journey, disruptions),
+                "legs": journey_legs(journey, disruptions, reports),
             }
             for journey in data.get("journeys", [])
         ]

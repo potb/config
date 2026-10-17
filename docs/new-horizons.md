@@ -97,8 +97,10 @@ day, and `trip` rebuilds each stop's date from them, midnight crossings
 included. Real-time delays come from the trip's disruption (`impacted_stops`
 with amended times), and on departures and plans a SIRI passage within 15
 minutes of the scheduled time replaces a schedule-only time when the departure
-is under an hour away. Lift outages, which are most of what PRIM publishes,
-are dropped from alerts.
+is under an hour away. A journey response only links the disruptions that
+touch a stop, so each line of a plan is also asked for its own
+(`line_reports`): that is how a closed line shows up as an alert on the leg.
+Lift outages, which are most of what PRIM publishes, are dropped from alerts.
 
 PRIM sees the exact coordinates of a plan, like Transitous does, and unlike
 the local router, and the key ties them to one account. To keep a place on this
@@ -106,7 +108,9 @@ machine, set `TRANSIT_SOURCE_ORDER=local,prim,transitous`, or ask with
 `--source local`. The quota is 1000 requests a day per key (the
 `x-ratelimit-remaining-day` header). `transit watch` makes one `trip` request
 per tracked leg on every tick, 215 ticks a day, so two legs tracked all day
-would use 430 of them; a plan is one to three requests. A refused or exhausted
+would use 430 of them. A plan is one request for the journeys, one per line
+used for its disruptions (at most six), and one for live passages, so about
+five to eight. A refused or exhausted
 key only removes PRIM from the list, and the error shows in `erreurs`.
 
 The key is `prim-api-key` in `secrets/transit.yaml`, exposed to the gateway as
