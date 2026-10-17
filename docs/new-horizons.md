@@ -102,6 +102,32 @@ touch a stop, so each line of a plan is also asked for its own
 (`line_reports`): that is how a closed line shows up as an alert on the leg.
 Lift outages, which are most of what PRIM publishes, are dropped from alerts.
 
+Real time is merged leg by leg, so a journey is not live on one mode only.
+Navitia updates the RER and Transilien but not the metro, the SIRI feed covers
+the metro, tram and bus, and the local router and Transitous each know trips
+the others miss. For every leg of a `plan`, `transit` takes the first live
+answer in this order:
+
+1. the Navitia update of the trip (`source_rt: prim-navitia`),
+2. a SIRI passage at the boarding stop, followed to the alighting stop by its
+   journey reference (`prim-siri`), when the leg leaves within the hour,
+3. a live trip of the other sources (`local`, `transitous`), found by asking
+   them for departures within 150 m of the boarding stop, keeping the ones on
+   the same line whose scheduled time is within two minutes, and checking that
+   the trip serves stops within 300 m of the leg's boarding and alighting
+   stops. The coordinates are used because stop ids differ across sources.
+
+When a source gives a departure but no arrival, the arrival is the scheduled
+one plus the departure delay and the leg is flagged `arrivee_estimee`. The
+itinerary end time and duration are recomputed from the live times, every
+transfer gets its real margin (`correspondance_marge_min`, and
+`correspondance_manquee` when it is negative), and the itinerary carries
+`realtime: full|partial|none`. The extra calls are unbounded by design, one
+trip lookup per candidate (at most six) per leg that is not live yet, and a
+failing fill source only shows in `erreurs_temps_reel`. `trip`, and so `track`
+and `watch`, apply the same merge to PRIM trip ids: a metro run gets its
+delay from SIRI stop by stop, and from the other sources beyond the hour.
+
 PRIM sees the exact coordinates of a plan, like Transitous does, and unlike
 the local router, and the key ties them to one account. To keep a place on this
 machine, set `TRANSIT_SOURCE_ORDER=local,prim,transitous`, or ask with
@@ -109,8 +135,11 @@ machine, set `TRANSIT_SOURCE_ORDER=local,prim,transitous`, or ask with
 `x-ratelimit-remaining-day` header). `transit watch` makes one `trip` request
 per tracked leg on every tick, 215 ticks a day, so two legs tracked all day
 would use 430 of them. A plan is one request for the journeys, one per line
-used for its disruptions (at most six), and one for live passages, so about
-five to eight. A refused or exhausted
+used for its disruptions (at most six), one per distinct boarding and alighting
+stop for live passages, and a departures request plus up to six trip lookups
+for every leg still not live that the fill asks PRIM about, so roughly ten to
+thirty. `watch` on a metro leg adds one SIRI request per stop of the run when
+the leg leaves within the hour. A refused or exhausted
 key only removes PRIM from the list, and the error shows in `erreurs`.
 
 The key is `prim-api-key` in `secrets/transit.yaml`, exposed to the gateway as

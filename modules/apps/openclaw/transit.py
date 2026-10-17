@@ -9,7 +9,8 @@ import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -32,6 +33,11 @@ MOTIS_STATE = Path(os.environ.get("TRANSIT_MOTIS_STATE", "/var/lib/motis"))
 NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, ConnectionError, ValueError, KeyError)
 HERE_WORDS = {"ici", "here", "moi"}
 HERE_MAX_AGE_S = 30 * 60
+FILL_MATCH_S = 120
+FILL_RADIUS_M = 150
+FILL_STOP_M = 300
+FILL_TRIES = 6
+ISO_UTC = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def call(source, path, **params):
@@ -254,6 +260,10 @@ def leg_view(leg):
         "arrivee": hhmm(to.get("arrival")),
         "retard_min": delay_min(frm.get("departure"), frm.get("scheduledDeparture")),
         "realtime": bool(leg.get("realTime")),
+        "source_rt": leg.get("rtSource"),
+        "arrivee_estimee": leg.get("arrivalEstimated"),
+        "correspondance_marge_min": leg.get("transferMarginMin"),
+        "correspondance_manquee": leg.get("transferMissed"),
         "annule": bool(leg.get("cancelled")),
         "voie": frm.get("track"),
         "alertes": alerts_of(leg),
@@ -268,9 +278,224 @@ def walk_minutes(legs):
     return round(sum(leg["duration"] for leg in legs if leg["mode"] == "WALK") / 60)
 
 
+def zulu(moment):
+    return moment.astimezone(timezone.utc).strftime(ISO_UTC)
+
+
+def same_line(a, b):
+    return bool(a) and bool(b) and a.strip().lower() == b.strip().lower()
+
+
+def line_name(obj):
+    return obj.get("routeShortName") or obj.get("displayName")
+
+
+def nearby_departures(source, leg):
+    frm = leg["from"]
+    when = frm["scheduledDeparture"]
+    if source == "prim":
+        stop = frm.get("stopId")
+        if not stop or not prim.covers_stop(stop):
+            return []
+        data = call("prim", "v6/stoptimes", stopId=stop, n=15, time=when)
+    else:
+        if frm.get("lat") is None:
+            return []
+        data = call(source, "v6/stoptimes", center=f"{frm['lat']},{frm['lon']}", radius=FILL_RADIUS_M,
+                    n=1, window=FILL_MATCH_S, time=when)
+    return data.get("stopTimes", [])
+
+
+def fill_candidates(rows, leg):
+    planned = parse_time(leg["from"]["scheduledDeparture"])
+    scored = []
+    for row in rows:
+        scheduled = row["place"].get("scheduledDeparture")
+        if not (row.get("realTime") and scheduled and same_line(line_name(row), line_name(leg))):
+            continue
+        gap = abs((parse_time(scheduled) - planned).total_seconds())
+        if gap <= FILL_MATCH_S:
+            scored.append((gap, row))
+    return [row for _, row in sorted(scored, key=lambda pair: pair[0])][:FILL_TRIES]
+
+
+def stop_index(stops, point, indices):
+    best, best_distance = None, FILL_STOP_M
+    for i in indices:
+        stop = stops[i]
+        if stop.get("lat") is None or stop.get("cancelled") or point.get("lat") is None:
+            continue
+        distance = ground_distance_m(point["lat"], point["lon"], stop["lat"], stop["lon"])
+        if distance <= best_distance:
+            best, best_distance = i, distance
+    return best
+
+
+def locate_ride(leg, ride):
+    stops = [ride["from"], *ride.get("intermediateStops", []), ride["to"]]
+    start = stop_index(stops, leg["from"], range(len(stops)))
+    if start is None:
+        return None
+    end = stop_index(stops, leg["to"], range(start + 1, len(stops)))
+    return None if end is None else (stops[start], stops[end])
+
+
+def propagate_arrival(leg):
+    scheduled, planned = leg["to"].get("scheduledArrival"), leg["from"].get("scheduledDeparture")
+    departure = leg["from"].get("departure")
+    if scheduled and planned and departure:
+        leg["to"]["arrival"] = zulu(parse_time(scheduled) + (parse_time(departure) - parse_time(planned)))
+        leg["arrivalEstimated"] = True
+
+
+def find_ride(source, leg):
+    for row in fill_candidates(nearby_departures(source, leg), leg):
+        data = call(source, "v6/trip", tripId=row["tripId"])
+        ride = next((l for l in data.get("legs", []) if l["mode"] != "WALK"), None)
+        located = locate_ride(leg, ride) if ride and ride.get("realTime") else None
+        if not located:
+            continue
+        board, alight = located
+        if board.get("departure") or row["place"].get("departure"):
+            return row, ride, board, alight
+    return None
+
+
+def fill_from(source, leg):
+    found = find_ride(source, leg)
+    if found:
+        row, ride, board, alight = found
+        departure = board.get("departure") or row["place"].get("departure")
+        leg["from"]["departure"] = departure
+        leg["realTime"] = True
+        leg["rtSource"] = source
+        leg["cancelled"] = bool(row.get("cancelled") or row.get("tripCancelled") or board.get("cancelled"))
+        leg.pop("arrivalEstimated", None)
+        if alight.get("arrival"):
+            leg["to"]["arrival"] = alight["arrival"]
+        else:
+            propagate_arrival(leg)
+        return True
+    return False
+
+
+def nearest_ride_stop(stop, ride_stops, after):
+    best, best_distance = None, FILL_STOP_M
+    for i in range(after, len(ride_stops)):
+        other = ride_stops[i]
+        if other.get("lat") is None or other.get("cancelled") or stop.get("lat") is None:
+            continue
+        distance = ground_distance_m(stop["lat"], stop["lon"], other["lat"], other["lon"])
+        if distance <= best_distance:
+            best, best_distance = i, distance
+    return best
+
+
+def merge_ride_times(stops, start, ride_stops):
+    last, delay = 0, None
+    for stop in stops[start:]:
+        if stop.get("cancelled") or not stop.get("scheduledDeparture"):
+            continue
+        index = nearest_ride_stop(stop, ride_stops, last)
+        other = ride_stops[index] if index is not None else None
+        if other and (other.get("departure") or other.get("arrival")):
+            last = index
+            stop["departure"] = other.get("departure") or other["arrival"]
+            stop["arrival"] = other.get("arrival") or stop["departure"]
+            delay = parse_time(stop["departure"]) - parse_time(stop["scheduledDeparture"])
+        elif delay is not None:
+            stop["departure"] = zulu(parse_time(stop["scheduledDeparture"]) + delay)
+            stop["arrival"] = zulu(parse_time(stop.get("scheduledArrival") or stop["scheduledDeparture"]) + delay)
+            stop["estimated"] = True
+
+
+def complete_leg(trip_id, leg, errors):
+    if Sources.forced or leg.get("realTime") or not prim.is_trip_id(trip_id):
+        return
+    stops = [leg["from"], *leg.get("intermediateStops", []), leg["to"]]
+    boarding = prim.split_trip_id(trip_id)[1]
+    start = next((i for i, s in enumerate(stops) if s.get("stopId") == boarding), 0)
+    pseudo = {"from": stops[start], "to": stops[-1], "routeShortName": leg.get("routeShortName"),
+              "displayName": leg.get("displayName")}
+    for source in Sources.pick([name for name in SOURCE_ORDER if name != "prim"]):
+        try:
+            found = find_ride(source, pseudo) if pseudo["from"].get("scheduledDeparture") else None
+        except (NoResult, *NETWORK_ERRORS) as e:
+            errors[source] = str(e)[:200] or "échec"
+            continue
+        if found:
+            row, ride, board, alight = found
+            merge_ride_times(stops, start, [ride["from"], *ride.get("intermediateStops", []), ride["to"]])
+            leg["realTime"] = True
+            leg["rtSource"] = source
+            leg["cancelled"] = bool(leg.get("cancelled") or ride.get("cancelled"))
+            return
+
+
+def fill_leg(leg, planned, errors):
+    if Sources.forced or (leg.get("realTime") and not leg.get("arrivalEstimated")):
+        return
+    if not (leg["from"].get("scheduledDeparture") and leg["to"].get("lat") is not None):
+        return
+    for source in Sources.pick(list(SOURCE_ORDER)):
+        if source == planned:
+            continue
+        try:
+            if fill_from(source, leg):
+                return
+        except (NoResult, *NETWORK_ERRORS) as e:
+            errors[source] = str(e)[:200] or "échec"
+            if DEBUG:
+                traceback.print_exc()
+
+
+def retime(itinerary):
+    legs = itinerary["legs"]
+    rides = [i for i, leg in enumerate(legs) if leg.get("tripId")]
+    if not rides or not any(legs[i].get("realTime") for i in rides):
+        return
+    last = rides[-1]
+    arrival = legs[last]["to"].get("arrival")
+    if arrival:
+        trailing = sum(leg["duration"] for leg in legs[last + 1:])
+        itinerary["endTime"] = zulu(parse_time(arrival) + timedelta(seconds=trailing))
+        itinerary["duration"] = int((parse_time(itinerary["endTime"]) - parse_time(itinerary["startTime"])).total_seconds())
+    for previous, following in zip(rides, rides[1:]):
+        before, after = legs[previous], legs[following]
+        arrives = before["to"].get("arrival") or before["to"].get("scheduledArrival")
+        departs = after["from"].get("departure") or after["from"].get("scheduledDeparture")
+        if not (arrives and departs):
+            continue
+        walking = sum(leg["duration"] for leg in legs[previous + 1:following])
+        margin = (parse_time(departs) - parse_time(arrives)).total_seconds() - walking
+        after["transferMarginMin"] = round(margin / 60)
+        if margin < 0:
+            after["transferMissed"] = True
+
+
+def realtime_state(legs):
+    rides = [leg for leg in legs if leg.get("tripId")]
+    live = sum(1 for leg in rides if leg.get("realTime"))
+    if rides and live == len(rides):
+        return "full"
+    return "partial" if live else "none"
+
+
+def enrich_itineraries(itineraries, planned, errors):
+    rides = [leg for it in itineraries for leg in it["legs"] if leg.get("tripId")]
+    for leg in rides:
+        if leg.get("realTime") and not leg.get("rtSource"):
+            leg["rtSource"] = planned
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda leg: fill_leg(leg, planned, errors), rides))
+    for it in itineraries:
+        retime(it)
+
+
 def cmd_plan(a):
     frm, to = resolve_place(a.frm), resolve_place(a.to)
     local_covers, requested = note_regions([frm["coord"], to["coord"]])
+    fill_errors = {}
 
     def run(source):
         d = call(source, "v6/plan", fromPlace=place_param(frm), toPlace=place_param(to), time=a.at,
@@ -278,35 +503,42 @@ def cmd_plan(a):
         its = [it for it in d.get("itineraries", []) if any(leg["mode"] != "WALK" for leg in it["legs"])]
         if not its:
             raise NoResult()
+        its = its[: a.n]
+        enrich_itineraries(its, source, fill_errors)
         return [{
             "depart": hhmm(it["startTime"]),
             "arrivee": hhmm(it["endTime"]),
             "duree_min": round(it["duration"] / 60),
             "marche_min": walk_minutes(it["legs"]),
             "correspondances": it["transfers"],
+            "realtime": realtime_state(it["legs"]),
             "etapes": [leg_view(leg) for leg in it["legs"] if leg["mode"] != "WALK"],
-        } for it in its[: a.n]]
+        } for it in its]
 
     source, res, errors = with_fallback(run, Sources.planning([frm["coord"], to["coord"]], local_covers, requested))
     return {
         "source": source, "de": frm["name"], "vers": to["name"], "itineraires": res,
         "regions_demandees": requested or None, "erreurs": errors or None,
+        "erreurs_temps_reel": fill_errors or None,
     }
 
 
 def cmd_trip(a):
     sources = Sources.for_trip(a.trip_id)
+    fill_errors = {}
 
     def run(source):
         d = call(source, "v6/trip", tripId=a.trip_id)
         leg = next((leg for leg in d.get("legs", []) if leg["mode"] != "WALK"), None)
         if not leg:
             raise NoResult("course introuvable")
+        complete_leg(a.trip_id, leg, fill_errors)
         stops = [leg["from"], *leg.get("intermediateStops", []), leg["to"]]
         return {
             "ligne": leg.get("routeShortName") or leg.get("displayName"),
             "direction": leg.get("headsign"),
             "realtime": bool(leg.get("realTime")),
+            "source_rt": leg.get("rtSource"),
             "annule": bool(leg.get("cancelled")),
             "alertes": alerts_of(leg),
             "arrets": [{
@@ -317,12 +549,13 @@ def cmd_trip(a):
                 "retard_min": delay_min(s.get("departure") or s.get("arrival"),
                                         s.get("scheduledDeparture") or s.get("scheduledArrival")),
                 **({"annule": True} if s.get("cancelled") else {}),
+                **({"estime_propage": True} if s.get("estimated") else {}),
                 **({"voie": s["track"]} if s.get("track") else {}),
             } for s in stops],
         }
 
     source, res, errors = with_fallback(run, sources)
-    return {"source": source, **(res or {}), "erreurs": errors or None}
+    return {"source": source, **(res or {}), "erreurs": errors or None, "erreurs_temps_reel": fill_errors or None}
 
 
 def stop_ids(source, text):
@@ -399,6 +632,7 @@ def trip_status(trip_id):
         leg = next((leg for leg in d.get("legs", []) if leg["mode"] != "WALK"), None)
         if not leg:
             raise NoResult("course introuvable")
+        complete_leg(trip_id, leg, {})
         return leg
 
     source, leg, errors = with_fallback(run, Sources.for_trip(trip_id))
@@ -432,6 +666,7 @@ def observe_step(step):
     return {
         "etat": "annule" if leg.get("cancelled") or board.get("cancelled") else "ok",
         "source": source,
+        "source_rt": leg.get("rtSource"),
         "realtime": bool(leg.get("realTime")),
         "depart": dep,
         "arrivee": arr,

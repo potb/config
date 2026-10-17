@@ -8,6 +8,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -265,10 +266,28 @@ def walking_leg(section):
     }
 
 
-def apply_live(leg, visit):
+def utc(text):
+    return datetime.strptime(text, ISO_UTC).replace(tzinfo=timezone.utc)
+
+
+def shift_arrival(leg):
+    scheduled = leg["to"].get("scheduledArrival")
+    departure, planned = leg["from"].get("departure"), leg["from"].get("scheduledDeparture")
+    if not (scheduled and departure and planned):
+        return
+    leg["to"]["arrival"] = (utc(scheduled) + (utc(departure) - utc(planned))).strftime(ISO_UTC)
+    leg["arrivalEstimated"] = True
+
+
+def apply_live(leg, visit, arrival=None):
     leg["from"]["departure"] = visit["at"].strftime(ISO_UTC)
     leg["realTime"] = True
+    leg["rtSource"] = "prim-siri"
     leg["cancelled"] = visit["status"] == "cancelled"
+    if arrival:
+        leg["to"]["arrival"] = arrival["arrival"].strftime(ISO_UTC)
+    else:
+        shift_arrival(leg)
 
 
 def line_of(section):
@@ -314,7 +333,7 @@ def reported_alerts(disruptions, wanted, boarding):
     return alerts
 
 
-def transit_leg(section, disruptions, live, reports):
+def transit_leg(section, disruptions, reports):
     info = section["display_informations"]
     rows = section["stop_date_times"]
     boarding = navitia_time(section["departure_date_time"])
@@ -341,20 +360,22 @@ def transit_leg(section, disruptions, live, reports):
         "alerts": alerts,
         "tripId": trip_id_of(vehicle_journey, rows[0]["stop_point"]["id"], scheduled_departure(rows[0])),
     }
-    visit = live(line, rows[0]["stop_point"]["id"], boarding) if live and not leg["realTime"] else None
-    if visit:
-        apply_live(leg, visit)
+    if leg["realTime"]:
+        leg["rtSource"] = "prim-navitia"
+    else:
+        visit = live_visit(line, rows[0]["stop_point"]["id"], boarding)
+        if visit:
+            apply_live(leg, visit, followed(line, rows[-1]["stop_point"]["id"], visit))
     return leg
 
 
 def journey_legs(journey, disruptions, reports):
-    legs, first_transit = [], True
+    legs = []
     for section in journey["sections"]:
         if section["type"] in ("street_network", "crow_fly", "transfer"):
             legs.append(walking_leg(section))
         elif section["type"] == "public_transport":
-            legs.append(transit_leg(section, disruptions, live_visit if first_transit else None, reports))
-            first_transit = False
+            legs.append(transit_leg(section, disruptions, reports))
     return legs
 
 
@@ -374,6 +395,7 @@ def plan(origin, destination, at, arrive_by, count):
         raise NoResult(f"PRIM : {data['error'].get('message') or data['error'].get('id')}")
     disruptions = {d["id"]: d for d in data.get("disruptions", [])}
     reports = line_reports_for(data.get("journeys", []))
+    prefetch(data.get("journeys", []))
     return {
         "itineraries": [
             {
@@ -463,6 +485,32 @@ def alerts_along(data, route, stop_ids, boarding):
     return alerts
 
 
+def overlay_run(stops, line_id, boarding_stop, boarding):
+    visit = live_visit(line_id, boarding_stop, boarding)
+    if not visit or not visit.get("journey"):
+        return False
+    refs = {s["stopId"]: monitoring_ref(s["stopId"]) for s in stops if not s.get("cancelled")}
+    wanted = {ref for ref in refs.values() if ref}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(passages, wanted))
+    delay = None
+    for stop in stops:
+        ref = refs.get(stop["stopId"])
+        seen = next((v for v in passages(ref).get((line_id, stop["stopId"]), []) if v["journey"] == visit["journey"]), None) if ref else None
+        if seen:
+            stop["arrival"] = seen["arrival"].strftime(ISO_UTC)
+            stop["departure"] = seen["at"].strftime(ISO_UTC)
+            if stop.get("scheduledDeparture"):
+                delay = utc(stop["departure"]) - utc(stop["scheduledDeparture"])
+        elif delay is not None and stop.get("scheduledArrival") and not stop.get("cancelled"):
+            stop["arrival"] = (utc(stop["scheduledArrival"]) + delay).strftime(ISO_UTC)
+            stop["departure"] = (utc(stop["scheduledDeparture"]) + delay).strftime(ISO_UTC)
+            stop["estimated"] = True
+    if visit["status"] == "cancelled":
+        stops[0]["cancelledLive"] = True
+    return True
+
+
 def trip(trip_id):
     vehicle_journey, boarding_stop, boarding_departure = split_trip_id(trip_id)
     try:
@@ -508,6 +556,9 @@ def trip(trip_id):
     route = journey.get("journey_pattern", {}).get("route", {})
     line = route.get("line", {})
     stop_ids = {s["stopId"] for s in stops} | {s["parentId"] for s in stops if s["parentId"]}
+    rt_source = "prim-navitia" if update is not None else None
+    if update is None and overlay_run(stops, line.get("id"), boarding_stop, day.boarding):
+        rt_source = "prim-siri"
     return {
         "legs": [
             {
@@ -515,8 +566,9 @@ def trip(trip_id):
                 "routeShortName": line.get("code"),
                 "displayName": line.get("name"),
                 "headsign": journey.get("headsign"),
-                "realTime": update is not None,
-                "cancelled": cancelled,
+                "realTime": rt_source is not None,
+                "rtSource": rt_source,
+                "cancelled": cancelled or any(s.get("cancelledLive") for s in stops[:1]),
                 "alerts": alerts_along(data, route, stop_ids, day.boarding),
                 "from": stops[0],
                 "to": stops[-1],
@@ -558,11 +610,16 @@ def passages(monitoring):
             line = re.match(r"STIF:Line::(\w+):", journey.get("LineRef", {}).get("value", ""))
             stop = re.search(r"StopPoint:Q:(\d+):", visit.get("MonitoringRef", {}).get("value", ""))
             expected = call.get("ExpectedDepartureTime") or call.get("ExpectedArrivalTime")
+            arriving = call.get("ExpectedArrivalTime") or expected
+            framed = journey.get("FramedVehicleJourneyRef") or {}
             if line and stop and expected:
                 grouped[(f"line:IDFM:{line.group(1)}", f"stop_point:IDFM:{stop.group(1)}")].append(
                     {
                         "at": datetime.fromisoformat(expected.replace("Z", "+00:00")),
+                        "arrival": datetime.fromisoformat(arriving.replace("Z", "+00:00")),
                         "status": call.get("DepartureStatus", ""),
+                        "journey": framed.get("DatedVehicleJourneyRef"),
+                        "destination": (journey.get("DestinationRef") or {}).get("value"),
                     }
                 )
     return grouped
@@ -586,6 +643,25 @@ def live_visit(line, stop_point, boarding):
         return None
     visit = closest_visit(passages(ref).get((line, stop_point), []), boarding.replace(tzinfo=TZ))
     return visit if visit and visit["status"] != "noReport" else None
+
+
+def followed(line, stop_point, visit):
+    ref = monitoring_ref(stop_point)
+    if not ref or not visit.get("journey"):
+        return None
+    return next((v for v in passages(ref).get((line, stop_point), []) if v["journey"] == visit["journey"]), None)
+
+
+def prefetch(journeys):
+    refs = set()
+    for journey in journeys:
+        for section in journey["sections"]:
+            if section["type"] == "public_transport":
+                rows = section["stop_date_times"]
+                refs |= {monitoring_ref(rows[0]["stop_point"]["id"]), monitoring_ref(rows[-1]["stop_point"]["id"])}
+    refs.discard(None)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(passages, refs))
 
 
 def departure_row(departure):
