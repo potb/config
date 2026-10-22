@@ -136,7 +136,7 @@
         # ── Tier 4 — large-repo / perf (no host-global maintenance daemon) ─
         feature.manyFiles = true;
         core = {
-          fsmonitor = true;
+          fsmonitor = false;
           untrackedCache = true;
           commitGraph = true;
         };

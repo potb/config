@@ -4,6 +4,10 @@
     "AGENTS.md"
     "USER.md"
     "TOOLS.md"
+    "skills/transit/SKILL.md"
+    "skills/position/SKILL.md"
+    "skills/mail/SKILL.md"
+    "skills/gog/SKILL.md"
   ];
 
   mkBootstrapSecret = name: {
@@ -44,6 +48,30 @@ in {
           };
 
           restic-password = {mode = "0400";};
+
+          owntracks-password = {
+            owner = "owntracks";
+            group = "owntracks";
+            mode = "0400";
+            restartUnits = ["owntracks-receiver.service"];
+          };
+
+          transit-prim-api-key = {
+            sopsFile = ../../../secrets/transit.yaml;
+            key = "prim-api-key";
+            owner = "openclaw";
+            group = "openclaw";
+            mode = "0400";
+            restartUnits = ["openclaw-gateway.service"];
+          };
+
+          transit-pinned-regions = {
+            sopsFile = ../../../secrets/transit.yaml;
+            key = "pinned-regions";
+            group = "motis";
+            mode = "0440";
+            restartUnits = ["motis-import.service"];
+          };
         }
         // builtins.listToAttrs (map mkBootstrapSecret bootstrapFiles);
     };

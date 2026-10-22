@@ -22,8 +22,8 @@ nh os switch .
 # macOS (nyx)
 darwin-rebuild switch --flake .#nyx    # see Setup for the first run
 
-# server (new-horizons), from a checkout on the machine itself
-sudo nixos-rebuild switch --flake .#new-horizons
+# server (new-horizons): a push to master deploys it, see docs/new-horizons.md
+git push origin master
 
 # kerberos, which must build on kerberos: see docs/kerberos.md
 sudo nixos-rebuild switch --flake .#kerberos
@@ -85,7 +85,7 @@ and differ only in what they additionally do:
 | `charon` | base linux gui desktop-apps leisure workstation dev containers agents lan tailscale exit-node |
 | `kerberos` | base linux gui desktop-apps laptop dev agents lan tailscale exit-node |
 | `nyx` | base gui desktop-apps leisure dev containers agents lan tailscale darwin |
-| `new-horizons` | base linux hardened tailscale exit-node-client openclaw |
+| `new-horizons` | base linux hardened tailscale exit-node-client openclaw transit |
 
 Every trait evaluates on its own. Those that would otherwise need a secrets
 backend declare their own option with a working default instead, so `tailscale`

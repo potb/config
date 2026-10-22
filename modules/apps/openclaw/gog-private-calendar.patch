@@ -1,0 +1,28 @@
+diff -ru a/internal/cmd/calendar_attendees.go b/internal/cmd/calendar_attendees.go
+--- a/internal/cmd/calendar_attendees.go	2026-09-26 19:45:54.630222485 +0200
++++ b/internal/cmd/calendar_attendees.go	2026-09-26 19:45:54.661724754 +0200
+@@ -7,6 +7,10 @@
+ )
+ 
+ func buildAttendees(csv string) []*calendar.EventAttendee {
++	return nil
++}
++
++func buildAttendeesUnused(csv string) []*calendar.EventAttendee {
+ 	addrs := splitCSV(csv)
+ 	if len(addrs) == 0 {
+ 		return nil
+diff -ru a/internal/cmd/calendar_validate.go b/internal/cmd/calendar_validate.go
+--- a/internal/cmd/calendar_validate.go	2026-09-26 19:45:54.636032810 +0200
++++ b/internal/cmd/calendar_validate.go	2026-09-26 19:45:54.661826051 +0200
+@@ -77,6 +77,10 @@
+ }
+ 
+ func validateSendUpdates(s string) (string, error) {
++	return sendUpdatesNone, nil
++}
++
++func validateSendUpdatesUnused(s string) (string, error) {
+ 	s = strings.TrimSpace(s)
+ 	if s == "" {
+ 		return "", nil

@@ -7,10 +7,36 @@
 }: let
   openclawPkgs = inputs.nix-openclaw.packages.${pkgs.stdenv.hostPlatform.system};
 
+  openclawGateway = openclawPkgs.openclaw-gateway.overrideAttrs (old: {
+    installPhase = ''
+      ${old.installPhase}
+      OPENCLAW_PACKAGE_ROOT="$out/lib/openclaw" "$NODE_BIN" ${./detach-cron-timer.mjs}
+    '';
+  });
+
+  openclawBundle = openclawPkgs.openclaw.override (old: {
+    openclaw-gateway = openclawGateway;
+    extendedTools = builtins.filter (tool: (tool.pname or "") != "gogcli") old.extendedTools;
+  });
+
   runtimePlugins = [
-    openclawPkgs."openclaw-runtime-plugin-exa"
-    openclawPkgs."openclaw-runtime-plugin-discord"
+    (openclawPkgs."openclaw-runtime-plugin-exa".overrideAttrs (old: {
+      env = old.env // {OPENCLAW_GATEWAY_PACKAGE = "${openclawGateway}";};
+    }))
+    icloudCalendarPlugin
   ];
+
+  icloudCalendarPlugin = pkgs.callPackage ../../../pkgs/openclaw-icloud-calendar/package.nix {
+    src = inputs.openclaw-icloud-calendar;
+    inherit openclawGateway;
+  };
+
+  npmPlugins = {
+    discord = {
+      package = "@openclaw/discord";
+      version = gatewayPackage.version;
+    };
+  };
 
   workspace = "/var/lib/openclaw/workspace";
 
@@ -19,7 +45,19 @@
     "AGENTS.md"
     "USER.md"
     "TOOLS.md"
+    "skills/transit/SKILL.md"
+    "skills/position/SKILL.md"
+    "skills/mail/SKILL.md"
+    "skills/gog/SKILL.md"
   ];
+
+  bootstrapDirs = lib.unique (lib.concatMap (
+      name: let
+        parents = lib.init (lib.splitString "/" name);
+      in
+        lib.genList (i: "${workspace}/${lib.concatStringsSep "/" (lib.take (i + 1) parents)}") (builtins.length parents)
+    )
+    bootstrapFiles);
 
   gatewayPackage = config.services.openclaw-gateway.package;
 
@@ -36,33 +74,48 @@
     work=$state/doctor
     want="${gatewayPackage} $(${pkgs.coreutils}/bin/sha256sum < /etc/openclaw/openclaw.json)"
 
-    if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" = "$want" ]; then
-      exit 0
-    fi
-
     ${pkgs.coreutils}/bin/mkdir -p "$work"
-    ${pkgs.gnutar}/bin/tar -C "$state" \
-      --use-compress-program=${pkgs.gzip}/bin/gzip \
-      -cf "$work/pre-migrate.tgz" state agents/main/agent || true
     ${pkgs.jq}/bin/jq 'del(.[] | select(type == "object" and has("$include")))' \
       /etc/openclaw/openclaw.json > "$work/openclaw.json"
     ${pkgs.coreutils}/bin/chmod 0600 "$work/openclaw.json"
 
-    if OPENCLAW_NIX_MODE=0 \
-      OPENCLAW_SERVICE_REPAIR_POLICY=external \
-      OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
-      ${gatewayPackage}/bin/openclaw doctor --fix --non-interactive; then
-      echo "$want" > "$work/stamp"
-    else
-      echo "openclaw-state-migrate: doctor --fix failed, starting the gateway anyway" >&2
+    if [ "$(${pkgs.coreutils}/bin/cat "$work/stamp" 2>/dev/null)" != "$want" ]; then
+      ${pkgs.gnutar}/bin/tar -C "$state" \
+        --use-compress-program=${pkgs.gzip}/bin/gzip \
+        -cf "$work/pre-migrate.tgz" state agents/main/agent || true
+
+      if OPENCLAW_NIX_MODE=0 \
+        OPENCLAW_SERVICE_REPAIR_POLICY=external \
+        OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+        ${gatewayPackage}/bin/openclaw doctor --fix --non-interactive; then
+        echo "$want" > "$work/stamp"
+      else
+        echo "openclaw-state-migrate: doctor --fix failed, starting the gateway anyway" >&2
+      fi
     fi
+
+    ${lib.concatStringsSep "\n" (lib.mapAttrsToList (id: plugin: let
+        spec = "${plugin.package}@${plugin.version}";
+      in ''
+        installed=$(OPENCLAW_NIX_MODE=0 OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+          OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 \
+          ${gatewayPackage}/bin/openclaw plugins inspect ${id} --json 2>/dev/null \
+          | ${pkgs.jq}/bin/jq -r 'select(.plugin.trust.reason == "trusted-official") | .plugin.version // empty')
+        if [ "$installed" != ${lib.escapeShellArg plugin.version} ]; then
+          OPENCLAW_NIX_MODE=0 OPENCLAW_CONFIG_PATH="$work/openclaw.json" \
+            OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 \
+            ${gatewayPackage}/bin/openclaw plugins install ${lib.escapeShellArg spec} --force --pin \
+            || echo "openclaw-state-migrate: installing ${spec} failed" >&2
+        fi
+      '')
+      npmPlugins)}
     exit 0
   '';
 in {
   nixos = {
     services.openclaw-gateway = {
       enable = true;
-      package = openclawPkgs.openclaw;
+      package = openclawBundle;
       port = 18789;
       user = "openclaw";
       group = "openclaw";
@@ -80,6 +133,8 @@ in {
         CLAWDBOT_CONFIG_PATH = lib.mkForce runtimeConfigPath;
         OPENCLAW_NIX_MODE = "0";
         OPENCLAW_NO_AUTO_UPDATE = "1";
+        OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY = "0";
+        GOG_KEYRING_BACKEND = "file";
       };
 
       servicePath = with pkgs; [
@@ -123,6 +178,9 @@ in {
               primary = "openrouter/deepseek/deepseek-v4.1-flash";
               fallbacks = ["openrouter/google/gemini-3.5-flash-lite"];
             };
+            thinkingDefault = "low";
+            imageModel = "openrouter/google/gemini-3.5-flash-lite";
+            pdfModel = "openrouter/google/gemini-3.5-flash-lite";
             userTimezone = "Europe/Paris";
             skipBootstrap = true;
             contextInjection = "continuation-skip";
@@ -153,7 +211,11 @@ in {
             requireMention = false;
 
             channels = {
-              "1548072726571389018" = {};
+              "1548072726571389018" = {
+                autoThread = true;
+                autoThreadName = "generated";
+                autoArchiveDuration = 1440;
+              };
               "1548072727921819699" = {};
               "1548072729000022098" = {};
             };
@@ -185,7 +247,10 @@ in {
           ];
 
           fs.workspaceOnly = true;
-          exec.applyPatch.workspaceOnly = true;
+          exec = {
+            applyPatch.workspaceOnly = true;
+            notifyOnExit = false;
+          };
 
           web.search = {
             enabled = true;
@@ -227,6 +292,22 @@ in {
           entries = {
             discord.enabled = true;
             exa.enabled = true;
+            openclaw-icloud-calendar = {
+              enabled = true;
+              config = {
+                appleId = "\${ICLOUD_APPLE_ID}";
+                appPassword = {
+                  source = "env";
+                  provider = "default";
+                  id = "ICLOUD_APP_PASSWORD";
+                };
+                timezone = "Europe/Paris";
+                calendars = [
+                  "3bfe4fde743d133f2c5231987acbfcb08d15d3e002e6f7095748a09a5e5161f6"
+                  "home"
+                ];
+              };
+            };
           };
         };
       };
@@ -277,7 +358,7 @@ in {
       ];
       RestrictNamespaces = false;
       RestrictRealtime = true;
-      RestrictSUIDSGID = true;
+      RestrictSUIDSGID = false;
       LockPersonality = true;
       MemoryDenyWriteExecute = false;
       SystemCallArchitectures = "native";
@@ -309,6 +390,7 @@ in {
         section: "f ${runtimeConfigDir}/${section}.json5 0600 openclaw openclaw - {}"
       )
       agentOwnedSections
+      ++ map (dir: "d ${dir} 0750 openclaw openclaw - -") bootstrapDirs
       ++ lib.concatMap (name: [
         "r ${workspace}/${name} - - - - -"
         "f ${workspace}/${name} 0440 openclaw openclaw - -"

@@ -43,9 +43,540 @@ the way back in.
 | `podman-neko`      | Neko, a browser a human and the agent share             |
 | `neko-cdp-bridge`  | relays Neko's debugging port out of its netns           |
 | `restic`           | nightly backup of agent state and browser profile       |
+| `motis`            | public transport router, loopback on 8090               |
+| `motis-import`     | rebuilds the router's data when the regions in use change |
+| `owntracks-receiver` | stores the phone's position, loopback on 8765          |
 | `qemu-guest-agent` | lets the hypervisor report addresses and shut down well |
+| `nixos-deploy`     | builds master and switches to it when GitHub asks       |
 
 Nothing listens on a public port except SSH.
+
+## Public transport
+
+The agent answers transit questions through `transit`, a command on its `PATH`
+that returns JSON. It asks the local MOTIS router when the trip lies in a region
+loaded on this host, and Transitous, the volunteer-run MOTIS for all of Europe,
+otherwise. Trip and stop identifiers are the same on both, because the local
+import names its datasets exactly as Transitous does, so a trip found on one
+can be followed on the other.
+
+Why run a router at all when Transitous exists: a query to Transitous carries
+the exact start and end coordinates, and Transitous keeps request logs, with
+the URL and the IP address, for two days. Local routing keeps the places the
+user comes and goes from on this machine. Transitous also lacks live data for
+some networks that publish it; the local import takes the producers' live
+feeds directly.
+
+### PRIM, the Île-de-France source
+
+For Île-de-France `transit` also speaks to PRIM, the Île-de-France Mobilités
+API platform. It adds what neither MOTIS has: the operators' live SIRI feed for
+metro, tram and bus (`stop-monitoring`), and IDFM's own disruption messages
+with their application periods. `transit_prim.py` translates the Navitia and
+SIRI answers into the MOTIS v6 shapes `transit.py` already reads, so `plan`,
+`departures`, `trip`, `track` and `watch` work on a PRIM answer without a
+second code path. Adding another provider means writing another adapter with
+the same four calls (`v1/geocode`, `v6/plan`, `v6/trip`, `v6/stoptimes`) and
+a name in `SOURCE_NAMES`.
+
+Which source answers is decided by the shape of the question:
+
+- `plan` asks PRIM only when both ends lie in Île-de-France (a bounding box),
+  then the order in `TRANSIT_SOURCE_ORDER` (default `prim,local,transitous`),
+  with the local router moved last when its region is not loaded yet.
+- `departures` and `trip` follow the identifier. PRIM ids (`stop_area:IDFM:…`,
+  `vehicle_journey:IDFM:…@stop_point:IDFM:…@20261017T180100`) go to PRIM. A
+  MOTIS stop id of the IDFM dataset also works on PRIM, because the numbers are
+  the same.
+- `geocode` asks PRIM first, then Transitous, then the local router.
+- `--source prim|local|transitous` forces one source, for testing.
+
+A Navitia vehicle journey runs on many days, so a PRIM `trip_id` carries the
+boarding stop and the scheduled departure after two `@`. They pin the service
+day, and `trip` rebuilds each stop's date from them, midnight crossings
+included. Real-time delays come from the trip's disruption (`impacted_stops`
+with amended times), and on departures and plans a SIRI passage within 15
+minutes of the scheduled time replaces a schedule-only time when the departure
+is under an hour away. A journey response only links the disruptions that
+touch a stop, so each line of a plan is also asked for its own
+(`line_reports`): that is how a closed line shows up as an alert on the leg.
+Lift outages, which are most of what PRIM publishes, are dropped from alerts.
+
+Real time is merged leg by leg, so a journey is not live on one mode only.
+Navitia updates the RER and Transilien but not the metro, the SIRI feed covers
+the metro, tram and bus, and the local router and Transitous each know trips
+the others miss. For every leg of a `plan`, `transit` takes the first live
+answer in this order:
+
+1. the Navitia update of the trip (`source_rt: prim-navitia`),
+2. a SIRI passage at the boarding stop, followed to the alighting stop by its
+   journey reference (`prim-siri`), when the leg leaves within the hour,
+3. a live trip of the other sources (`local`, `transitous`), found by asking
+   them for departures within 150 m of the boarding stop, keeping the ones on
+   the same line whose scheduled time is within two minutes, and checking that
+   the trip serves stops within 300 m of the leg's boarding and alighting
+   stops. The coordinates are used because stop ids differ across sources.
+
+When a source gives a departure but no arrival, the arrival is the scheduled
+one plus the departure delay and the leg is flagged `arrivee_estimee`. The
+itinerary end time and duration are recomputed from the live times, every
+transfer gets its real margin (`correspondance_marge_min`, and
+`correspondance_manquee` when it is negative), and the itinerary carries
+`realtime: full|partial|none`. The extra calls are unbounded by design, one
+trip lookup per candidate (at most six) per leg that is not live yet, and a
+failing fill source only shows in `erreurs_temps_reel`. `trip`, and so `track`
+and `watch`, apply the same merge to PRIM trip ids: a metro run gets its
+delay from SIRI stop by stop, and from the other sources beyond the hour.
+
+PRIM sees the exact coordinates of a plan, like Transitous does, and unlike
+the local router, and the key ties them to one account. To keep a place on this
+machine, set `TRANSIT_SOURCE_ORDER=local,prim,transitous`, or ask with
+`--source local`. The quota is 1000 requests a day per key (the
+`x-ratelimit-remaining-day` header). `transit watch` makes one `trip` request
+per tracked leg on every tick, 215 ticks a day, so two legs tracked all day
+would use 430 of them. A plan is one request for the journeys, one per line
+used for its disruptions (at most six), one per distinct boarding and alighting
+stop for live passages, and a departures request plus up to six trip lookups
+for every leg still not live that the fill asks PRIM about, so roughly ten to
+thirty. `watch` on a metro leg adds one SIRI request per stop of the run when
+the leg leaves within the hour. A refused or exhausted
+key only removes PRIM from the list, and the error shows in `erreurs`.
+
+The key is `prim-api-key` in `secrets/transit.yaml`, exposed to the gateway as
+`PRIM_API_KEY_FILE`:
+
+```
+./scripts/sops-unlock
+sops secrets/transit.yaml
+```
+
+Without the key, or outside Île-de-France, nothing changes from before.
+
+### Regions on demand
+
+MOTIS reads one OpenStreetMap file and cannot add a region while it runs, so
+"on demand" is rebuild and swap. `motis-import` works out the regions wanted,
+and when that set differs from what is loaded, builds a new import next to the
+running one and moves the `current` link. The router keeps answering from the
+old data until the new one is complete, then restarts onto it.
+
+A region is wanted when it is pinned, or when a file named after it exists in
+`/var/lib/motis/requests`. `transit plan` writes that file for every region a
+trip touches, and `transit regions --request <region>` or
+`transit regions --at <place> --load` writes it on purpose. The file's content
+says who asked: `trip` from those commands (an empty file counts as `trip`),
+`position` from the phone. A path unit starts `motis-import` as soon as the
+directory changes, and a daily timer rebuilds anyway to keep timetables
+current. Requests expire after 14 days without use, and at most 3 regions are
+loaded, pinned ones included. With two regions pinned there is one free slot,
+so its ranking matters: a `trip` request younger than 48 hours comes first,
+then everything else from the most recent. A trip planned for tomorrow is not
+pushed out by wherever the phone happens to be tonight. The regions left out
+are written to `catalog/queue.json`, which `transit regions` shows as
+`bloquees_par_plafond`, and the agent is told to say so rather than call them
+queued. The cap is memory, measured on this
+host: three regions, one of them Île-de-France, import in about 7 minutes at a
+3 GB peak and serve at 1.6 GB, inside the router's 2 GB limit, next to a
+gateway at about 1 GB. A fourth needs a new measurement first.
+
+The pinned regions are the ones the user lives and travels in, which says more
+about them than this public repository should. They live in
+`secrets/transit.yaml` under `pinned-regions`, as Geofabrik region ids
+separated by spaces:
+
+```
+./scripts/sops-unlock
+sops secrets/transit.yaml
+```
+
+Regions are Geofabrik's French extracts, which still follow the regions that
+existed before 2016; `regions.py` maps each to its départements by hand, and
+that map cannot drift. Feeds come from the Transitous catalogue for France,
+which already picks the best source per network, SNCF as NeTEx with SIRI live
+data for instance. Each feed is placed on the map through the area its dataset
+declares on transport.data.gouv.fr, resolved to départements through
+geo.api.gouv.fr. A few feeds in the catalogue have no transport.data.gouv.fr
+dataset, Lyon's TCL among them, so they have no declared area; the build logs
+`no known area, not placed on the map` for each, and `UNLISTED_FEED_DEPARTEMENTS`
+in `regions.py` places the ones that matter by hand. Without it a Lyon import
+had SNCF trains but no metro, tram or bus. Timetables are downloaded from the Transitous mirror, which
+serves them cleaned and deduplicated, with the producer's own URL as a
+fallback. A build where more than half of the timetables are unavailable is
+abandoned and the running import stays.
+
+Measured with two of the largest French regions loaded: the import takes about
+a minute and peaks at 3.7 GB inside its 4 GB cap, the data is 1.4 GB, and the
+router serves in about 1 GB with live data applied.
+
+```
+motis-regions status
+transit regions --at "Lyon Part-Dieu"
+journalctl -u motis-import -n 50
+systemctl status motis
+```
+
+### The agent's instructions
+
+The `transit` skill tells the agent how to read the output: say whether a time
+is live or scheduled, check what the geocoder understood, read the alerts, and
+watch planned trips without repeating an alert it already sent. Like the other
+workspace files, it describes the assistant and so is encrypted, at
+`secrets/workspace/skills/transit/SKILL.md`, and bind-mounted into the
+workspace.
+
+### Watching trips
+
+`transit track add` records a trip the agent planned, with the trip id of each
+leg, in `memory/trajets.json` in the workspace. `transit watch` checks every
+tracked trip leaving within three hours and prints only what changed since the
+previous check: a delay moving by five minutes or more, a cancellation, a
+platform change, a new alert, a connection that became too short, or, from the
+phone's position, a first departure the user can no longer walk to in time.
+What it saw is stored with the trip, so the same news is never reported twice,
+and a trip is dropped half an hour after it ends.
+
+An automation, "Surveillance trajets", runs `transit watch` every five minutes
+from 6:00 to 23:55 as a condition script and wakes the agent only when the
+output is not empty, so the model is not called while nothing happens. A
+second one, "Préparation trajets du jour", asks the agent at 6:30 to plan and
+track the day's trips from the calendar and to request any region they need.
+Both post to `#notify`. They belong to the agent (owner `agent:main:main`), so
+it sees and manages them from its own list. Automations created by the
+operator with `openclaw automations add` also run, but the agent never sees
+them, so new ones should be asked of the agent in chat instead. The script and
+prompts they were created from are in `/var/lib/openclaw/automation-src`.
+
+OpenClaw 2026.9.5 runs a cron tick inside the async context of whatever
+request last armed the timer. After an agent turn that created or edited an
+automation, or after a gateway restart, trigger scripts then fail on every tick
+with `Plugin runtime changed. Continue with the refreshed tool catalog`,
+because they inherit that turn's finished plugin refresh scope. Upstream fixed
+it in `c7ada2f55` ("keep scheduled jobs alive after their creating request
+ends"), after 2026.9.5. Until nix-openclaw ships a release with it,
+`detach-cron-timer.mjs` patches the gateway at build time so the timer runs in
+a detached context created by the entry point. The patch fails the build if
+the code it rewrites has changed, which is the signal to drop it.
+
+The phone also requests regions. The receiver looks up the region of a
+position once it is more than 2 km from the last one checked, and requests it
+only after the phone has stayed in it for 30 minutes, going by the
+positions' own timestamps. Positions faster than 50 km/h are ignored, so a
+train crossing a region, or GPS noise at a border, requests nothing. A
+request is renewed every 48 hours while the phone stays, and never rewritten
+while the file is fresher than that, so a receiver restart does not demote a
+trip request to a position one. OwnTracks in significant-change mode reports
+after about 500 m of movement at most every 5 minutes, and while still it only
+sends a periodic ping, so the request goes out with the first position or
+ping 30 minutes after entering the region. None of this touches Transitous or the model: the lookup is a
+point-in-polygon test on the local catalogue, and the only network traffic is
+the rebuild downloading timetables, mostly from the Transitous GTFS mirror.
+
+The morning job reads 3 days of calendar rather than 36 hours for long
+distance trips: an event titled "A → B" for a train or coach has its arrival
+place resolved with `transit regions --at "<B>" --load`, because the event's
+own location is usually the departure station or free text, which resolves to
+the departure region and so never loaded the destination.
+
+## The user's position
+
+The phone reports its position with OwnTracks in HTTP mode to
+`owntracks-receiver`, which listens on loopback 8765 and is published by Serve
+on `https://new-horizons.taile99a6c.ts.net:8444/pub`, tailnet only. A request
+needs both the Basic credentials, `owntracks` and `owntracks-password` from
+`secrets/new-horizons.yaml`, and a `Tailscale-User-Login` of the owner. Serve
+sets that header from the connecting device and overwrites whatever a client
+sends, and the receiver refuses requests without it, so a caller on this host
+that bypasses Serve is refused even with the password.
+
+Positions land in `/var/lib/owntracks`: `history.jsonl`, `latest.json`, and
+`transitions.jsonl` for region entries and exits. The directory belongs to the
+`owntracks` user and is readable by its group, which the gateway joins. A daily
+timer drops anything older than 30 days. The nightly backup leaves the
+directory out on purpose: its six monthly snapshots would otherwise keep half a
+year of movements that the retention is meant to forget. The agent reads it through `loc`
+(`latest`, `history`, `transitions`, `coord`), and `transit plan ici …` starts
+from the latest position, refusing one older than 30 minutes.
+
+iOS decides when the app runs. OwnTracks in significant-change mode reports
+roughly every 500 m or every few minutes of movement and stays quiet while the
+phone does not move, so an old position usually means the user is still there.
+Nothing on this side can ask the phone for a fresh fix; the reportLocation
+command exists only as a reply to a report the phone sends.
+
+Setting up a phone is a configuration file: `.otrc` JSON with `mode: 3` (HTTP),
+the URL above, `auth: true`, the credentials, `deviceId`, `tid`,
+`monitoring: 1`. Opening it on the phone imports it, as does the link form
+`owntracks:///config?inline=<base64 of the file>`. Since OwnTracks 26.2.3 on
+iOS, imports are refused until remote configuration is enabled in the app's
+settings, so turn that on first. The file holds the password, so it is
+generated on demand, never committed, and best moved to the phone as a QR code
+of the link (`qrencode -t ansiutf8`) or with Taildrop rather than through a
+gist or chat. The phone must be on this tailnet with location access set to
+Always.
+
+```
+sudo tail -1 /var/lib/owntracks/history.jsonl | jq .
+loc latest
+```
+
+## Google Calendar and Gmail
+
+The agent reaches the calendar and Gmail through two commands built here: a
+`gog` restricted at compile time, and `mail`, which reads email with its
+attachments. There is no keychain on this host, so the unit sets
+`GOG_KEYRING_BACKEND=file` and `openclaw-env` carries `GOG_KEYRING_PASSWORD`;
+the refresh token ends up encrypted under
+`/var/lib/openclaw/.local/share/gogcli`, inside the backed-up state.
+
+### What the token allows
+
+The token holds `gmail.readonly`, `calendar.readonly` and `calendar.events`.
+Gmail stays read-only at Google's end. `calendar.events` lets the agent create
+and edit events, which the email-to-calendar job needs, without the full
+`calendar` scope that also manages calendars and their sharing. gog has no
+service mode for that combination, so the scope is added as an extra. In the
+gateway's environment on this host, with a Google Cloud project that has the
+Calendar and Gmail APIs enabled and a Desktop OAuth client:
+
+```
+gog auth credentials ~/client_secret.json
+gog --readonly auth add <account> --services calendar,gmail --gmail-scope readonly \
+  --extra-scopes https://www.googleapis.com/auth/calendar.events \
+  --force-consent --remote --step 1
+```
+
+Step 2 is the same command with `--step 2 --auth-url '<redirect URL>'`.
+`--readonly` here only picks the read-only scope of each service; the extra
+scope is appended to them. Step 1 prints a URL to open on any device; after
+consent the browser lands on a localhost URL that fails to load, and that URL
+is what step 2 takes. A new consent replaces the old scopes rather than adding
+to them, so every service and the extra scope go on each run. The first
+exchange can fail with `oauth2: "internal_failure"` while Google has in fact
+recorded the grant; running both steps again goes through.
+
+Only a stock `gog` can run `auth add`: both restricted builds refuse it. Use
+`nix build nixpkgs#gogcli` or any gogcli already in the store.
+
+Google treats every client in the project as one app for grants. Revoking any
+refresh token issued in `hal-calendar-509811`, or removing "hal" from the
+account's third-party connections, also revokes the gateway's token, which then
+needs both steps again.
+
+The consent page ignores synthetic clicks on "Advanced" in the "unverified
+app" warning, so driving it from an agent needs real input (computer use) for
+that link. "Go to hal (unsafe)" and the Continue buttons accept CDP clicks.
+
+The client lives in the Google Cloud project `hal-calendar-509811`, whose
+consent screen is External and published ("In production"). An External app
+left in Testing gets refresh tokens that expire after seven days, so it has to
+stay published. The Publish button stays greyed out until the Branding page has
+a home page URL, a privacy policy URL and an authorized domain; those point at
+`https://github.com/potb/config` and `github.com`. Consent then shows a "Google
+hasn't verified this app" warning, which Advanced, then "Go to hal (unsafe)",
+gets past; verification is not needed for an app only its developer uses. A
+token issued while the app was in Testing keeps its seven-day limit, so
+publishing is followed by one more `auth add` with `--force-consent` on both
+steps.
+
+### The agent's gog
+
+`mail.nix` builds gogcli from nixpkgs twice, each with a baked safety profile,
+gog's build-time command policy. A baked profile is checked before any handler
+or API call and cannot be widened by flags, environment variables or config.
+The runtime switches (`--enable-commands`, `GOG_READONLY` and the like) can:
+the agent only has to pass `--enable-commands=...` or `--readonly=false` to
+undo them. The stock gogcli that nix-openclaw puts in the gateway wrapper's
+PATH is filtered out of `extendedTools`, so the restricted build is the only
+`gog` the agent finds.
+
+`gog-hal.yaml` is the agent's `gog`, and it covers the calendar only: it reads,
+creates and updates events, and cannot delete, move, subscribe or change
+sharing. Gmail is left out entirely. With Gmail search allowed, the agent
+reached for `gog gmail` first on its first real request, spent a dozen calls
+on `--help` and `schema` looking for a way to open the message, and only then
+fell back to a file on disk. With one command per service there is nothing to
+choose between. `auth` writes are refused, and `wrap-untrusted` and
+`no-input` are locked on.
+
+`gog-private-calendar.patch` applies to the agent's build only. It makes
+`buildAttendees` return nothing and `validateSendUpdates` always return
+`none`, so an event the agent creates or edits never has guests and never
+mails anyone, whatever an email asked for.
+
+`gog-mail-reader.yaml` is the build `mail` calls by store path. It reads
+messages, threads and attachments and nothing else, with `readonly` locked on.
+The agent runs as the same user as `mail`, so it could find that store path
+and call the reader directly. That shows the same mail `mail read` would, minus
+the attachment text, and writes nothing. Closing it would need a separate user
+behind a setuid or socket boundary, which read-only access to the same data
+does not justify.
+
+### Reading mail
+
+`mail` is the agent's whole Gmail access, in two steps. `mail search
+'<Gmail query>'` prints one line per message: id, date, sender, subject and
+attachment names. `mail read <id>` takes a message or thread id and prints the
+whole thread: headers, body, and every attachment downloaded to
+`workspace/mail/<thread id>/` with its text extracted. Nothing else opens an
+email, so the attachments are always part of what the agent reads.
+`--message` limits the output to one message of the thread.
+
+Extraction runs locally:
+
+- PDF: `pdftotext -layout`. Under 200 characters of text the PDF is taken for
+  a scan, and `pdftoppm` renders its first 10 pages at 200 dpi for tesseract,
+  built with French and English data only.
+- Images over 15 KB: tesseract. Smaller ones are logos and signatures and are
+  skipped.
+- docx, xlsx, pptx, odt and ods: read from the zip's XML with the Python
+  standard library.
+- HTML, plain text, ics, csv and attached `.eml`: decoded directly.
+
+A file that yields no text is listed with its path, and the agent is told to
+open it with OpenClaw's `view_image` or `pdf` tool. Those send it to the model
+in `agents.defaults.imageModel` and `pdfModel`, `gemini-3.5-flash-lite` on
+OpenRouter. Without `pdfModel` the pdf tool only registers when it can find a
+model it knows handles documents.
+
+This mirrors OpenClaw's own pdf tool (text first, vision on scanned pages) and
+adds local OCR so ordinary scans cost no model call. The larger converters
+were measured against this host's closure and left out: markitdown adds
+762 MiB, pymupdf 1.1 GiB, docling 3 GiB and pandoc 209 MiB. What is used adds
+about 75 MiB, poppler 23 MiB and the two-language tesseract 49 MiB.
+
+The output has one untrusted-content block per message and per attachment
+instead of gog's marker around every field. Extracted text over 15 000
+characters is cut in the output and kept whole in a `.txt` next to the file.
+Thread directories untouched for 30 days are removed by the next `mail read`.
+
+`mail new` lists inbox mail from the last three days, promotions and social
+excluded, that has not been acknowledged; `mail ack` acknowledges what the last
+`mail new` listed. The state lives in `/var/lib/openclaw/mail-state.json`,
+outside the workspace, where the agent's file tools cannot edit it.
+
+### How the agent is told
+
+Two workspace skills, `mail` and `gog`, carry the instructions, next to
+`transit` and `position`. OpenClaw lists every eligible skill's name and
+one-line description in the system prompt and loads the body when one
+matches, so each description names the requests it is for, the command to
+run, and the other skill for the neighbouring case ("not for emails: skill
+mail"). The workspace `gog` skill also replaces the bundled one of the same
+name, which described Gmail sending, Drive and Sheets that this build does not
+have. The bodies give the exact command sequence with real examples, say what
+the output contains and what to do with each part of it, and forbid hunting
+through `--help`. `TOOLS.md` keeps only a two-line router to the skills. This
+follows Anthropic's "Writing effective tools for agents": tools whose purposes
+do not overlap, descriptions written for a new hire, and outputs that tell the
+agent its next step, which is why `mail search` ends with the `mail read`
+command to run.
+
+### Email to calendar
+
+An automation, "Mails vers agenda", runs `mail new --json` every 30 minutes
+from 6:00 to 21:30 Paris time (cron `*/30 6-21`), so the 6:00 pass lands
+before the 6:30 morning trip job, as a condition script and
+wakes the agent only when something new arrived. The agent reads each new email with `mail read`,
+decides whether it holds a date that matters (appointment, reservation, trip,
+deadline, payment due), looks for an event already tagged with that message
+id or an equivalent event that day, creates or updates the event, runs
+`mail ack`, and posts to `#notify` only when it created or changed something:
+one line per event, date in bold then title. Events carry the private properties `source=gmail` and
+`gmail=<message id>`, which is how it finds them again. The script and prompt
+are in `/var/lib/openclaw/automation-src`.
+
+Titles follow the calendar's existing naming convention, and bookings in a
+third party's name are skipped. The gog skill holds the rule, so it applies to
+any event the agent creates, not only this job.
+
+Since the iCloud calendar was connected (next section), the job checks both
+calendars before creating anything and writes to the shared iCloud calendar
+unless the event clearly concerns Peïo alone. Each line it posts ends with the
+calendar it used, `(partagé)` or `(Google)`.
+
+An automation's tool allowlist is frozen when the job is created, so a plugin
+added later is not in it. "Mails vers agenda" and "Préparation trajets du jour"
+got `icloud_calendar_list`, `_events`, `_get`, `_create` and `_update` added
+with `openclaw automations edit <id> --tools <list>`. `_delete` was left out
+on purpose, since a scheduled job never deletes. A new job that needs the
+calendar needs the same list.
+
+The condition script calls `exec` with `yieldMs: 60000`. Inside a trigger
+script `exec` backgrounds any command that has not finished almost at once and
+returns `status: "running"` with empty output; `mail new` takes about two
+seconds, so without the option every check failed with `Unexpected end of JSON
+input` and the job never fired. `transit watch` answers fast enough not to hit
+it, but a slower command in any new condition script needs the same option.
+
+### Running gog by hand
+
+gog is not on an interactive shell's PATH. To run it as the gateway does, as
+`openclaw` with the gateway's keyring password:
+
+```
+sudo systemd-run --quiet --collect --wait --pipe \
+  --uid=openclaw --gid=openclaw -p WorkingDirectory=/var/lib/openclaw \
+  -p EnvironmentFile=/run/secrets/openclaw-env \
+  -E HOME=/var/lib/openclaw -E GOG_KEYRING_BACKEND=file \
+  <gogcli store path>/bin/gog auth list
+```
+
+## iCloud Calendar
+
+Peïo and Gaby's shared agenda is the iCloud calendar "Gaby & Peïo 🐥". Gaby
+owns it and Peïo has read-write access. Apple has no REST API for calendars, so
+the agent reaches it over CalDAV with the plugin
+[omarshahine/openclaw-icloud-calendar](https://github.com/omarshahine/openclaw-icloud-calendar).
+It adds the `icloud_calendar_list`, `_events`, `_get`, `_create`, `_update`
+and `_delete` tools.
+
+The plugin is not published on npm, and the gateway installer only accepts
+official plugins, so `pkgs/openclaw-icloud-calendar` builds it from a pinned
+flake input. esbuild bundles `src/index.ts` with its only dependency,
+`@sinclair/typebox` (fetched from the npm registry by hash), into
+`dist/index.js`, and `openclaw/*` stays external. `node_modules/openclaw` is a
+link to the gateway package, as nix-openclaw does for its own runtime plugins.
+`gateway.nix` loads it through `plugins.load.paths` next to Exa. To update it,
+change the rev in `flake.nix`, run `nix flake lock`, and check that
+`@sinclair/typebox` in its `package.json` still matches the tarball in the
+package.
+
+Login uses the Apple Account, `peio.thibault@gmail.com`, not the
+`@icloud.com` address: that one is an alias and CalDAV answers 401 for it.
+Only an app-specific password works, from appleid.apple.com, Sign-In and
+Security, App-Specific Passwords. `openclaw-env` carries `ICLOUD_APPLE_ID` and
+`ICLOUD_APP_PASSWORD`. Such a password opens Mail, Contacts and Calendars
+alike, with no scope. The plugin only speaks CalDAV and only sends it to
+`*.icloud.com`, but revoking the password is the way to cut access. Changing
+the Apple Account password revokes every app-specific password.
+
+The plugin's `calendars` allowlist holds the shared calendar's id and `home`
+("Personnel", empty). Reminders (VTODO) and the Birthdays calendar are out of
+reach anyway. Writes are enabled: new shared events go to iCloud by default,
+and to Google only when they clearly concern Peïo alone. The gog skill holds
+these routing rules, and the agent keeps the cases it learns from corrections
+in `memory/agenda-routage.md`. Deleting an iCloud event needs Peïo's
+confirmation in a conversation, and scheduled jobs never delete. The agent
+does not set alarms on iCloud events.
+
+Notion Calendar copies "Gaby & Peïo" into the Google calendar one way. Its
+copies carry `extendedProperties.private["cron.calendarSync"]="true"` and the
+description "Event blocked with Notion Calendar". Not every event gets a copy:
+on 2026-09-26, "Peïo : Offsite", "Option privatisation thé chinois" and older
+trips existed only on iCloud. The agent therefore reads iCloud as the source,
+counts each event once, and never edits or deletes a Notion copy. An event
+created on iCloud shows up in Google a few minutes later, which the agent
+expects.
+
+To check the credentials by hand:
+
+```
+curl -u "$ICLOUD_APPLE_ID:$ICLOUD_APP_PASSWORD" -X PROPFIND -H 'Depth: 0' \
+  --data '<propfind xmlns="DAV:"><prop><current-user-principal/></prop></propfind>' \
+  https://caldav.icloud.com/
+```
+
+A 207 with `/25514345404/principal/` means the login works.
 
 ## Egress through home
 
@@ -180,7 +711,7 @@ Three channels under a `hal` category:
 
 | Channel   | Type  | Purpose                                                |
 | --------- | ----- | ------------------------------------------------------ |
-| `#hal`    | text  | ordinary conversation                                  |
+| `#hal`    | text  | ordinary conversation, one auto-thread per question    |
 | `#work`   | forum | one thread per topic, created by posting to the parent |
 | `#notify` | text  | the only place the agent notifies                      |
 
@@ -215,6 +746,7 @@ roles or its webhooks.
 | --------------------------------------------- | ------------------- |
 | `https://new-horizons.taile99a6c.ts.net`      | OpenClaw Control UI |
 | `https://new-horizons.taile99a6c.ts.net:8443` | Neko browser        |
+| `https://new-horizons.taile99a6c.ts.net:8444` | OwnTracks receiver  |
 
 Both are Serve, not Funnel, so they exist only inside the tailnet. Port 22 is
 the only thing answering on the public address.
@@ -227,6 +759,22 @@ can neither run `tailscale serve` nor reach sudo, so the gateway could not
 start at all. `tailscale-serve` owns every route now, `gateway.tailscale.mode`
 is `off`, and loopback is a trusted proxy so forwarded client addresses are
 still honoured. Requests to `/api/*` answer `401` without the token.
+
+The OpenClaw iPhone app pairs through the same route, `wss://` on the default
+port. The pairing code comes from `openclaw qr --url
+wss://new-horizons.taile99a6c.ts.net`, run as `openclaw` inside the gateway's
+mount namespace (`nsenter -t <gateway pid> -m`), because outside it
+`/var/lib/openclaw/config/openclaw.json` is only the empty bind-mount target
+and the CLI reports the config as invalid. The code carries a full-access
+credential, so it goes to the phone as a QR image that is deleted afterwards.
+The paired phone shows up in `openclaw nodes status` as a node with calendar,
+camera, contacts, device, motion, photos, reminders, talk and watch
+capabilities. Granting the app a new permission later, location for instance,
+does not take effect by itself: the phone files a new node request declaring
+the extra capability and command, `openclaw nodes describe` lists them under
+`pendingDeclaredCommands`, and nothing changes until `openclaw nodes pending`
+shows the request and `openclaw nodes approve <requestId>` accepts it. Only
+then does `openclaw nodes location get --node iPhone` answer.
 
 The Neko URL needs the `:8443` and the `https://`; nothing listens on 8080 or
 80 from the tailnet. Media rides a single TCP port, 52100, also published
@@ -342,11 +890,152 @@ sessions and memory, lives only in the backups.
 
 ## Deploying a change
 
+A push to master deploys this host. Nothing builds on GitHub: the workflow in
+`.github/workflows/deploy-new-horizons.yml` only asks, and this host builds and
+switches on its own afterwards.
+
+The workflow logs in over SSH as `deploy`, whose key is pinned to one forced
+command, `nixos-deploy-request`. It accepts a commit sha and nothing else,
+drops a file in `/var/lib/nixos-deploy/requests` and returns, so the run on
+GitHub is green within seconds whatever the build costs. That file is the whole
+interface: `nixos-deploy.path` sees the directory become non-empty and starts
+`nixos-deploy.service`. A leaked key can therefore ask for a deploy of what is
+already on master, and nothing more. That is why it may come in on the public
+port, which is already open and hardened, see Access, rather than through the
+tailnet. The `deploy` user has bash as its login shell rather than nologin,
+because sshd runs the forced command through the login shell; the `restrict`
+option on the key still forbids a pty, forwarding and anything else.
+
+The workflow does not run at all for a push that only touches `docs/`,
+`README.md`, `lefthook.yaml` or another host's directory under `hosts/`, since
+none of those reach this host. Anything else that turns out not to change it
+costs one evaluation here, which then reports no change.
+
+The address is the repository secret `NEW_HORIZONS_HOST`, an IP or a DNS name,
+and appears nowhere in the repository. The workflow checks the host key under
+the name `new-horizons` rather than under that address, so after a move the
+secret is the only thing to update.
+
+The service clears the requests first, fetches master into
+`/var/lib/nixos-deploy/repo` and evaluates the system. When the result is the
+system already running, it stops there: an evaluation, no build. Otherwise it
+builds and switches. Pushes that arrive during a build leave a new request
+behind and get one more run once this one ends, so a burst of pushes costs two
+builds, not one per push.
+
+`/var/lib/nixos-deploy/deployed` holds the last commit and system deployed. A
+second request for that same commit is skipped without even an evaluation,
+unless the running system has changed since, as it does after a deploy by hand
+from charon; master is then deployed again.
+
+The switch may change `nixos-deploy.service` itself. The unit sets
+`restartIfChanged` and `stopIfChanged` off, so activation leaves the running
+deploy alone, and the switch itself runs in its own transient unit, as
+`nixos-rebuild` does, so it survives whatever activation restarts.
+
+This host runs the agent on 4 vCPUs and 7 GB, so builds take only what the
+agent leaves: nice 19, a fifth of the default CPU and IO weight, idle IO class,
+and an OOM score that makes the kernel kill a build before the agent. Expect an
+uncached build, such as an OpenClaw bump, to take a while.
+
+### How a deploy reports back
+
+The host has a fine-grained GitHub token, `github-deploy-token` in
+`secrets/new-horizons.yaml`, limited to this repository with only
+**Actions: read and write**. It can start workflows and nothing else: it cannot
+push, so a compromise of this host does not reach the other machines through
+the repository. With it the service starts `deploy-report.yml` at the start of a
+build and again with the outcome. That workflow, running with GitHub's own
+token:
+
+- sets the `deploy/new-horizons` status on the commit, which links to the run,
+- writes the outcome and, for a failed evaluation or build, the tail of the log
+  into the run summary,
+- fails when the deploy failed, so GitHub sends its usual failed-run
+  notification to the token's owner.
+
+Report runs for the same commit queue behind each other, so a slow runner for
+the pending report cannot finish after the outcome and leave the commit stuck
+on pending.
+
+The repository is public and so is that summary. A failed switch therefore
+reports only the names of the units that failed, never the activation output,
+which quotes the journal of a failing unit and can carry the agent's
+conversations. Read the full log on the host:
+
 ```
-ssh potb@185.163.119.202
-cd /tmp/cfg && git pull
-sudo nixos-rebuild switch --flake .#new-horizons
+journalctl -u nixos-deploy -n 200
+systemctl list-units --failed
 ```
+
+Without the token, or with an expired one, deploys still happen and only the
+reports stop. A token rotation is an edit to the sops secret and a deploy.
+
+### By hand
+
+`sudo systemctl start nixos-deploy` deploys master now, and the **Run
+workflow** button on the deploy workflow does the same from GitHub. Both skip
+the work when master is already running.
+
+Building on charon and sending the result still works, and is the way to try a
+branch before merging it:
+
+```
+nixos-rebuild switch --flake .#new-horizons \
+  --target-host potb@new-horizons --elevate sudo
+```
+
+or with nh, which needs `-e passwordless` to use the NOPASSWD sudo rule instead
+of prompting:
+
+```
+nh os switch . -H new-horizons --target-host potb@new-horizons -e passwordless
+```
+
+The next push to master switches back to master, since only master deploys.
+
+### Setting it up
+
+Done once, and again for a key or token rotation:
+
+1. Create the token: a fine-grained personal access token on `potb/config`,
+   repository permission **Actions: read and write**. Add it to the host's
+   secrets as `github-deploy-token` with `sops secrets/new-horizons.yaml`. The
+   build checks the key exists, so this has to happen before the module is
+   deployed.
+2. Store the private half of `keys.github-actions` as the repository secret
+   `NEW_HORIZONS_DEPLOY_KEY`, the host's public address as the secret
+   `NEW_HORIZONS_HOST`, and its host key, under the name `new-horizons`, as the
+   repository variable `NEW_HORIZONS_KNOWN_HOSTS`. From charon, which reaches
+   that name over the tailnet:
+
+   ```
+   gh secret set NEW_HORIZONS_DEPLOY_KEY < deploy-key
+   gh secret set NEW_HORIZONS_HOST
+   ssh-keyscan -t ed25519 new-horizons | gh variable set NEW_HORIZONS_KNOWN_HOSTS
+   ```
+
+   Check the scanned key against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+   on the host rather than trusting the scan.
+3. Deploy once from charon, which creates the `deploy` user. Until then the
+   workflow cannot log in.
+
+The gateway bind-mounts its config, so a switch leaves the running process on
+the old file until the unit restarts. After changing anything in
+`openclaw.json`, run `sudo systemctl restart openclaw-gateway` and check the
+value from inside its namespace (`nsenter -t <pid> -m cat
+/var/lib/openclaw/config/openclaw.json`).
+
+## Thinking level
+
+The model is DeepSeek V4.1 Flash through OpenRouter, which accepts `low`,
+`high` and `max` effort and defaults to `high`. `thinkingDefault` is `low`.
+Tried on the agent's own transit questions, `off`, `low` and `high` gave the
+same correct real-time routes, and `low` was also right on every try of a
+connection puzzle that `off` and `high` sometimes got wrong. `max` was the
+slowest and least reliable: OpenClaw sends it to OpenRouter as `xhigh`, and
+some tries ran for over three minutes. The morning planning job runs at `high`
+because nobody waits on it. `/think high` in a message raises one turn.
 
 ## What the agent owns
 
@@ -392,8 +1081,10 @@ From a Discord turn the agent sees only the automations it created from that
 same conversation. A job created with `openclaw automations add` on the host
 is operator-owned: it runs and delivers normally, but the agent's list comes
 back with `scope: "caller"` and leaves it out, so asking hal for its jobs
-looks as if nothing is scheduled. Manage those from the CLI or the Control UI
-Automations page, whose administrator turns see the whole Gateway.
+looks as if nothing is scheduled. Ask the agent to create jobs instead, from
+the CLI with `openclaw agent --session-key agent:main:main` or from Discord.
+Operator jobs can still be managed from the CLI or the Control UI Automations
+page, whose administrator turns see the whole Gateway.
 
 `nix flake check` validates the generated OpenClaw config against the gateway's
 own JSON schema, which catches unknown keys, missing required keys and bad enum
@@ -472,6 +1163,48 @@ megabytes.
   curl -s http://127.0.0.1:9222/json/version | jq -r .Browser
   ```
 
+- The Discord plugin cannot come from the Nix store. Since 2026.9.4 OpenClaw
+  lets only bundled plugins and ones with an official install record open
+  keyed storage, and a Nix path in `plugins.load.paths` has no install record,
+  so Discord fails to register with `openKeyedStore is only available for
+  trusted plugins` while the gateway otherwise reports ready (upstream
+  nix-openclaw#158). The pre-start script installs `@openclaw/discord` from npm
+  at the gateway's own version whenever the trusted install differs, and the
+  unit reads the persisted plugin registry so the gateway sees that record.
+  Check it with:
+
+  ```
+  sudo -u openclaw env OPENCLAW_STATE_DIR=/var/lib/openclaw \
+    OPENCLAW_CONFIG_PATH=/var/lib/openclaw/doctor/openclaw.json \
+    OPENCLAW_DISABLE_PERSISTED_PLUGIN_REGISTRY=0 HOME=/var/lib/openclaw \
+    openclaw plugins inspect discord --json | jq .plugin.trust
+  ```
+
+  `reason` must be `trusted-official`.
+
+- OpenClaw 2026.9.5 takes its gateway lock through `openat2`, and systemd's
+  `RestrictSUIDSGID` seccomp filter answers every `openat2` with `ENOSYS`,
+  because the syscall's mode argument sits in a struct the filter cannot
+  inspect. The gateway then dies at start with `openat2 beneath root: Function
+  not implemented (os error 38)`, and the pre-start doctor fails the same way.
+  The units here leave `RestrictSUIDSGID` off; `NoNewPrivileges` and an empty
+  capability set already keep a set-id bit from granting anything. To check a
+  candidate sandbox before deploying:
+
+  ```
+  sudo systemd-run --pipe --wait -p User=openclaw -p RestrictSUIDSGID=yes \
+    python3 -c 'import ctypes,os;l=ctypes.CDLL(None,use_errno=True);print(l.syscall(437,-100,b"/",b"\0"*24,24),os.strerror(ctypes.get_errno()))'
+  ```
+
+- An OpenClaw upgrade is one-way. The pre-start doctor migrates the databases
+  to the new schema even when the new gateway then fails to start, and the old
+  build refuses the newer schema, so rolling the system generation back leaves
+  the agent down. `doctor/pre-migrate.tgz` is rewritten on every doctor run,
+  including the failed ones, so it cannot be trusted after a second attempt;
+  the nightly restic snapshot is the real way back. Build and test a new gateway
+  on charon before merging it: a merge to master deploys it here, see
+  Deploying a change.
+
 - sops-nix installs secrets into a fresh `/run/secrets.d/<n>` on every
   activation and moves the `/run/secrets` symlink, but bind mounts inside a
   running service stay pinned to the generation that existed when it started.
@@ -514,6 +1247,26 @@ megabytes.
   the mount points at, which is harmless: the requirement is at most one link,
   and the content is still the installed secret.
 
+- #notify used to receive fragments such as a truncated `ls -la` of the
+  workspace or a list of `/nix/store` paths, followed by the agent saying it
+  never ran the command. They are exec completion notices
+  (`tools.exec.notifyOnExit`, on by default). An automation run backgrounds any
+  command still running after 10 seconds (`backgroundMs`) and ends without
+  waiting. When the command exits, or is killed with SIGTERM, the gateway queues
+  a system event holding a short preview of its output and wakes the
+  session that started it. That turn carries the event but not the command,
+  hence the agent's confusion. Nothing leaks: the `secrets/**` paths in the
+  output are copies of the flake in the store, and their contents are
+  sops-encrypted. The commands come from the agent searching for `transit` and
+  `gog` with `find /nix/store` after an earlier call returned empty output, see
+  the `yieldMs` note under Email to calendar. The setting is off, which also
+  drops notices for background commands started on purpose, whose results then
+  have to be collected with `process poll`; none exist today.
+  The originating runs can be found on the host with
+  `sudo rg -l 'find /nix/store' /var/lib/openclaw/agents/`. Upstream tracks a
+  failure-only mode in openclaw#141973, which should replace `false` when it
+  lands. `agents.defaults.heartbeat.target = "none"` would not help, because
+  completions return to the session that owns the work.
 - Memory search defaults to OpenAI embeddings. With only an OpenRouter key the
   index cannot be built and recall stays paused, which the agent reports as
   its memory being unavailable. `models.providers.<id>.api` must be

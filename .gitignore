@@ -30,3 +30,5 @@ docs/*
 !docs/jcode.md
 !docs/herdr.md
 *.log
+
+__pycache__/

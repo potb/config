@@ -62,13 +62,12 @@ the fetch fails with "Could not open file /boot/vendorfw/firmware.cpio", so
 `nix build .#nixosConfigurations.kerberos...` has to run on kerberos. The other
 three hosts are unaffected and still evaluate from anywhere.
 
-This also constrains CI. `nix flake check` evaluates every attribute under
+This also constrains checking. `nix flake check` evaluates every attribute under
 `nixosConfigurations`, kerberos included, so running it on a machine without the
-firmware fails on the missing file. The workflow therefore builds the checks by
-name rather than calling `nix flake check`, and the build matrix covers charon,
-new-horizons and nyx. kerberos is checked on kerberos, where
-`nix flake check` works normally. `scripts/flake-check`, which the pre-commit
-hook runs, does the same thing locally.
+firmware fails on the missing file. `scripts/flake-check`, which the pre-commit
+hook runs, therefore builds the checks by name rather than calling
+`nix flake check`, and skips kerberos unless it runs on kerberos. kerberos is
+checked on kerberos, where `nix flake check` works normally.
 
 Only the firmware path is unevaluable, though, and that is a smaller hole than
 it first appears. The `kerberos-offhost` check substitutes an empty stub for
