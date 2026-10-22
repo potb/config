@@ -107,6 +107,11 @@
       flake = false;
     };
 
+    wispr-flow-linux = {
+      url = "github:wispr-flow-linux/wispr-flow-linux";
+      flake = false;
+    };
+
     openclaw-icloud-calendar = {
       url = "github:omarshahine/openclaw-icloud-calendar/558af234b43bf9b832f15aaf65f7862781fba400";
       flake = false;

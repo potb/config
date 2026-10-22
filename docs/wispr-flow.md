@@ -1,0 +1,177 @@
+# Wispr Flow
+
+Wispr Flow ships only for macOS and Windows. charon runs it from the Windows
+installer, repackaged by `pkgs/wispr-flow` with the know-how of the unofficial
+[wispr-flow-linux](https://github.com/wispr-flow-linux/wispr-flow-linux)
+project and its clean-room [helper](https://github.com/wispr-flow-linux/helper).
+The project is the single flake input, `wispr-flow-linux`, tracking its `main`
+branch. The trait lives in
+`modules/desktop-apps/linux/wispr-flow.nix` and only applies where the package
+builds (x86_64-linux), so kerberos skips it without a host override.
+
+## How the package is built
+
+The build is pure: no `--impure`, no hand-supplied installer.
+
+1. The installer URL and sha256 come from the project's
+   `scripts/setup/installer-pin.sh`, read at evaluation time, so the installer
+   is an ordinary fixed-output fetch.
+2. The Squirrel `.exe` is unpacked to the Electron payload, and `app.asar` is
+   extracted.
+3. The project's own `step3_patch_bundle` (sourced from
+   `scripts/build-linux.sh`) runs the upstream tripwire check and then all
+   thirteen patches that give the minified bundle a Linux code path. Reusing
+   the driver means the list of patches cannot drift from upstream's.
+   `verify-patches.sh` then refuses an asar that misses any marker. One more
+   patch, `warm-deeplink.py`, widens the win32-only `wispr-flow:` parse in the
+   `second-instance` handler, so a link opened while the app already runs is
+   routed instead of only focusing the window. It fails the build unless its
+   anchor matches exactly once.
+4. The Windows `node_sqlite3.node` is replaced by one compiled from the
+   `sqlite3` npm tarball against the nixpkgs Electron 42 headers (see below).
+   The Windows-only crypt32, Jabra and roots binaries are dropped, and the
+   Linux Jabra headset bridge is unpacked from the asar and patched by
+   `autoPatchelfHook`.
+5. The helper is built from source with `rustPlatform` and staged at
+   `resources/Release/wispr-flow-linux-helper`, where the patched bundle looks
+   for it.
+6. The app runs on the stock nixpkgs `electron_42`, with no copy of the 250 MB
+   Electron binary and no FHS sandbox (see below).
+
+`wispr-flow --doctor` is the project's diagnostic with two checks replaced for
+NixOS: the sandbox check looks for unprivileged user namespaces instead of a
+setuid `chrome-sandbox`, and the desktop entry check looks on `XDG_DATA_DIRS`
+and also reports who handles `wispr-flow://` links.
+
+## Running on the nixpkgs Electron
+
+Electron derives `process.resourcesPath` and `app.isPackaged` from its own
+executable. The app needs both to point at its own tree: `resourcesPath` to
+find `migrations/`, `assets/` and the helper, `isPackaged` to choose the
+packaged migrations path. With `isPackaged` false, zero migrations run and
+every query fails with "no such table". The upstream packages solve this by
+copying the Electron binary next to the resources and renaming it; the
+upstream Nix expression copies it into the store and then wraps everything in
+`buildFHSEnv`.
+
+Here a ten-line entry module (`resources/entry`) is what Electron launches. It
+redefines `process.resourcesPath` and `app.isPackaged` and then requires
+`app.asar`. Its `package.json` carries the app's name and
+`desktopName: wispr-flow.desktop`, which makes the Wayland app id
+`wispr-flow` and lets the app find its desktop file.
+
+## Traps
+
+- **The native sqlite addon silently used the wrong sqlite.** nixpkgs'
+  `node-gyp` wrapper forces `npm_config_nodedir` to the nixpkgs Node.js, so
+  `--nodedir` is ignored and the addon is compiled against Node's headers. On
+  top of that, nixpkgs Node.js ships `include/node/sqlite3.h` (3.53), which
+  shadows the amalgamation `sqlite3` 5.1.7 bundles (3.44.2). The package runs
+  npm's bundled `node-gyp.js` with `npm_config_nodedir` set to
+  `electron.headers`, and links with `-Bsymbolic` so the addon keeps its own
+  sqlite even though the nixpkgs Electron already has `libsqlite3.so` loaded.
+  The install check fails the build if the addon reports anything but 3.44.2.
+- **The app loads only `node_sqlite3`.** The upstream scripts also rebuild
+  `better-sqlite3-multiple-ciphers` with a V8 patch, but no 1.6.1102 bundle
+  references it.
+- **`asar pack --unpack-dir` globs skip dot directories.** `**/x` never
+  matches under `.webpack`, so the Jabra directory is unpacked by its literal
+  path, and the build checks the binary landed outside the asar.
+- **The status pill.** On Hyprland the "Flow Status Indicator" window maps
+  floating on one workspace. The trait adds a window rule that pins it and
+  keeps it from taking focus. Match on `initial_title`, because the title
+  later changes to "Status".
+
+## Runtime requirements
+
+- `/dev/uinput` writable for text injection. charon already grants it through
+  `hardware.uinput` (the `uinput` group); the package also ships the upstream
+  udev rule, installed by `services.udev.packages`, which adds a `uaccess`
+  ACL for the active session.
+- `/dev/input/event*` readable for push-to-talk. The helper reads keyboards
+  through evdev. The `uaccess` rule above grants it to the active session
+  once applied (new devices, or after `udevadm trigger`); without it the
+  helper logs "no readable keyboard" and the shortcut never fires.
+- AT-SPI for active-app detection on Hyprland, already enabled by the
+  computer-use trait.
+
+Login goes through the browser with a device code and a server-sent event
+stream back to the app, so it does not depend on the `wispr-flow://` handler.
+The handler is still registered, for the app's other deep links.
+
+## Verified on charon
+
+Started from the store path on Hyprland: all 169 migrations ran into
+`~/.config/Wispr Flow/flow.sqlite`, the helper came up with the Wayland
+uinput backend and the AT-SPI active-app tracker, the Hub and the status pill
+mapped, and `wispr-flow wispr-flow://hub` sent to the running app reached its
+deep-link router. The packaged helper also passed its own live injection test
+(`live_inject_test.py` from the helper repo, against mousepad): PasteText
+landed in the editor through uinput and wl-clipboard, and a Ctrl+S chord saved
+the file. Not yet exercised: sign-in, and push-to-talk.
+
+Push-to-talk needs the keyboards readable by the session. The rule tags
+`input` event nodes `uaccess`, and `73-seat-late.rules` turns that tag into an
+ACL, but a switch only reloads the rules. Already-present devices keep their
+old permissions until they are replugged or retriggered:
+
+```bash
+sudo udevadm trigger --subsystem-match=input --action=change
+wispr-flow --doctor   # expects several readable event devices, not 1
+```
+
+This is the access upstream ships, and it is broad: any process in the active
+session can then read every keystroke. charon is single-user, which is why it
+is acceptable here; drop the rule on a shared machine.
+
+## Updates
+
+Wispr Flow updates with the rest of the flake: `nix flake update` (or
+`nix flake update wispr-flow-linux`) moves the input to the project's latest
+`main`, and every version the package needs is read from that checkout, so
+nothing in this repository has to be edited:
+
+| What | Read from |
+|------|-----------|
+| Wispr Flow version, installer URL and sha256 | `scripts/setup/installer-pin.sh` |
+| Helper tag | `helper-version.txt` |
+| Helper source hash | the `helperSrc` fetch in `nix/wispr-flow.nix` |
+| Electron major | `ELECTRON_MAJOR` in `scripts/build-linux.sh`, mapped to `pkgs.electron_<major>` |
+| `sqlite3` and `node-addon-api` tarballs | `scripts/native-modules/package-lock.json` |
+| Patches and their order | `step3_patch_bundle` in `scripts/build-linux.sh` |
+
+The project's nightly job bumps the pin when Wispr publishes a release, runs
+its patch-stage test against the new bundle, and only then pushes, so `main`
+is the tested state.
+
+An update that the package cannot follow fails loudly instead of building
+something broken:
+
+- the helper tag moved but the project's Nix hash did not: evaluation stops
+  with "helper-version.txt pins X but nix/wispr-flow.nix fetches Y";
+- Wispr moved to an Electron major this nixpkgs lacks: evaluation stops with
+  "Wispr Flow now needs Electron N";
+- the app stopped bundling the pinned `sqlite3`, or targets another Electron
+  major than the project declares: the build stops before patching;
+- upstream code moved under a patch: the tripwires or `verify-patches.sh`
+  stop the build, as does `warm-deeplink.py` if its anchor drifts;
+- the rebuilt addon does not load its own sqlite under the chosen Electron:
+  the install check stops the build.
+
+Verified on 2026-10-09 by building the package from three upstream releases
+(1.6.1034, 1.6.1074, 1.6.1102) through the same expression, by running
+`nix flake update wispr-flow-linux` followed by the flake checks and the
+charon system build, and by evaluating doctored checkouts for the first two
+failures above.
+
+If the project stops publishing, pin the input to its last good commit in
+`flake.nix`; Wispr only keeps recent installers for download, so an old pin
+will eventually fail to fetch.
+
+## Upstream state (2026-10-09)
+
+The wispr-flow-linux flake (`v1.0.4+wispr1.6.1102`) does not build: its
+derivation runs 2 of the 13 patches and `verify-patches.sh` rejects the
+result, it requires `WISPR_FLOW_EXE` and `--impure`, and it ships the Windows
+`node_sqlite3.node`, which crashes the main process with "invalid ELF header"
+before any window opens.
