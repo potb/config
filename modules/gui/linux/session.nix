@@ -18,9 +18,9 @@
 
     programs.hyprland = {
       enable = true;
-      package = inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+      package = pkgs.hyprland;
       portalPackage =
-        inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+        pkgs.xdg-desktop-portal-hyprland;
       xwayland.enable = true;
     };
 
@@ -160,7 +160,7 @@
         enable = lib.mkForce true;
         extraPortals = [
           pkgs.xdg-desktop-portal-gtk
-          inputs.hy3.inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland
+          pkgs.xdg-desktop-portal-hyprland
         ];
         xdgOpenUsePortal = true;
         config = {
