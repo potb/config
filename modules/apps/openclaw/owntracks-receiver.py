@@ -168,9 +168,10 @@ def digest_token(token):
     # Hash a fixed-size buffer so compare_digest does not short-circuit on
     # length and the hash itself does not scale with the guess.
     raw = token.encode()
-    if len(raw) > TOKEN_MAX:
-        raw = b""
-    return hashlib.sha256(bytes([len(raw)]) + raw + bytes(TOKEN_MAX - len(raw))).digest()
+    size = len(raw)
+    if size > TOKEN_MAX:
+        raw, size = b"", TOKEN_MAX + 1
+    return hashlib.sha256(size.to_bytes(2, "big") + raw + bytes(TOKEN_MAX - len(raw))).digest()
 
 
 def load_read_token_digest():
@@ -180,6 +181,8 @@ def load_read_token_digest():
     token = Path(path).read_text().strip()
     if not token or any(c.isspace() for c in token):
         sys.exit(f"{path} must contain a single token")
+    if len(token.encode()) > TOKEN_MAX:
+        sys.exit(f"{path} must be at most {TOKEN_MAX} bytes")
     return digest_token(token)
 
 

@@ -157,6 +157,11 @@ def main():
         assert not receiver.token_matches("x")
         assert not receiver.token_matches("y" * 300)
         assert not receiver.token_matches("")
+        status, _body = client.json("GET", "/latest", bearer_headers("z" * receiver.TOKEN_MAX))
+        assert status == 401, status
+        assert not receiver.token_matches("z" * receiver.TOKEN_MAX)
+        assert receiver.digest_token("y" * 300) != receiver.digest_token("")
+        assert receiver.digest_token("y" * 300) == receiver.digest_token("w" * 400)
         print("ok wrong bearer lengths are rejected")
 
         owntracks = {
