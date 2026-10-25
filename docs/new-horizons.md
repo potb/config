@@ -281,27 +281,82 @@ the departure region and so never loaded the destination.
 
 The phone reports its position with OwnTracks in HTTP mode to
 `owntracks-receiver`, which listens on loopback 8765 and is published by Serve
-on `https://new-horizons.taile99a6c.ts.net:8444/pub`, tailnet only. A request
+on `https://new-horizons.taile99a6c.ts.net:8444/pub`, tailnet only. A write
 needs both the Basic credentials, `owntracks` and `owntracks-password` from
 `secrets/new-horizons.yaml`, and a `Tailscale-User-Login` of the owner. Serve
 sets that header from the connecting device and overwrites whatever a client
-sends, and the receiver refuses requests without it, so a caller on this host
-that bypasses Serve is refused even with the password.
+sends, and the receiver refuses writes without it, so a caller on this host
+that bypasses Serve is refused even with the password. A tagged node has no
+user login, so Serve leaves the header unset and the node cannot write.
+
+Reads use a second secret, `owntracks-read-token`, sent as
+`Authorization: Bearer`. `GET /latest` returns the newest fix plus `age_s`
+(seconds since its timestamp) and `acc_m`. `GET /history?since=<epoch>` returns
+fixes and region transitions with `ts` at or after that time. The Basic
+password is not accepted on those routes. The bearer check hashes a fixed-size
+buffer and compares digests with `hmac.compare_digest`, so a wrong token does
+not leak through an early length mismatch. `POST /request`, with the bearer
+token or the write credentials, queues one OwnTracks `reportLocation` command.
+The next successful write from the phone is answered with
+`[{"_type":"cmd","action":"reportLocation"}]` instead of `[]`, and the queue
+is cleared. The flag is a file under the data directory, so it survives a
+restart of the receiver. It still only rides back on a POST the phone already
+made: it does not wake an app that is not checking in, and a Shortcut never
+sees it.
+
+An iOS Shortcut posts to the same `/pub` URL with the same Basic credentials.
+The phone has to be on this tailnet as the owner. The Shortcut does not set
+`Tailscale-User-Login`; Serve does. Body:
+
+```json
+{"_type":"location","lat":48.8566,"lon":2.3522,"acc":12,"tst":1710000000,"tid":"sc","batt":80,"alt":35}
+```
+
+`_type`, `lat` and `lon` are required. `tid` should be `sc` so the fix is
+distinguishable from the app. `acc`, `tst`, `batt` and `alt` may be omitted,
+and any number may be a JSON number or a string (`"48,85"` as well as
+`"48.85"`). A missing or unreadable `tst` becomes the receiver's clock. A
+`tst` of at least 100000000000 is treated as milliseconds. Other OwnTracks
+fields (`vel`, `cog`, `bs`, `t`, `m`, …) are stored when present. `latest.json`
+keeps the fix with the greatest `tst`, including when an older one arrives
+later. A fix within 25 m and 60 s of that latest fix is not appended to
+`history.jsonl`; if it is newer, it still replaces `latest.json`.
 
 Positions land in `/var/lib/owntracks`: `history.jsonl`, `latest.json`, and
 `transitions.jsonl` for region entries and exits. The directory belongs to the
 `owntracks` user and is readable by its group, which the gateway joins. A daily
 timer drops anything older than 30 days. The nightly backup leaves the
 directory out on purpose: its six monthly snapshots would otherwise keep half a
-year of movements that the retention is meant to forget. The agent reads it through `loc`
-(`latest`, `history`, `transitions`, `coord`), and `transit plan ici …` starts
-from the latest position, refusing one older than 30 minutes.
+year of movements that the retention is meant to forget. The agent on this host
+reads the files through `loc` (`latest`, `history`, `transitions`, `coord`),
+and `transit plan ici …` starts from the latest position, refusing one older
+than 30 minutes. `loc latest` marks a `tid` of `sc` as `source: raccourci`.
+The read token is how `tag:grokbot` reads the same data over the tailnet. The
+receiver does not start until `owntracks-read-token` exists in
+`secrets/new-horizons.yaml`.
 
-iOS decides when the app runs. OwnTracks in significant-change mode reports
-roughly every 500 m or every few minutes of movement and stays quiet while the
-phone does not move, so an old position usually means the user is still there.
-Nothing on this side can ask the phone for a fresh fix; the reportLocation
-command exists only as a reply to a report the phone sends.
+iOS decides when OwnTracks runs. In significant-change mode it reports roughly
+every 500 m or every few minutes of movement and stays quiet while the phone
+does not move, which is why fixes from the app go stale. The Shortcut is what
+keeps them current.
+
+```bash
+# from tag:grokbot, or any node that holds the read token
+curl -fsS -H "Authorization: Bearer $OWNTRACKS_READ_TOKEN" \
+  https://new-horizons.taile99a6c.ts.net:8444/latest
+
+curl -fsS -H "Authorization: Bearer $OWNTRACKS_READ_TOKEN" \
+  "https://new-horizons.taile99a6c.ts.net:8444/history?since=$(date +%s -d '6 hours ago')"
+
+curl -fsS -H "Authorization: Bearer $OWNTRACKS_READ_TOKEN" \
+  -X POST https://new-horizons.taile99a6c.ts.net:8444/request
+
+# from a node logged into the tailnet as the owner, not from a tag
+curl -fsS -u "owntracks:$OWNTRACKS_PASSWORD" \
+  -H 'Content-Type: application/json' \
+  -d '{"_type":"location","lat":48.8566,"lon":2.3522,"acc":12,"tst":'"$(date +%s)"',"tid":"sc"}' \
+  https://new-horizons.taile99a6c.ts.net:8444/pub
+```
 
 Setting up a phone is a configuration file: `.otrc` JSON with `mode: 3` (HTTP),
 the URL above, `auth: true`, the credentials, `deviceId`, `tid`,

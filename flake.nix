@@ -603,6 +603,21 @@
             python3 ${./scripts/compare-openclaw-schema.py} pinned.json live.json
             touch $out
           '';
+
+      owntracks-receiver = let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+        pkgs.runCommand "owntracks-receiver-check"
+        {
+          nativeBuildInputs = [pkgs.python3];
+        }
+        ''
+          export TZDIR=${pkgs.tzdata}/share/zoneinfo
+          python3 ${./scripts/test-owntracks-receiver.py} \
+            ${./modules/apps/openclaw/owntracks-receiver.py} \
+            ${./modules/apps/openclaw/loc.py}
+          touch $out
+        '';
     });
 
     nixosConfigurations = {

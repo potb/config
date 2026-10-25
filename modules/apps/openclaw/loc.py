@@ -67,6 +67,7 @@ def with_context(rec):
     out["perimee"] = age > STALE_AFTER_S
     out["coord"] = f"{rec['lat']},{rec['lon']}"
     out["precision"] = "zone approximative" if (rec.get("acc_m") or 0) > 500 else "precise"
+    out["source"] = "raccourci" if rec.get("device") == "sc" else "owntracks"
     return out
 
 
@@ -140,7 +141,7 @@ def cmd_transitions(a):
 
 
 def main():
-    p = argparse.ArgumentParser(prog="loc", description="Position de l'utilisateur (iPhone via OwnTracks).")
+    p = argparse.ArgumentParser(prog="loc", description="Position de l'utilisateur (OwnTracks, ou Raccourci iOS avec tid sc).")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("latest", help="dernière position connue et son âge").set_defaults(fn=cmd_latest)
     s = sub.add_parser("coord", help="lat,lon seul, pour transit ; échoue si trop ancien")
