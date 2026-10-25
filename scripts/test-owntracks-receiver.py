@@ -3,6 +3,7 @@
 
 import base64
 import importlib.util
+import io
 import json
 import os
 import socket
@@ -83,6 +84,46 @@ def raw_post(port, path, headers, content_length, body=b""):
         sock.close()
     head, _, resp = b"".join(chunks).partition(b"\r\n\r\n")
     return int(head.split()[1]), resp
+
+
+def chunked_body(body):
+    parts = [body[:7], body[7:]] if len(body) > 7 else [body]
+    raw = b""
+    for part in parts:
+        if not part:
+            continue
+        raw += f"{len(part):x}\r\n".encode() + part + b"\r\n"
+    return raw + b"0\r\n\r\n"
+
+
+def read_response(sock):
+    sock.settimeout(3)
+    data = b""
+    while b"\r\n\r\n" not in data:
+        piece = sock.recv(4096)
+        if not piece:
+            break
+        data += piece
+    head, _, rest = data.partition(b"\r\n\r\n")
+    status = int(head.split()[1])
+    length = 0
+    for line in head.split(b"\r\n")[1:]:
+        if line.lower().startswith(b"content-length:"):
+            length = int(line.split(b":", 1)[1].strip())
+    while len(rest) < length:
+        piece = sock.recv(4096)
+        if not piece:
+            break
+        rest += piece
+    return status, rest[:length], head
+
+
+def send_chunked(sock, path, headers, body, close=False):
+    lines = [f"POST {path} HTTP/1.1", "Host: 127.0.0.1", "Transfer-Encoding: chunked"]
+    if close:
+        lines.append("Connection: close")
+    lines.extend(f"{key}: {value}" for key, value in headers.items())
+    sock.sendall(("\r\n".join(lines) + "\r\n\r\n").encode() + chunked_body(body))
 
 
 def history_lines(data_dir):
@@ -377,9 +418,91 @@ def main():
 
         status, body = client.json("POST", "/request", read)
         assert body == {"ok": True}
+        errors = io.StringIO()
+        previous_err = sys.stderr
+        sys.stderr = errors
+        try:
+            status, body = post("/pub", {"_type": "location", "lat": 999, "lon": 0, "tst": fresh["ts"] + 550})
+        finally:
+            sys.stderr = previous_err
+        logged = errors.getvalue()
+        assert "rejected location: coordinates missing or unusable" in logged, logged
+        assert "999" not in logged and "password" not in logged and "Bearer" not in logged
+        assert status == 400 and body == {"error": "bad location"}, (status, body)
+        print("ok a rejection is logged without coordinates or credentials")
+
+        status, body = client.json("POST", "/request", read)
+        assert body == {"ok": True}
         status, body = post("/pub", b"{")
         assert body == [{"_type": "cmd", "action": "reportLocation"}]
         print("ok a queued command survives bad json and is then consumed")
+
+        precise = {"_type": "location", "lat": 48.856613, "lon": 2.294481, "alt": 35.25, "tst": fresh["ts"] + 600, "tid": "sc"}
+        status, body = post("/pub", precise)
+        assert status == 200 and body == [], (status, body)
+        status, got = latest()
+        assert got["lat"] == 48.856613 and got["lon"] == 2.294481 and got["alt_m"] == 35.25
+        print("ok a fractional JSON number keeps its fraction")
+
+        status, body = post("/pub", {"_type": "location", "lat": "48.856613", "lon": "2.294481", "tst": fresh["ts"] + 700, "tid": "sc"})
+        assert status == 200 and body == []
+        status, got = latest()
+        assert got["lat"] == float("48.856613") and got["lon"] == float("2.294481")
+        print("ok a dotted coordinate string keeps its fraction")
+
+        comma = b'{"_type":"location","lat":"48,856613","lon":"2,294481","alt":"35,25","tst":%d,"tid":"sc"}' % (fresh["ts"] + 800)
+        sock = socket.create_connection(("127.0.0.1", port))
+        try:
+            send_chunked(sock, "/pub", basic_headers(), comma)
+            status, raw, _head = read_response(sock)
+            send_chunked(
+                sock,
+                "/pub",
+                basic_headers(),
+                b'{"_type":"location","lat":"41.25","lon":"8.5","tst":%d,"tid":"sc"}' % (fresh["ts"] + 900),
+                close=True,
+            )
+            status2, raw2, _head2 = read_response(sock)
+        finally:
+            sock.close()
+        assert status == 200 and json.loads(raw) == [], (status, raw)
+        assert status2 == 200 and json.loads(raw2) == []
+        status, got = latest()
+        assert got["lat"] == 41.25 and got["ts"] == fresh["ts"] + 900
+        assert any(point["lat"] == float("48.856613") and point["alt_m"] == 35.25 for point in history_lines(data))
+        print("ok chunked bodies on one connection store string coordinates")
+
+        form = f"lat=48%2C856700&lon=2.100001&alt=12.5&tst={fresh['ts'] + 1000}&tid=sc"
+        status, body = post("/pub", form, {**basic_headers(), "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
+        assert status == 200 and body == [], (status, body)
+        status, got = latest()
+        assert got["lat"] == float("48.856700") and got["lon"] == 2.100001 and got["alt_m"] == 12.5
+        print("ok a form body is accepted")
+
+        query = f"/pub?lat=48.856800&lon=2%2C100002&tst={fresh['ts'] + 1100}&tid=sc"
+        status, body = post(query, b"")
+        assert status == 200 and body == [], (status, body)
+        status, got = latest()
+        assert got["lat"] == 48.856800 and got["lon"] == float("2.100002") and got["device"] == "sc"
+        print("ok query-string coordinates on /pub are accepted")
+
+        sock = socket.create_connection(("127.0.0.1", port))
+        try:
+            lines = [
+                "POST /pub HTTP/1.1",
+                "Host: 127.0.0.1",
+                "Transfer-Encoding: chunked",
+                "Connection: close",
+            ]
+            lines.extend(f"{key}: {value}" for key, value in basic_headers().items())
+            sock.sendall(("\r\n".join(lines) + "\r\n\r\n10001\r\n").encode())
+            status, raw, _head = read_response(sock)
+        finally:
+            sock.close()
+        assert status == 413, status
+        status, got = latest()
+        assert got["ts"] == fresh["ts"] + 1100
+        print("ok an oversized chunk is rejected")
     finally:
         httpd.shutdown()
         httpd.server_close()
