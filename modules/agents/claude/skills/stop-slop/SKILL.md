@@ -1,7 +1,7 @@
 ---
 name: stop-slop
 description: Remove AI writing patterns from prose. Use when drafting, editing, or reviewing long-form text such as commit messages, docs, READMEs, PR descriptions, and published writing.
-allowed-tools: read, write, edit, multiedit, grep, batch
+allowed-tools: Read, Write, Edit, MultiEdit, Grep
 metadata:
   trigger: Writing or editing persisted prose, reviewing a draft for AI tells
   author: Hardik Pandya (https://hvpandya.com)
@@ -24,7 +24,7 @@ Eliminate predictable AI writing patterns from prose.
 
 This skill governs persisted prose: commit messages, code comments, docs,
 READMEs, issue and PR text, and anything published. The global prompt overlay in
-`~/.jcode/prompt-overlay.md` governs chat replies, and it wins there. Do not
+`~/.claude/CLAUDE.md` governs chat replies, and it wins there. Do not
 apply the rhythm and reader-in-the-room advice below to a terse chat answer.
 
 The two agree where they overlap: no em dashes, no filler, no adverb padding.

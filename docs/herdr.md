@@ -25,23 +25,6 @@ herdr renders Kitty graphics from pane output into the outer terminal (Ghostty).
 changed default cannot silently turn images off. The older
 `experimental.kitty_graphics` key is still accepted, and `terminal.*` wins.
 
-Images worked in Ghostty but not in jcode under herdr because of jcode's
-detection, not herdr. herdr sets `TERM=xterm-256color` and
-`TERM_PROGRAM=herdr` in panes and strips the outer terminal markers, so jcode's
-env based check sees no graphics terminal. A Kitty graphics query from inside a
-pane is answered correctly (`ESC _ G i=31;OK`), so herdr does pass images.
-
-The fix is on the jcode side, in `modules/agents/jcode.nix`: when `HERDR_ENV` is
-set, zsh exports `JCODE_MERMAID_PICKER_PROBE=1`. jcode then asks the terminal
-what it supports and gets Kitty. It is limited to herdr because the probe can
-block startup for up to two seconds on a terminal that never answers.
-
-Verified by running `JCODE_MERMAID_PICKER_PROBE=1 jcode` in a herdr pane: the
-jcode log shows `stdio probe detected protocol: Kitty`, against
-`multiplexer=herdr env_protocol=None` without the variable. Panes opened before
-the change need a new shell, or `export JCODE_MERMAID_PICKER_PROBE=1` before
-starting jcode.
-
 ## Updates
 
 herdr is updated through nix only, by bumping nixpkgs (`nix flake update nixpkgs`).

@@ -65,9 +65,9 @@ Example, destructive op:
 >
 > Caveman resume. Verify backup exist first.
 
-## MCP tools are deferred, not absent
+## MCP tools
 
-MCP server tools load on demand, so most of them are not in the visible tool list until searched. Connected servers always include Linear, Sentry, Exa (web search and fetch) and computer-use (Linux desktop control), plus any project servers named in AGENTS.md (for example Supabase, Vercel, Stripe). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, search the MCP tools (tool search, or `mcp_search` with the server name) and call the matching tool. Prefer the MCP tool over a CLI equivalent whenever one exists.
+Configured servers include Linear, Sentry, Exa (web search and fetch) and desktop (Linux desktop control). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, check the available MCP tools and call the matching one. Prefer the MCP tool over a CLI equivalent whenever one exists.
 
 ## Boundaries
 

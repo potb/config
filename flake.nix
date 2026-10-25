@@ -87,14 +87,8 @@
       flake = false;
     };
 
-    jcode = {
-      url = "github:1jehuang/jcode";
-      flake = false;
-    };
-
-    drowse = {
-      url = "github:figsoda/drowse";
-      inputs.nixpkgs.follows = "nixpkgs";
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
     };
 
     tsm-app = {

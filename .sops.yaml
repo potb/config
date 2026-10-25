@@ -6,7 +6,7 @@ keys:
   - &potb-kerberos age1m56zthy8d4a49fe943eu56mj6npgw7y2w98y5lgd0yyec0k2rspsguh5xv
 
 creation_rules:
-  - path_regex: secrets/jcode\.yaml$
+  - path_regex: secrets/agents\.yaml$
     key_groups:
       - age:
           - *admin
