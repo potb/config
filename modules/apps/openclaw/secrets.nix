@@ -56,6 +56,16 @@ in {
             restartUnits = ["owntracks-receiver.service"];
           };
 
+          # Bearer token for GET /latest and GET /history. Not the Basic
+          # password: tagged nodes have no Tailscale-User-Login. Create the
+          # key in secrets/new-horizons.yaml before deploying.
+          owntracks-read-token = {
+            owner = "owntracks";
+            group = "owntracks";
+            mode = "0400";
+            restartUnits = ["owntracks-receiver.service"];
+          };
+
           transit-prim-api-key = {
             sopsFile = ../../../secrets/transit.yaml;
             key = "prim-api-key";
