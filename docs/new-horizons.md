@@ -314,10 +314,19 @@ The phone has to be on this tailnet as the owner. The Shortcut does not set
 
 `_type`, `lat` and `lon` are required. `tid` should be `sc` so the fix is
 distinguishable from the app. `acc`, `tst`, `batt` and `alt` may be omitted,
-and any number may be a JSON number or a string (`"48,85"` as well as
-`"48.85"`). A missing or unreadable `tst` becomes the receiver's clock. A
-`tst` of at least 100000000000 is treated as milliseconds. Other OwnTracks
-fields (`vel`, `cog`, `bs`, `t`, `m`, …) are stored when present. `latest.json`
+and any number may be a JSON number or a string (`"48,856613"` as well as
+`"48.856613"`). In the Shortcuts JSON builder, lat and lon need to be Text.
+A Number field in a French locale turns the coordinate text `48,856613` into
+the integer 48 before the request is sent, while altitude, already a real
+number, keeps its fraction. The receiver stores the number it is given and
+does not drop a fractional part. A missing or unreadable `tst` becomes the
+receiver's clock. A `tst` of at least 100000000000 is treated as milliseconds.
+Serve sometimes forwards the Shortcut body as chunked encoding with no
+Content-Length. The receiver reads that framing before it answers; closing
+first drops the phone's upload and stores nothing. A form body, or `lat` and
+`lon` on the `/pub` query string, is used when the body is not a JSON location.
+Other OwnTracks fields (`vel`, `cog`, `bs`, `t`, `m`, …) are stored when
+present. `latest.json`
 keeps the fix with the greatest `tst`, including when an older one arrives
 later. A fix within 25 m and 60 s of that latest fix is not appended to
 `history.jsonl`; if it is newer, it still replaces `latest.json`.

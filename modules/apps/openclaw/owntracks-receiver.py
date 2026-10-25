@@ -10,8 +10,11 @@
 #   {"_type":"location","lat":48.8566,"lon":2.3522,"acc":12,"tst":1710000000,"tid":"sc","batt":80,"alt":35}
 #
 # _type, lat and lon are required. acc, tst, batt and alt may be omitted.
-# Numbers may be JSON numbers or strings ("48.85" or "48,85"). A missing or
-# unreadable tst uses the server clock. tst >= 1e11 is treated as milliseconds.
+# Numbers may be JSON numbers or strings ("48.856613" or "48,856613"). A missing
+# or unreadable tst uses the server clock. tst >= 1e11 is treated as milliseconds.
+# A chunked body with no Content-Length is read in full before the response.
+# application/x-www-form-urlencoded, and lat/lon on the /pub query string, are
+# accepted when the body is not a JSON location.
 # tid "sc" marks a Shortcut fix. Optional OwnTracks fields (vel, cog, bs, t, m,
 # …) are stored when present. latest.json keeps the greatest tst. A fix within
 # 25 m and 60 s of that latest fix is not appended to history.jsonl; a newer
@@ -64,6 +67,7 @@ REGION_RENEW_S = 48 * 3600
 ERR_UNAUTH = b'{"error":"unauthorized"}'
 ERR_BAD_LENGTH = b'{"error":"bad length"}'
 ERR_TOO_LARGE = b'{"error":"too large"}'
+ERR_BAD_BODY = b'{"error":"bad body"}'
 ERR_BAD_LOCATION = b'{"error":"bad location"}'
 ERR_NO_POSITION = b'{"error":"no position"}'
 REPORT_CMD = b'[{"_type":"cmd","action":"reportLocation"}]'
@@ -422,9 +426,51 @@ def dump(obj):
     return json.dumps(obj, ensure_ascii=False).encode()
 
 
+def note(msg):
+    # Journal via stderr. Messages are fixed phrases: no coordinates, no headers.
+    print(f"owntracks-receiver: {msg}", file=sys.stderr, flush=True)
+
+
+class BodyError(Exception):
+    def __init__(self, code, reason):
+        self.code = code
+        self.reason = reason
+
+
+LOCATION_FIELDS = ("lat", "lon", "acc", "alt", "tst", "tid", "batt", "vel", "cog", "bs", "t")
+
+
+def message_from_pairs(pairs):
+    lat = pairs.get("lat")
+    lon = pairs.get("lon")
+    if lat in (None, "") or lon in (None, ""):
+        return None
+    msg = {"_type": "location", "lat": lat, "lon": lon}
+    for key in LOCATION_FIELDS:
+        if key in ("lat", "lon"):
+            continue
+        value = pairs.get(key)
+        if value not in (None, ""):
+            msg[key] = value
+    return msg
+
+
+def pairs_from_query(qs):
+    return {key: values[0] for key, values in qs.items() if values}
+
+
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
     server_version = "owntracks-receiver"
     sys_version = ""
+
+    def setup(self):
+        super().setup()
+        self.request.settimeout(30)
+
+    def log_error(self, fmt, *args):
+        if args and isinstance(args[0], TimeoutError):
+            note("connection timed out")
 
     def reply(self, code, body=b"[]"):
         if isinstance(body, str):
@@ -433,8 +479,70 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
+        if self.close_connection:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+
+    def read_exact(self, count):
+        buf = bytearray()
+        while len(buf) < count:
+            piece = self.rfile.read(count - len(buf))
+            if not piece:
+                raise BodyError(400, "truncated body")
+            buf.extend(piece)
+        return bytes(buf)
+
+    def read_chunked(self):
+        buf = bytearray()
+        while True:
+            line = self.rfile.readline(80)
+            if not line.endswith(b"\n"):
+                raise BodyError(400, "bad chunked encoding")
+            token = line.split(b";", 1)[0].strip()
+            try:
+                size = int(token, 16)
+            except ValueError:
+                raise BodyError(400, "bad chunked encoding")
+            if size < 0:
+                raise BodyError(400, "bad chunked encoding")
+            if size == 0:
+                for _ in range(16):
+                    trailer = self.rfile.readline(1024)
+                    if trailer in (b"\r\n", b"\n"):
+                        return bytes(buf)
+                    if not trailer.endswith(b"\n"):
+                        raise BodyError(400, "bad chunked encoding")
+                raise BodyError(400, "bad chunked encoding")
+            if len(buf) + size > MAX_BODY:
+                raise BodyError(413, "body too large")
+            buf.extend(self.read_exact(size))
+            if self.read_exact(2) != b"\r\n":
+                raise BodyError(400, "bad chunked encoding")
+
+    def read_body(self):
+        codings = [part.strip().lower() for part in self.headers.get("Transfer-Encoding", "").split(",") if part.strip()]
+        if codings:
+            if codings != ["chunked"]:
+                raise BodyError(400, "unsupported transfer encoding")
+            return self.read_chunked()
+        raw_length = self.headers.get("Content-Length")
+        if raw_length is None:
+            return b""
+        try:
+            length = int(raw_length)
+        except ValueError:
+            raise BodyError(400, "bad length")
+        if length < 0:
+            raise BodyError(400, "bad length")
+        if length > MAX_BODY:
+            raise BodyError(413, "body too large")
+        if length == 0:
+            return b""
+        return self.read_exact(length)
+
+    def content_type(self):
+        return self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
 
     def route(self):
         parsed = urlparse(self.path)
@@ -458,7 +566,10 @@ class Handler(BaseHTTPRequestHandler):
         if kind == "location":
             rec = record_of(msg, device)
             if rec is None:
+                note("rejected location: coordinates missing or unusable")
                 return 400
+            if float(rec["lat"]).is_integer() and float(rec["lon"]).is_integer():
+                note("stored location with integral lat and lon")
             with _lock:
                 store(rec)
                 request_region_for(rec)
@@ -469,33 +580,91 @@ class Handler(BaseHTTPRequestHandler):
             return 200
         return 200
 
+    def reject_body(self, err):
+        self.close_connection = True
+        note(f"rejected body: {err.reason}")
+        if err.code == 413:
+            return self.reply(413, ERR_TOO_LARGE)
+        if err.reason == "bad length":
+            return self.reply(400, ERR_BAD_LENGTH)
+        return self.reply(400, ERR_BAD_BODY)
+
+    def interpret(self, raw, qs, path):
+        # JSON wins when the body is a JSON object, including when a client
+        # labels that object as a form. A real form is not valid JSON.
+        if raw.strip():
+            try_json = self.content_type() != "application/x-www-form-urlencoded" or raw.lstrip()[:1] in (b"{", b"[")
+            if try_json:
+                try:
+                    msg = json.loads(raw)
+                except ValueError:
+                    msg = None
+                if isinstance(msg, dict):
+                    return self.ingest(msg)
+            if self.content_type() == "application/x-www-form-urlencoded" and b"=" in raw:
+                try:
+                    parsed = parse_qs(raw.decode("utf-8"), keep_blank_values=True, max_num_fields=32)
+                except (UnicodeError, ValueError):
+                    note("rejected form: undecodable")
+                    return 400
+                msg = message_from_pairs(pairs_from_query(parsed))
+                if msg is None:
+                    note("rejected form: no coordinates")
+                    return 400
+                return self.ingest(msg)
+            fallback = message_from_pairs(pairs_from_query(qs)) if path == "/pub" else None
+            if fallback is not None:
+                return self.ingest(fallback)
+            note("ignored body: not json")
+            return 200
+        if path == "/pub":
+            fallback = message_from_pairs(pairs_from_query(qs))
+            if fallback is not None:
+                return self.ingest(fallback)
+        return 200
+
     def do_POST(self):
-        path, _qs = self.route()
+        try:
+            self.handle_post()
+        except BodyError as err:
+            self.reject_body(err)
+        except Exception as exc:
+            self.close_connection = True
+            note(f"ingest failed: {type(exc).__name__}")
+            try:
+                self.reply(500, b'{"error":"internal"}')
+            except Exception:
+                return
+
+    def discard_body(self):
+        # Read a small body before rejecting so the socket is not closed with
+        # unread bytes, which the client reports as a dropped connection.
+        try:
+            self.read_body()
+        except BodyError:
+            self.close_connection = True
+
+    def handle_post(self):
+        path, qs = self.route()
         if path == "/request":
             if not (self.read_authorized() or self.write_authorized()):
+                self.close_connection = True
+                note("rejected write: unauthorized")
+                self.discard_body()
                 return self.reply(401, ERR_UNAUTH)
+            self.read_body()
             with _lock:
                 request_report()
             return self.reply(200, b'{"ok":true}')
         if not self.write_authorized():
+            self.close_connection = True
+            note("rejected write: unauthorized")
+            self.discard_body()
             return self.reply(401, ERR_UNAUTH)
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-        except ValueError:
-            return self.reply(400, ERR_BAD_LENGTH)
-        if length < 0:
-            return self.reply(400, ERR_BAD_LENGTH)
-        if length > MAX_BODY:
-            return self.reply(413, ERR_TOO_LARGE)
-        raw = self.rfile.read(length) if length else b""
-        code = 200
-        if raw.strip():
-            try:
-                msg = json.loads(raw)
-            except ValueError:
-                msg = None
-            if isinstance(msg, dict):
-                code = self.ingest(msg)
+        raw = self.read_body()
+        code = self.interpret(raw, qs, path)
+        if code == 400:
+            return self.reply(400, ERR_BAD_LOCATION)
         if code != 200:
             return self.reply(code, ERR_BAD_LOCATION)
         with _lock:
