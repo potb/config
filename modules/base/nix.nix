@@ -100,6 +100,7 @@ in {
     # per-command ones mean `nh os switch` and `nh darwin switch` need no
     # argument on the machine they apply to.
     programs.nh.enable = true;
+    programs.nh.package = inputs.nh.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
     linux.programs.nh.osFlake = "/home/potb/projects/potb/config";
     darwin.programs.nh.darwinFlake = "/Users/potb/projects/potb/config";
