@@ -8,7 +8,6 @@
   darwin = {};
 
   home = {
-    config,
     lib,
     pkgs,
     ...
@@ -19,10 +18,10 @@
     jq = "${pkgs.jq}/bin/jq";
 
     settings = {
-      model = "opusplan";
+      model = "sonnet";
       modelSettings = {
-        claude-opus-5-5.effortLevel = "high";
-        claude-sonnet-5-5.effortLevel = "high";
+        claude-opus-5-5.effortLevel = "medium";
+        claude-sonnet-5-5.effortLevel = "medium";
       };
       tui = "fullscreen";
       theme = "light";
@@ -43,15 +42,6 @@
 
     mcpServers =
       {
-        exa = {
-          type = "stdio";
-          command = "/bin/sh";
-          args = [
-            "-c"
-            "exec ${pkgs.bun}/bin/bunx -y mcp-remote 'https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,web_search_advanced_exa,agent_run' --header \"x-api-key:$(cat ${config.sops.secrets.exa-api-key.path})\""
-          ];
-          env = {};
-        };
         sentry = {
           type = "http";
           url = "https://mcp.sentry.dev/mcp";
@@ -69,17 +59,17 @@
     settingsFile = pkgs.writeText "claude-settings.json" (builtins.toJSON settings);
     mcpFile = pkgs.writeText "claude-mcp.json" (builtins.toJSON mcpServers);
   in {
-    home.packages =
-      [llmAgents.claude-code]
-      ++ lib.optional isLinux (llmAgents.claude-desktop.override {
-        commandLineArgs = "--password-store=gnome-libsecret";
-      });
-
-    sops = {
-      defaultSopsFile = ../../secrets/agents.yaml;
-      age.sshKeyPaths = ["${config.home.homeDirectory}/.ssh/id_ed25519"];
-      secrets.exa-api-key = {};
-    };
+    home.packages = [
+      llmAgents.claude-code
+      (
+        if isLinux
+        then
+          llmAgents.claude-desktop.override {
+            commandLineArgs = "--password-store=gnome-libsecret";
+          }
+        else llmAgents.claude-desktop
+      )
+    ];
 
     home.file.".claude/CLAUDE.md".source = ./claude/CLAUDE.md;
     home.file.".claude/skills" = {

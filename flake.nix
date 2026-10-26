@@ -82,11 +82,6 @@
       flake = false;
     };
 
-    agent-browser = {
-      url = "github:vercel-labs/agent-browser/v0.31.1";
-      flake = false;
-    };
-
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
     };

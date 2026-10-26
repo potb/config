@@ -67,7 +67,7 @@ Example, destructive op:
 
 ## MCP tools
 
-Configured servers include Linear, Sentry, Exa (web search and fetch) and desktop (Linux desktop control). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, check the available MCP tools and call the matching one. Prefer the MCP tool over a CLI equivalent whenever one exists.
+Configured servers include Linear, Sentry and desktop (Linux desktop control). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, check the available MCP tools and call the matching one. Prefer the MCP tool over a CLI equivalent whenever one exists.
 
 ## Boundaries
 

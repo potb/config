@@ -47,6 +47,11 @@
         CXX = "${pkgs.stdenv.cc}/bin/c++";
       };
 
+    targets.darwin = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+      copyApps.enable = true;
+      linkApps.enable = false;
+    };
+
     home.stateVersion = "25.05";
   };
 }
