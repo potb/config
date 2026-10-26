@@ -755,7 +755,6 @@
               trust.taps = [
                 "nikitabobko/tap"
                 "asmvik/formulae"
-                "jaisonerick/tap"
                 "potb/tap"
               ];
             };
