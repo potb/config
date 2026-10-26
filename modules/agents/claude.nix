@@ -15,6 +15,7 @@
     system = pkgs.stdenv.hostPlatform.system;
     llmAgents = inputs.llm-agents.packages.${system};
     isLinux = pkgs.stdenv.hostPlatform.isLinux;
+    isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
     jq = "${pkgs.jq}/bin/jq";
 
     settings = {
@@ -53,6 +54,13 @@
           command = "${pkgs.computer-use-linux}/bin/computer-use-linux";
           args = ["mcp"];
           env.YDOTOOL_SOCKET = "/run/ydotoold/socket";
+        };
+      }
+      // lib.optionalAttrs isDarwin {
+        desktop = {
+          type = "stdio";
+          command = "${pkgs.nodejs}/bin/npx";
+          args = ["-y" "mac-mcp-server@0.1.3"];
         };
       };
 
