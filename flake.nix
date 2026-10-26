@@ -705,7 +705,6 @@
           "base"
           "gui"
           "desktop-apps"
-          "leisure"
           "dev"
           "containers"
           "agents"
