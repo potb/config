@@ -1,5 +1,5 @@
 {
-  description = "NixOS and nix-darwin configuration for charon, kerberos, nyx and new-horizons";
+  description = "NixOS and nix-darwin configuration for charon, kerberos and nyx";
 
   inputs = {
     nixpkgs = {
@@ -69,15 +69,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    sops-nix = {
-      url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nix-openclaw = {
-      url = "github:openclaw/nix-openclaw";
-    };
-
     qwerty-fr = {
       url = "github:qwerty-fr/qwerty-fr/v0.7.3";
       flake = false;
@@ -99,11 +90,6 @@
 
     wispr-flow-linux = {
       url = "github:wispr-flow-linux/wispr-flow-linux";
-      flake = false;
-    };
-
-    openclaw-icloud-calendar = {
-      url = "github:omarshahine/openclaw-icloud-calendar/558af234b43bf9b832f15aaf65f7862781fba400";
       flake = false;
     };
 
@@ -288,8 +274,6 @@
       exit-node-client = ./modules/exit-node-client;
       hardened = ./modules/hardened;
       lan = ./modules/lan;
-      openclaw = ./modules/apps/openclaw;
-      transit = ./modules/apps/transit;
       darwin = ./modules/darwin;
     };
 
@@ -380,7 +364,6 @@
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [
                 inputs.nixvim.homeModules.nixvim
-                inputs.sops-nix.homeManagerModules.sops
               ];
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.backupFileExtension = "backup";
@@ -558,62 +541,6 @@
           deadnix --fail --no-lambda-pattern-names --no-lambda-arg
           touch $out
         '';
-
-      openclaw-config = let
-        pkgs = nixpkgs.legacyPackages.${system};
-        gateway = self.nixosConfigurations.new-horizons.config.services.openclaw-gateway;
-        generated = pkgs.writeText "openclaw-config.json" (
-          builtins.unsafeDiscardStringContext (builtins.toJSON gateway.config)
-        );
-      in
-        pkgs.runCommand "openclaw-config-check"
-        {
-          nativeBuildInputs = [
-            pkgs.python3
-          ];
-        }
-        ''
-          gzip -dc ${./checks/openclaw-config-schema.json.gz} > schema.json
-          python3 ${./scripts/validate-openclaw-config.py} ${generated} schema.json
-          touch $out
-        '';
-
-      openclaw-schema-current = let
-        pkgs = nixpkgs.legacyPackages.${system};
-        gateway = self.nixosConfigurations.new-horizons.config.services.openclaw-gateway;
-      in
-        if system != gateway.package.stdenv.hostPlatform.system
-        then pkgs.runCommand "openclaw-schema-current-skipped" {} "touch $out"
-        else
-          pkgs.runCommand "openclaw-schema-current-check"
-          {
-            nativeBuildInputs = [
-              pkgs.python3
-              gateway.package
-            ];
-          }
-          ''
-            export HOME=$TMPDIR
-            openclaw config schema > live.json
-            gzip -dc ${./checks/openclaw-config-schema.json.gz} > pinned.json
-            python3 ${./scripts/compare-openclaw-schema.py} pinned.json live.json
-            touch $out
-          '';
-
-      owntracks-receiver = let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-        pkgs.runCommand "owntracks-receiver-check"
-        {
-          nativeBuildInputs = [pkgs.python3];
-        }
-        ''
-          export TZDIR=${pkgs.tzdata}/share/zoneinfo
-          python3 ${./scripts/test-owntracks-receiver.py} \
-            ${./modules/apps/openclaw/owntracks-receiver.py} \
-            ${./modules/apps/openclaw/loc.py}
-          touch $out
-        '';
     });
 
     nixosConfigurations = {
@@ -668,30 +595,6 @@
               inputs.nixos-apple-silicon.overlays.apple-silicon-overlay
             ];
           }
-        ];
-      };
-
-      # Headless VPS hosting the OpenClaw assistant. Takes `common` for a
-      # working shell and `server` for everything the agent needs; no desktop
-      # set, so nothing pulls in a graphical stack.
-      new-horizons = mkHost {
-        hostname = "new-horizons";
-        system = "x86_64-linux";
-        platform = "nixos";
-        sets = [
-          "base"
-          "linux"
-          "hardened"
-          "tailscale"
-          "exit-node-client"
-          "openclaw"
-          "transit"
-        ];
-        homeDirectory = "/home/potb";
-        extraModules = [
-          disko.nixosModules.disko
-          inputs.sops-nix.nixosModules.sops
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
         ];
       };
     };

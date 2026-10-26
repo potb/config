@@ -24,7 +24,6 @@ result-*
 .sisyphus
 .omo
 docs/*
-!docs/new-horizons.md
 !docs/kerberos.md
 !docs/upstream-warnings.md
 !docs/herdr.md
