@@ -42,6 +42,12 @@
 
     nix-homebrew = {
       url = "github:zhaofengli/nix-homebrew";
+      inputs.brew-src.follows = "brew-src";
+    };
+
+    brew-src = {
+      url = "github:Homebrew/brew/7.0.11";
+      flake = false;
     };
 
     homebrew-core = {
@@ -61,6 +67,7 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     disko = {
@@ -704,7 +711,6 @@
           "base"
           "gui"
           "desktop-apps"
-          "leisure"
           "dev"
           "containers"
           "agents"
@@ -755,7 +761,6 @@
               trust.taps = [
                 "nikitabobko/tap"
                 "asmvik/formulae"
-                "jaisonerick/tap"
                 "potb/tap"
               ];
             };

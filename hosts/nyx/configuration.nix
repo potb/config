@@ -33,6 +33,10 @@
     reattach = true;
   };
 
+  security.pki.caCertificateBlacklist = [
+    "Comodo AAA Services root"
+  ];
+
   system.defaults = {
     NSGlobalDomain = {
       # Keyboard settings (KEEP EXISTING - custom qwerty-fr layout)

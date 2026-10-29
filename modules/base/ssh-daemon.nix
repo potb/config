@@ -1,4 +1,7 @@
-{...}: {
+{...}: let
+  keys = import ../../shared/keys.nix;
+  onePasswordAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
+in {
   nixos = {
     services.openssh = {
       enable = true;
@@ -20,7 +23,7 @@
   };
 
   darwin = {
-    services.openssh.enable = true;
+    services.openssh.enable = false;
   };
 
   home = {
@@ -53,8 +56,24 @@
       programs.ssh.settings."github.com".IdentityFile = "~/.ssh/id_ed25519";
     };
 
-    darwin = {
-      programs.ssh.settings."github.com".IdentityFile = "~/.ssh/id_ed25519_nyx";
+    darwin = {osConfig, ...}: let
+      host = osConfig.networking.hostName;
+      publicKey = ".ssh/id_ed25519_${host}.pub";
+    in {
+      home.file.${publicKey}.text = keys.${host} + "\n";
+
+      programs.ssh.settings = {
+        "*" = {
+          IdentityAgent = onePasswordAgent;
+          IdentityFile = "~/${publicKey}";
+          IdentitiesOnly = true;
+        };
+
+        "gitlab.com" = {
+          HostName = "gitlab.com";
+          User = "git";
+        };
+      };
     };
   };
 }
