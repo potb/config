@@ -317,6 +317,17 @@ machine's user SSH key (`~/.ssh/id_ed25519`, listed in `shared/keys.nix`)
 converted with `ssh-to-age`. A new machine needs its key added to
 `.sops.yaml` and the file re-keyed with `sops updatekeys secrets/jcode.yaml`.
 
+The TypeSafe key for Jev memory recall is rendered as `typesafe.env` into
+jcode's provider config directory. jcode resolves that through the platform
+config dir, so it is `~/.config/jcode` on Linux but
+`~/Library/Application Support/jcode` on macOS. Rendering it to `~/.config`
+on a Mac leaves jcode reporting "No credential for the selected Jev provider
+typesafe".
+
+The Linear and Sentry servers are remote MCP endpoints bridged through
+`mcp-remote`, which handles OAuth in the browser on first use and caches the
+token under `~/.mcp-auth`. Neither needs a secret in this repo.
+
 ## Computer use on Linux
 
 jcode ships desktop control only for macOS (`macos_computer_use`). Linux
@@ -360,6 +371,95 @@ Traps:
   change, restart jcode (or the MCP) before clicking by coordinates.
 - Chords go through `ydotool` keycodes. On qwerty-fr, `ctrl+a` and `Return`
   were verified; layout-dependent symbols in chords may map differently.
+
+## Local patches
+
+`overlays/custom-packages.nix` applies these patches to the flake input, in
+order, through `pkgs.applyPatches` in `package.nix`:
+
+- `no-macos-option-char-shortcuts.patch`: `JCODE_NO_MACOS_OPTION_CHAR_SHORTCUTS`
+  disables the translation of macOS Option+Shift characters into Alt
+  shortcuts.
+- `claude-account-auth-lock.patch`: serialized `auth.json` writes for Claude
+  accounts, and one usage report per account.
+- `keep-swarm-workers-alive.patch`: a swarm worker's turn survives its terminal
+  being closed.
+
+### Claude account auth lock
+
+This used to be a full account failover patch. Upstream rewrote that area
+after `29d17a9`: `provider/stream_start.rs` now waits for the first transport
+event so a 429 inside the stream reaches the router (the bug behind issues
+#1130 and #1612), and failover between pool accounts goes through cancelable
+countdown prompts. The old patch no longer applied and overlapped upstream, so
+the failover half was dropped. Upstream's behaviour is now the failover
+behaviour: it asks first (`[provider].cross_provider_failover = "countdown"`)
+where the old patch switched unattended. Not yet tested against a real limit.
+
+What remains is what upstream still lacks:
+
+- Every read-modify-write of `~/.jcode/auth.json` for Claude accounts holds a
+  process mutex and an `flock` on `auth.json.lock`, so an account switch can
+  no longer overwrite a refresh token that another session rotated at the same
+  moment. Desktop writes through the same `jcode-base` code.
+- A usage report keeps one entry per account when the active marker moves, so
+  `/usage` does not list the same account twice.
+
+The patch is generated against the pinned revision (`git diff <locked rev>
+HEAD`). When `scripts/update-jcode` moves the input and the patch stops
+applying, the `jcode-source-patched` build fails with the rejected hunks:
+rebase it, or drop it once upstream ships the same behaviour.
+
+### Keeping swarm workers alive
+
+A visible swarm worker is an ordinary session with a TUI client attached over a
+socket. Upstream aborts the running turn and marks the session `Crashed` when
+that socket closes, unless the client asked to continue on disconnect. Only the
+native SSH client asks, so closing the terminal of a local worker mid turn threw
+away the work its coordinator was waiting on.
+
+This patch makes the server retain the turn when the disconnecting session is a
+spawned worker, meaning its swarm member has `report_back_to_session_id` set.
+Root sessions have no spawner and keep the abort behaviour. The retained turn
+uses the path that already exists for SSH: the connection is detached, the turn
+runs to completion, and its result is reported to the coordinator as usual.
+
+What it changes, all in `server/client_lifecycle.rs`:
+
+- `is_spawned_worker` reads the swarm member for the session.
+- The disconnect path takes the retain branch when `continue_on_disconnect` or
+  `is_spawned_worker` holds, instead of `continue_on_disconnect` alone.
+- A client that reattaches to a worker and sends a prompt gets its stdin channel
+  restored under the same condition, so tools that ask for input in later turns
+  reach the new terminal instead of the dead one.
+
+Behaviour after the patch:
+
+- Close the terminal of a worker mid turn: the turn finishes and reports back.
+  `jcode --resume <session-id>` attaches to the live turn.
+- Close the terminal of an idle worker: unchanged, the session is saved and can
+  be resumed.
+- Ctrl+C and Esc still cancel, because they send an explicit cancel request
+  rather than closing the socket. `swarm stop` is unaffected.
+- A permission or stdin prompt raised while no terminal is attached does not
+  migrate: its pending response fails closed, as in the SSH case. A worker that
+  needs approval stays stuck until a terminal reattaches.
+- Root sessions and coordinators are unchanged.
+
+Three tests in `client_lifecycle_tests.rs` drive a real socket connection with a
+slow provider and drop the client mid turn. A worker's turn must finish and its
+spawner must receive the completion notification, whether the turn was started
+by a prompt or by a soft interrupt. A root session's turn must still be
+aborted. Reverting the fix makes both worker tests fail.
+
+`server::client_lifecycle::tests::sdk_socket_configure_list_callback_and_busy_rejection`
+fails with a 5 second timeout on the unpatched pinned revision as well, so this
+patch does not cause it.
+
+The patch is generated from the `fix/keep-swarm-workers-alive` branch against
+the pinned revision with the other two patches applied. After `nix flake update
+jcode`, rebase that branch and regenerate it; drop it once upstream ships
+equivalent behaviour.
 
 ## Updating
 
