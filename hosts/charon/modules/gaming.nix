@@ -11,5 +11,12 @@
 
   environment.systemPackages = with pkgs; [
     tsm-app
+
+    mangohud
+    amdgpu_top
+    nvtopPackages.amd
+    sysstat
+    file
+    protontricks
   ];
 }
