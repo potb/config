@@ -38,11 +38,13 @@ in {
         substituters = [
           "https://cache.nixos.org"
           "https://hyprland.cachix.org"
+          "https://cache.numtide.com"
         ];
 
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+          "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         ];
         builders-use-substitutes = true;
       };
@@ -98,6 +100,7 @@ in {
     # per-command ones mean `nh os switch` and `nh darwin switch` need no
     # argument on the machine they apply to.
     programs.nh.enable = true;
+    programs.nh.package = inputs.nh.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
     linux.programs.nh.osFlake = "/home/potb/projects/potb/config";
     darwin.programs.nh.darwinFlake = "/Users/potb/projects/potb/config";

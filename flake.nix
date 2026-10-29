@@ -82,19 +82,8 @@
       flake = false;
     };
 
-    agent-browser = {
-      url = "github:vercel-labs/agent-browser/v0.31.1";
-      flake = false;
-    };
-
-    jcode = {
-      url = "github:1jehuang/jcode";
-      flake = false;
-    };
-
-    drowse = {
-      url = "github:figsoda/drowse";
-      inputs.nixpkgs.follows = "nixpkgs";
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
     };
 
     tsm-app = {
@@ -609,6 +598,21 @@
             python3 ${./scripts/compare-openclaw-schema.py} pinned.json live.json
             touch $out
           '';
+
+      owntracks-receiver = let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+        pkgs.runCommand "owntracks-receiver-check"
+        {
+          nativeBuildInputs = [pkgs.python3];
+        }
+        ''
+          export TZDIR=${pkgs.tzdata}/share/zoneinfo
+          python3 ${./scripts/test-owntracks-receiver.py} \
+            ${./modules/apps/openclaw/owntracks-receiver.py} \
+            ${./modules/apps/openclaw/loc.py}
+          touch $out
+        '';
     });
 
     nixosConfigurations = {

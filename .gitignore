@@ -27,7 +27,6 @@ docs/*
 !docs/new-horizons.md
 !docs/kerberos.md
 !docs/upstream-warnings.md
-!docs/jcode.md
 !docs/herdr.md
 !docs/wispr-flow.md
 !docs/gaming.md

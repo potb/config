@@ -17,8 +17,6 @@
     casks = [
       "1password"
       "aldente"
-      "claude"
-      "claude-code"
       "google-drive"
       "granola"
       "karabiner-elements"

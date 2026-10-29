@@ -22,8 +22,6 @@
     lib,
     ...
   }: {
-    # Keep the jcode launcher ahead of any Cargo-installed binary with the
-    # same name while retaining the conventional user tool paths.
     home.sessionPath = [
       "$HOME/.local/bin"
       "$HOME/.cargo/bin"

@@ -62,7 +62,7 @@ in {
     users.users.openclaw.extraGroups = ["owntracks"];
 
     systemd.services.owntracks-receiver = {
-      description = "Receive the phone's position from OwnTracks, loopback on ${toString port}";
+      description = "Receive phone positions from OwnTracks and Shortcuts, loopback on ${toString port}";
       wantedBy = ["multi-user.target"];
       after = ["network.target" "sops-nix.service"];
       wants = ["sops-nix.service"];
@@ -73,6 +73,7 @@ in {
         LOC_PORT = toString port;
         LOC_USER = "owntracks";
         LOC_PASSWORD_FILE = config.sops.secrets.owntracks-password.path;
+        LOC_READ_TOKEN_FILE = config.sops.secrets.owntracks-read-token.path;
         LOC_ALLOWED_LOGINS = "peio.thibault@gmail.com";
       };
 

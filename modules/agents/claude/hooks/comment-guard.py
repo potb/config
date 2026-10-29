@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Block new code comments from jcode edit tools.
-
-Reads the tool input JSON on stdin, extracts only the text the call would add,
-and reports any comment that is not an exempt directive. Exit 2 blocks the call
-and returns stderr to the model; every other outcome allows it.
-"""
 from __future__ import annotations
 
 import json
@@ -12,9 +6,8 @@ import os
 import re
 import sys
 
-EDIT_TOOLS = {"edit", "multiedit", "write", "apply_patch", "patch", "replace"}
+EDIT_TOOLS = {"edit", "multiedit", "write"}
 
-# Extensions whose comments are checked, grouped by lexer family.
 SLASH_STAR = {
     "c", "h", "cc", "cpp", "hpp", "cxx", "m", "mm", "java", "kt", "kts", "scala",
     "swift", "go", "rs", "js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts",
@@ -71,7 +64,6 @@ def is_exempt(raw: str) -> bool:
 
 
 def scan(text: str, ext: str) -> list[str]:
-    """Return raw comment texts found in `text`, skipping strings."""
     if ext in HASH:
         return scan_hash(text, word_start_only=ext in SHELL)
     if ext in SLASH_STAR:
@@ -147,49 +139,17 @@ def text_of(value: object) -> str:
     return value if isinstance(value, str) else ""
 
 
-def replace_target(payload: dict) -> str:
-    path = text_of(payload.get("path"))
-    glob = text_of(payload.get("glob"))
-    if ext_of(path) in SLASH_STAR | HASH or not glob:
-        return path
-    return glob
-
-
-def added_texts(tool: str, payload: dict) -> list[tuple[str, str]]:
-    """Return (path, added text) pairs for the call."""
-    path = text_of(payload.get("file_path") or payload.get("path"))
+def added_texts(tool: str, tool_input: dict) -> list[tuple[str, str]]:
+    path = text_of(tool_input.get("file_path"))
     if tool == "write":
-        return [(path, text_of(payload.get("content")))]
-    if tool in ("edit", "multiedit"):
-        pairs = []
-        if "new_string" in payload:
-            pairs.append((path, text_of(payload.get("new_string"))))
-        for entry in payload.get("edits") or []:
-            if isinstance(entry, dict):
-                pairs.append((path, text_of(entry.get("new_string"))))
-        return pairs
-    if tool == "replace":
-        return [(replace_target(payload), text_of(payload.get("replacement")))]
-    if tool in ("apply_patch", "patch"):
-        return patch_adds(text_of(payload.get("patch_text")))
-    return []
-
-
-def patch_adds(patch: str) -> list[tuple[str, str]]:
-    out, current, buf = [], "", []
-    for line in patch.splitlines():
-        header = re.match(r"^(?:\*\*\* (?:Add|Update) File: |\+\+\+ (?:b/)?)(.+)$", line)
-        if header:
-            if buf:
-                out.append((current, "\n".join(buf)))
-                buf = []
-            current = header.group(1).strip()
-            continue
-        if line.startswith("+") and not line.startswith("+++"):
-            buf.append(line[1:])
-    if buf:
-        out.append((current, "\n".join(buf)))
-    return out
+        return [(path, text_of(tool_input.get("content")))]
+    pairs = []
+    if "new_string" in tool_input:
+        pairs.append((path, text_of(tool_input.get("new_string"))))
+    for entry in tool_input.get("edits") or []:
+        if isinstance(entry, dict):
+            pairs.append((path, text_of(entry.get("new_string"))))
+    return pairs
 
 
 IN_PLACE_EDIT = re.compile(
@@ -217,34 +177,37 @@ def bash_violation(command: str) -> str:
     return ""
 
 
-def check_bash(payload: dict) -> int:
-    reason = bash_violation(text_of(payload.get("command")))
+def check_bash(tool_input: dict) -> int:
+    reason = bash_violation(text_of(tool_input.get("command")))
     if not reason:
         return 0
     sys.stderr.write(
         f"blocked: bash command is a file edit ({reason}).\n"
-        "Edit files with the edit, replace, apply_patch or write tools, not sed, "
-        "perl, or interpreter scripts run from bash. Those tools are what the "
-        "comment guard inspects, so a bash edit also bypasses it.\n"
+        "Edit files with the Edit, MultiEdit or Write tools, not sed, perl, or "
+        "interpreter scripts run from bash. Those tools are what the comment "
+        "guard inspects, so a bash edit also bypasses it.\n"
     )
     return 2
 
 
 def main() -> int:
-    tool = os.environ.get("JCODE_HOOK_TOOL_NAME", "").lower()
-    if tool not in EDIT_TOOLS and tool != "bash":
-        return 0
     try:
         payload = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError:
         return 0
     if not isinstance(payload, dict):
         return 0
+    tool = text_of(payload.get("tool_name")).lower()
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return 0
     if tool == "bash":
-        return check_bash(payload)
+        return check_bash(tool_input)
+    if tool not in EDIT_TOOLS:
+        return 0
 
     offenders: list[str] = []
-    for path, text in added_texts(tool, payload):
+    for path, text in added_texts(tool, tool_input):
         ext = ext_of(path)
         if ext in ("md", "mdx", "rst", "txt"):
             continue
