@@ -45,27 +45,14 @@ in {
     users.users.potb.openssh.authorizedKeys.keys = [keys.nyx];
   };
 
-  darwin = {
-    users.users.potb.openssh.authorizedKeys.keys = [keys.charon];
-  };
+  darwin = {};
 
   home = {
-    linux = {
-      programs.ssh.settings = {
-        nyx = {
-          HostName = "nyx.local";
-          User = "potb";
-          IdentityFile = "~/.ssh/id_ed25519";
-        };
-      };
-    };
-
     darwin = {
       programs.ssh.settings = {
         charon = {
           HostName = "charon.local";
           User = "potb";
-          IdentityFile = "~/.ssh/id_ed25519_nyx";
         };
       };
     };

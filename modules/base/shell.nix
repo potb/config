@@ -45,31 +45,32 @@
       enableCompletion = false;
 
       antidote.enable = true;
-      antidote.plugins = [
-        "mattmc3/ez-compinit"
-        "zsh-users/zsh-completions kind:fpath path:src"
-        "getantidote/use-omz"
-        "ohmyzsh/ohmyzsh path:lib"
-        "ohmyzsh/ohmyzsh path:plugins/colored-man-pages"
-        "ohmyzsh/ohmyzsh path:plugins/common-aliases"
-        "ohmyzsh/ohmyzsh path:plugins/docker"
-        "ohmyzsh/ohmyzsh path:plugins/docker-compose"
-        "ohmyzsh/ohmyzsh path:plugins/extract"
-        "ohmyzsh/ohmyzsh path:plugins/eza"
-        "ohmyzsh/ohmyzsh path:plugins/fancy-ctrl-z"
-        "ohmyzsh/ohmyzsh path:plugins/git"
-        "ohmyzsh/ohmyzsh path:plugins/gpg-agent"
-        "ohmyzsh/ohmyzsh path:plugins/magic-enter"
-        "ohmyzsh/ohmyzsh path:plugins/node"
-        "ohmyzsh/ohmyzsh path:plugins/ssh"
-        "ohmyzsh/ohmyzsh path:plugins/ssh-agent"
-        "ohmyzsh/ohmyzsh path:plugins/sudo"
-        "ohmyzsh/ohmyzsh path:plugins/starship"
-        "ohmyzsh/ohmyzsh path:plugins/transfer"
-        "ohmyzsh/ohmyzsh path:plugins/zoxide"
-        "zsh-users/zsh-autosuggestions"
-        "zdharma-continuum/fast-syntax-highlighting"
-      ];
+      antidote.plugins =
+        [
+          "mattmc3/ez-compinit"
+          "zsh-users/zsh-completions kind:fpath path:src"
+          "getantidote/use-omz"
+          "ohmyzsh/ohmyzsh path:lib"
+          "ohmyzsh/ohmyzsh path:plugins/colored-man-pages"
+          "ohmyzsh/ohmyzsh path:plugins/common-aliases"
+          "ohmyzsh/ohmyzsh path:plugins/docker"
+          "ohmyzsh/ohmyzsh path:plugins/docker-compose"
+          "ohmyzsh/ohmyzsh path:plugins/extract"
+          "ohmyzsh/ohmyzsh path:plugins/eza"
+          "ohmyzsh/ohmyzsh path:plugins/fancy-ctrl-z"
+          "ohmyzsh/ohmyzsh path:plugins/git"
+          "ohmyzsh/ohmyzsh path:plugins/gpg-agent"
+          "ohmyzsh/ohmyzsh path:plugins/magic-enter"
+          "ohmyzsh/ohmyzsh path:plugins/node"
+          "ohmyzsh/ohmyzsh path:plugins/ssh"
+          "ohmyzsh/ohmyzsh path:plugins/sudo"
+          "ohmyzsh/ohmyzsh path:plugins/starship"
+          "ohmyzsh/ohmyzsh path:plugins/transfer"
+          "ohmyzsh/ohmyzsh path:plugins/zoxide"
+          "zsh-users/zsh-autosuggestions"
+          "zdharma-continuum/fast-syntax-highlighting"
+        ]
+        ++ lib.optional pkgs.stdenv.hostPlatform.isLinux "ohmyzsh/ohmyzsh path:plugins/ssh-agent";
 
       initContent = lib.mkBefore ''
         # Reuse the completion dump for 20 hours instead of auditing and
