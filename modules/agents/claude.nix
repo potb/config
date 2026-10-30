@@ -19,11 +19,13 @@
     jq = "${pkgs.jq}/bin/jq";
 
     settings = {
-      model = "sonnet";
+      model = "claude-opus-5-5";
       modelSettings = {
         claude-opus-5-5.effortLevel = "medium";
         claude-sonnet-5-5.effortLevel = "medium";
       };
+      enableWorkflows = true;
+      ultracode = true;
       tui = "fullscreen";
       theme = "light";
       agentPushNotifEnabled = true;
