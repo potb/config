@@ -55,3 +55,16 @@ BIRB_LINUX_CANVAS_ACCELERATION=1 WEBKIT_DMABUF_RENDERER_FORCE_SHM=0 %command%
 
 The game writes its own log to `~/.local/state/birb/console-linux.txt`. The
 `canvas_graphics ... accelerated_2d=` line there confirms whether the switch took.
+
+## Battle.net popups under Hyprland
+
+Battle.net runs as a Proton non-Steam shortcut (window class
+`steam_app_2962204454`). Its Electron/CEF dropdowns and panels render black
+under blur and transparency, so `modules/gui/linux/hyprland.nix` gives that
+class a window rule with `no_blur` and `opaque`.
+
+`xwayland.force_zero_scaling` stays off for the same app. It triggers a
+`desiredGeometry()` bug ([hyprwm/Hyprland#13359](https://github.com/hyprwm/Hyprland/issues/13359))
+where X11 popup buffers only partially fill, showing as black and white split
+boxes in the dropdown menus. The monitor runs at scale 1, so the flag gained
+nothing anyway.

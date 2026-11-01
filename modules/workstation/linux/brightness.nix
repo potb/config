@@ -1,4 +1,8 @@
-{pkgs, ...}: let
+{
+  lib,
+  pkgs,
+  ...
+}: let
   brightnessStep = pkgs.writeShellScript "brightness-step" ''
     set -euo pipefail
     DDCUTIL="${pkgs.ddcutil}/bin/ddcutil"
@@ -21,11 +25,19 @@
     done
     wait
   '';
+
+  lockedExec = key: command: {
+    _args = [
+      key
+      (lib.generators.mkLuaInline "hl.dsp.exec_cmd(${builtins.toJSON command})")
+      {locked = true;}
+    ];
+  };
 in {
   home.linux = {
-    wayland.windowManager.hyprland.settings.bindl = [
-      ", XF86MonBrightnessUp, exec, ${brightnessStep} up"
-      ", XF86MonBrightnessDown, exec, ${brightnessStep} down"
+    wayland.windowManager.hyprland.settings.bind = [
+      (lockedExec "XF86MonBrightnessUp" "${brightnessStep} up")
+      (lockedExec "XF86MonBrightnessDown" "${brightnessStep} down")
     ];
   };
 }

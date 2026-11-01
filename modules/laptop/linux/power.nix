@@ -1,4 +1,16 @@
-{pkgs, ...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: let
+  lockedExec = key: command: {
+    _args = [
+      key
+      (lib.generators.mkLuaInline "hl.dsp.exec_cmd(${builtins.toJSON command})")
+      {locked = true;}
+    ];
+  };
+in {
   nixos = {
     environment.systemPackages = [pkgs.brightnessctl];
 
@@ -14,9 +26,9 @@
   darwin = {};
 
   home.linux = {
-    wayland.windowManager.hyprland.settings.bindl = [
-      ", XF86MonBrightnessUp, exec, ${pkgs.brightnessctl}/bin/brightnessctl set +10%"
-      ", XF86MonBrightnessDown, exec, ${pkgs.brightnessctl}/bin/brightnessctl set 10%-"
+    wayland.windowManager.hyprland.settings.bind = [
+      (lockedExec "XF86MonBrightnessUp" "${pkgs.brightnessctl}/bin/brightnessctl set +10%")
+      (lockedExec "XF86MonBrightnessDown" "${pkgs.brightnessctl}/bin/brightnessctl set 10%-")
     ];
   };
 }

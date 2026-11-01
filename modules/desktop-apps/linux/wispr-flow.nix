@@ -18,8 +18,18 @@ in {
       "x-scheme-handler/wispr-flow" = ["wispr-flow.desktop"];
     };
 
-    wayland.windowManager.hyprland.settings.windowrule = lib.optionals (wispr-flow != []) [
-      "pin on, no_focus on, no_shadow on, no_blur on, border_size 0, match:class ^(wispr-flow)$, match:initial_title ^(Flow Status Indicator)$"
+    wayland.windowManager.hyprland.settings.window_rule = lib.optionals (wispr-flow != []) [
+      {
+        match = {
+          class = "^(wispr-flow)$";
+          initial_title = "^(Flow Status Indicator)$";
+        };
+        pin = true;
+        no_focus = true;
+        no_shadow = true;
+        no_blur = true;
+        border_size = 0;
+      }
     ];
   };
 }
