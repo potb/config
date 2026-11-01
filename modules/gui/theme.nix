@@ -36,5 +36,6 @@ in {
 
   home = {
     manual.manpages.enable = false;
+    stylix.targets.rofi.fonts.enable = false;
   };
 }

@@ -26,20 +26,18 @@ Otherwise, fix the configuration instead.
 
 ## Current entries
 
+None.
+
+## Worked around in this repo
+
 ### `programs.rofi.font`
 
-Stylix sets `programs.rofi.font` in its own rofi target, and home-manager has
-renamed that option to `programs.rofi.settings.font`. Nothing in this repo sets
-it: the only rofi configuration here is `programs.rofi.enable = true` in
-`modules/gui/linux/rofi.nix`.
+Stylix's rofi target still sets `programs.rofi.font`, which home-manager has
+renamed to `programs.rofi.settings.font`. Stylix generates a toggle for each
+argument a target uses, so `modules/gui/theme.nix` turns off only the font part
+with `stylix.targets.rofi.fonts.enable = false` on every platform, since the
+target emits the warning on darwin too, and `modules/gui/linux/rofi.nix` sets
+`programs.rofi.settings.font` from `config.stylix.fonts` itself. Rofi keeps the
+stylix colour theme.
 
-The fix belongs in stylix, which still sets the old name on master as of
-2026-09-17. The alternatives were both worse than acknowledging it:
-
-- `stylix.targets.rofi.enable = false` also drops the colour theme, so rofi
-  would stop matching the rest of the desktop.
-- Setting `programs.rofi.settings.font` here does not help, because the warning
-  fires on stylix's definition of the old option, not on the resulting value.
-
-Remove the entry once a stylix bump stops emitting the warning. The check will
-say so.
+Drop the workaround once stylix sets the new option name.

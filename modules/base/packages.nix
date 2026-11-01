@@ -31,6 +31,7 @@
       lnav
       nmap
       rsync
+      stripe-cli
     ];
 
     home.sessionVariables =
