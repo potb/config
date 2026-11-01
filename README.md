@@ -9,7 +9,6 @@ Personal NixOS and nix-darwin configuration for my machines.
 | `charon` | x86_64-linux | NixOS workstation, game troubleshooting see [docs/gaming.md](docs/gaming.md) |
 | `kerberos` | aarch64-linux | NixOS on Asahi, MacBook Pro M1 Pro, see [docs/kerberos.md](docs/kerberos.md) |
 | `nyx` | aarch64-darwin | macOS (Apple Silicon), keyboard see [docs/nyx-keyboard.md](docs/nyx-keyboard.md) |
-| `new-horizons` | x86_64-linux | NixOS server, see [docs/new-horizons.md](docs/new-horizons.md) |
 
 ## Usage
 
@@ -21,9 +20,6 @@ nh os switch .
 
 # macOS (nyx)
 darwin-rebuild switch --flake .#nyx    # see Setup for the first run
-
-# server (new-horizons): a push to master deploys it, see docs/new-horizons.md
-git push origin master
 
 # kerberos, which must build on kerberos: see docs/kerberos.md
 sudo nixos-rebuild switch --flake .#kerberos
@@ -66,26 +62,23 @@ nix flake check
 │   ├── exit-node-client/  # Egress through an exit node, with fallback
 │   ├── lan/               # Reachable on the LAN and not beyond
 │   ├── hardened/          # Exposed to the internet
-│   ├── apps/              # One directory per application
 │   ├── darwin/            # macOS only
 │   └── lib/               # The package catalog and its channel resolver
 ├── shared/                # Cross-platform odds and ends
 ├── overlays/              # Package overlays
-├── checks/                # Data the flake checks validate against
 ├── scripts/               # Helpers referenced by the checks and docs
 └── docs/                  # Runbooks and the traps worth remembering
 ```
 
 A trait answers "does this machine do X", never "is this machine a Y". Hosts
-compose them, so `new-horizons` and `charon` visibly share `base` and `linux`
+compose them, so `charon` and `kerberos` visibly share `base` and `linux`
 and differ only in what they additionally do:
 
 | Host | Traits |
 |------|--------|
 | `charon` | base linux gui desktop-apps leisure workstation dev containers agents lan tailscale exit-node |
 | `kerberos` | base linux gui desktop-apps laptop dev agents lan tailscale exit-node |
-| `nyx` | base gui desktop-apps leisure dev containers agents lan tailscale darwin |
-| `new-horizons` | base linux hardened tailscale exit-node-client openclaw transit |
+| `nyx` | base gui desktop-apps dev containers agents lan tailscale darwin |
 
 Every trait evaluates on its own. Those that would otherwise need a secrets
 backend declare their own option with a working default instead, so `tailscale`
