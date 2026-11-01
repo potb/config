@@ -5,12 +5,15 @@
   ...
 }: {
   home.linux = {
+    config,
     pkgs,
     lib,
     inputs,
     ...
   }: {
     programs.rofi.enable = true;
+
+    programs.rofi.settings.font = with config.stylix.fonts; "${monospace.name} ${toString sizes.popups}";
 
     systemd.user.services.awww-daemon = {
       Unit = {

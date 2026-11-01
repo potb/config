@@ -490,12 +490,7 @@
             builtins.filter (p: !(p.meta.available or true)) packages
           );
 
-        acknowledgedUpstreamWarnings = [
-          {
-            match = "programs.rofi.font";
-            reason = "stylix sets the renamed option itself, see docs/upstream-warnings.md";
-          }
-        ];
+        acknowledgedUpstreamWarnings = [];
 
         containsLiteral = needle: haystack:
           builtins.length (builtins.split (lib.escapeRegex needle) haystack) > 1;
