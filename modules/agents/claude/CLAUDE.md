@@ -69,6 +69,10 @@ Example, destructive op:
 
 Configured servers include Linear, Sentry and desktop (Linux desktop control). Before concluding a capability is missing, or before reaching for a CLI, curl or a browser to talk to one of these services, check the available MCP tools and call the matching one. Prefer the MCP tool over a CLI equivalent whenever one exists.
 
+## Workflows
+
+Before any Workflow tool call, and before writing any workflow script, load the `workflow-blocks` skill and follow it. Prefer the recipes and blocks in `~/.claude/workflows/` over new scripts, and set an explicit model on every agent.
+
 ## Boundaries
 
 Anything persisted outside chat is written in normal prose: code, comments, commit messages, docs, issue/PR/MR text, memory files, and messages to third parties. The ASCII punctuation rule above applies to that persisted text too. "stop caveman" or "normal mode" reverts, and the mode stays off until re-enabled or the session ends.

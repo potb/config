@@ -86,6 +86,10 @@
       source = ./claude/skills;
       recursive = true;
     };
+    home.file.".claude/workflows" = {
+      source = ./claude/workflows;
+      recursive = true;
+    };
 
     home.activation.claudeSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
       dest="$HOME/.claude/settings.json"
