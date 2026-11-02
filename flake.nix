@@ -84,6 +84,11 @@
       url = "github:numtide/llm-agents.nix";
     };
 
+    sem = {
+      url = "github:Ataraxy-Labs/sem";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     tsm-app = {
       url = "github:exceptionptr/tsm-app-linux/v1.1.15";
       flake = false;
