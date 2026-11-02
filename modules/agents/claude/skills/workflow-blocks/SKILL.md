@@ -23,14 +23,14 @@ Before launching, state in one line which recipe or blocks you chose and why. If
 From the main session, pass a string or an object as args:
 
 ```
-Workflow({ scriptPath: "/home/potb/.claude/workflows/recipes/understand.js", args: "the question" })
-Workflow({ scriptPath: "/home/potb/.claude/workflows/blocks/review.js", args: { cwd, base, profile } })
+Workflow({ scriptPath: "@HOME@/.claude/workflows/recipes/understand.js", args: "the question" })
+Workflow({ scriptPath: "@HOME@/.claude/workflows/blocks/review.js", args: { cwd, base, profile } })
 ```
 
 Inside a script:
 
 ```
-const DIR = '/home/potb/.claude/workflows/blocks/'
+const DIR = '@HOME@/.claude/workflows/blocks/'
 const research = q => workflow({ scriptPath: DIR + 'research.js' }, q)
 ```
 

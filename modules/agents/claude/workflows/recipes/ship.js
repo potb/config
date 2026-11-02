@@ -13,7 +13,7 @@ export const meta = {
 
 const A = args || {}
 if (!A.cwd || !A.base) throw new Error('ship: cwd and base are required')
-const DIRS = A.blocksDir ? [A.blocksDir] : ['.claude/workflows/blocks/', '/home/potb/.claude/workflows/blocks/']
+const DIRS = A.blocksDir ? [A.blocksDir] : ['.claude/workflows/blocks/', '@HOME@/.claude/workflows/blocks/']
 const models = A.models || {}
 const call = async (block, input) => {
   const payload = Object.assign({ models: models[block] }, input)

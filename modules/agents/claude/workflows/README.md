@@ -11,14 +11,14 @@ so blocks are always called by absolute path.
 From the main session:
 
 ```
-Workflow({ scriptPath: "/home/potb/.claude/workflows/blocks/research.js", args: "my question" })
-Workflow({ scriptPath: "/home/potb/.claude/workflows/recipes/ship.js", args: { goal, cwd, base, gates, profile } })
+Workflow({ scriptPath: "@HOME@/.claude/workflows/blocks/research.js", args: "my question" })
+Workflow({ scriptPath: "@HOME@/.claude/workflows/recipes/ship.js", args: { goal, cwd, base, gates, profile } })
 ```
 
 From inside a recipe or any ad hoc script:
 
 ```
-const DIR = '/home/potb/.claude/workflows/blocks/'
+const DIR = '@HOME@/.claude/workflows/blocks/'
 const research = q => workflow({ scriptPath: DIR + 'research.js' }, q)
 const r = await research('can we move X to Y')
 ```
@@ -38,7 +38,7 @@ Every block accepts these, all optional:
 | `models` | override the model per role, for example `{ gather: 'haiku' }` |
 
 Recipes look for blocks in `.claude/workflows/blocks/` relative to the session's working directory first (a project
-copy committed to the repo), then fall back to `/home/potb/.claude/workflows/blocks/`. `blocksDir` forces one folder.
+copy committed to the repo), then fall back to `@HOME@/.claude/workflows/blocks/`. `blocksDir` forces one folder.
 
 Recipes take `models` keyed by block, for example `{ research: { synth: 'sonnet' }, review: { skeptic: 'haiku' } }`,
 and `blocksDir` to point at another copy of the blocks.

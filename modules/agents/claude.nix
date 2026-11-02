@@ -8,10 +8,18 @@
   darwin = {};
 
   home = {
+    config,
     lib,
     pkgs,
     ...
   }: let
+    homeDir = config.home.homeDirectory;
+    withHomeDir = name: src:
+      pkgs.runCommand name {} ''
+        cp -r ${src} $out
+        chmod -R u+w $out
+        find $out -type f -exec sed -i "s|@HOME@|${homeDir}|g" {} +
+      '';
     system = pkgs.stdenv.hostPlatform.system;
     llmAgents = inputs.llm-agents.packages.${system};
     isLinux = pkgs.stdenv.hostPlatform.isLinux;
@@ -83,11 +91,11 @@
 
     home.file.".claude/CLAUDE.md".source = ./claude/CLAUDE.md;
     home.file.".claude/skills" = {
-      source = ./claude/skills;
+      source = withHomeDir "claude-skills" ./claude/skills;
       recursive = true;
     };
     home.file.".claude/workflows" = {
-      source = ./claude/workflows;
+      source = withHomeDir "claude-workflows" ./claude/workflows;
       recursive = true;
     };
 
