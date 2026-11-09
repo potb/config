@@ -56,7 +56,15 @@
 
   buildLinux = builtins.readFile (src + "/scripts/build-linux.sh");
   electronMajor = builtins.head (builtins.match ".*\nELECTRON_MAJOR=\"\\$\\{ELECTRON_MAJOR:-([0-9]+)}\".*" buildLinux);
-  electron = pkgs."electron_${electronMajor}" or (throw "wispr-flow: Wispr Flow now needs Electron ${electronMajor}, which this nixpkgs does not have");
+  nixpkgsElectron = pkgs."electron_${electronMajor}" or (throw "wispr-flow: Wispr Flow now needs Electron ${electronMajor}, which this nixpkgs does not have");
+  electron = nixpkgsElectron.overrideAttrs (old: {
+    meta =
+      old.meta
+      // {
+        knownVulnerabilities =
+          lib.remove "Electron version ${nixpkgsElectron.version} is EOL" (old.meta.knownVulnerabilities or []);
+      };
+  });
 
   installer = fetchurl {
     name = "wispr-flow-setup-${version}.exe";
@@ -300,7 +308,7 @@ in
         --subst-var-by resources $lib/resources \
         --subst-var-by runtimePath ${runtimePath} \
         --subst-var-by xdgMime ${xdg-utils}/bin/xdg-mime \
-        --subst-var-by electronBinary ${electron.unwrapped}/libexec/electron/electron \
+        --subst-var-by electronBinary ${electron.unwrapped or electron}/libexec/electron/electron \
         --subst-var-by electronWrapper $lib/wispr-flow-electron \
         --subst-var-by version ${version}
 

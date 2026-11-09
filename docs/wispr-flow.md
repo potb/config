@@ -60,6 +60,29 @@ redefines `process.resourcesPath` and `app.isPackaged` and then requires
 `desktopName: wispr-flow.desktop`, which makes the Wayland app id
 `wispr-flow` and lets the app find its desktop file.
 
+## End-of-life Electron
+
+Wispr Flow is pinned by upstream to one Electron major (`ELECTRON_MAJOR`), and
+nixpkgs keeps shipping a major after it reaches end of life but marks it
+insecure with the entry "Electron version X is EOL", which stops evaluation.
+Since 2026-11-09 that is the case for Electron 42.
+
+The package accepts this deliberately: it overrides `meta` on its own copy of
+`electron_<major>` and removes only that EOL entry from
+`knownVulnerabilities`. The override changes no derivation, so nothing is
+rebuilt. Any other entry nixpkgs adds, such as a specific CVE, still stops
+evaluation, and the permission does not leak to anything else on the host,
+unlike `nixpkgs.config.permittedInsecurePackages`.
+
+The tradeoff is that the app runs on an Electron that gets no more security
+fixes. Drop the override once wispr-flow-linux moves `ELECTRON_MAJOR` to a
+supported major.
+
+At end of life nixpkgs also points `electron_<major>` at the prebuilt
+`electron_<major>-bin`, which is not a wrapper and has no `unwrapped`
+attribute. The launcher takes the binary from `electron.unwrapped or electron`,
+which resolves to `libexec/electron/electron` in both layouts.
+
 ## Traps
 
 - **The native sqlite addon silently used the wrong sqlite.** nixpkgs'
