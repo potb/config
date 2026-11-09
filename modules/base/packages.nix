@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  inputs,
   ...
 }: {
   nixos = {};
@@ -18,7 +17,7 @@
     programs.jq.enable = true;
 
     home.packages = with pkgs; [
-      inputs.sem.packages.${pkgs.stdenv.hostPlatform.system}.default
+      sem
       herdr-app
 
       fd

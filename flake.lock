@@ -249,11 +249,11 @@
     "dnscrypt-resolvers": {
       "flake": false,
       "locked": {
-        "lastModified": 1793615776,
-        "narHash": "sha256-qjinaFZZ290d9XIpFCY0Cvfld/o0ZDlk4CZXiQj3+nA=",
+        "lastModified": 1794091764,
+        "narHash": "sha256-BE3pouJT6qStvGV3cScPfqBmO2Ch4bNII00cop/4ZXM=",
         "owner": "DNSCrypt",
         "repo": "dnscrypt-resolvers",
-        "rev": "4943cc2b738725ddf61e812eee2dcb1b1d9299a2",
+        "rev": "fb9de448adf22c1bd4c2431a246bb6fa3e4a1d67",
         "type": "github"
       },
       "original": {
@@ -509,11 +509,11 @@
     "homebrew-cask": {
       "flake": false,
       "locked": {
-        "lastModified": 1793993224,
-        "narHash": "sha256-KtRAlJSQ1ipXxzDUPYIv4bKnURryCHwHFAyx3kVSTbY=",
+        "lastModified": 1794214378,
+        "narHash": "sha256-cI0A4wZCNksDyYCtPTJL1I876Vd6JWZmFIlJVGu52GU=",
         "owner": "homebrew",
         "repo": "homebrew-cask",
-        "rev": "ed37e8351d3d5c5c7cfcaee9b8750f7699b6747c",
+        "rev": "862335ef4ab0ed29a7a9c668b4fd4535485666f6",
         "type": "github"
       },
       "original": {
@@ -525,11 +525,11 @@
     "homebrew-core": {
       "flake": false,
       "locked": {
-        "lastModified": 1793990978,
-        "narHash": "sha256-DbbPj1oBxXvq2qsSXRbZ20op4DxSpzduSG5dUkLYOt0=",
+        "lastModified": 1794215126,
+        "narHash": "sha256-mNeWGk0GjOD9DXJSecVOPT0ySIpMAXS9Pe/wMQ4LLeM=",
         "owner": "homebrew",
         "repo": "homebrew-core",
-        "rev": "ebd476e4fa6c2ce313af189b7f795b7e4e8818e5",
+        "rev": "7e759e9c891a03d497c8fd3545210d34948c43e2",
         "type": "github"
       },
       "original": {
@@ -547,11 +547,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1793949034,
-        "narHash": "sha256-xws6ZOZuv6+BtqF9BZ9NRH5GdJ8zTa/ACN9lNeKC/+s=",
+        "lastModified": 1794201582,
+        "narHash": "sha256-ejT2Q+iCRP2/oL+58pb5/UGZ53cWVLqU5ob58EucyZk=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "baf924369e8d5ec02af1eab444db411d6fed1e5e",
+        "rev": "3327b7d82f31f2444533e935f06caf1a1b4da18c",
         "type": "github"
       },
       "original": {
@@ -567,11 +567,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793576535,
-        "narHash": "sha256-YTRHibnanvLrmGPVMowNbKkbrksxBW3hErla5Kis/mo=",
+        "lastModified": 1794170686,
+        "narHash": "sha256-Hr/0O3CpOWGrvIkBMRko/TyXPjVB8Hsf7xhjbFHF6sc=",
         "owner": "nix-community",
         "repo": "nh",
-        "rev": "c063ba16c9d954a0f42ba9be5fb2b5810a4de8fc",
+        "rev": "d165bcc2d41a5c5c0aed4def351a9d770a3e1f69",
         "type": "github"
       },
       "original": {
@@ -777,11 +777,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1793726008,
-        "narHash": "sha256-jQp1wKvbwWdLBASTXkSi/VYmDJ5AbBi1WvcMt9HWJC8=",
+        "lastModified": 1794042290,
+        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1d060086d60cb76a40cf37109f979d88a5bd6396",
+        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
         "type": "github"
       },
       "original": {
@@ -925,11 +925,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1793769151,
-        "narHash": "sha256-AI3Quj7NvTsYJkZ4T/oZiSVwXQgTv0Hp5gWqFJWkWgI=",
+        "lastModified": 1794006293,
+        "narHash": "sha256-RJrSL1u4Pro4gHuzC+7Au7GyCzcHDDXZNrVo255fVHI=",
         "owner": "Ataraxy-Labs",
         "repo": "sem",
-        "rev": "be77b50ad4b87186423de6307a4d94455f90a3c9",
+        "rev": "e527a5aa95a14260d8a30d7c45d84e66158cef6f",
         "type": "github"
       },
       "original": {
@@ -1139,11 +1139,11 @@
     "wispr-flow-linux": {
       "flake": false,
       "locked": {
-        "lastModified": 1793610324,
-        "narHash": "sha256-02cD+MNqKA4PUxqvMqeN/mZjsj5ZFSUaReZyPQh1XE0=",
+        "lastModified": 1794216302,
+        "narHash": "sha256-pA0wqavO87Ja5HYNWVOR9iVzXWN0pIkF5xlSWE8+9QE=",
         "owner": "wispr-flow-linux",
         "repo": "wispr-flow-linux",
-        "rev": "21c7fc876c8d36a659730e8743d4189e95297447",
+        "rev": "eb0db636c6a146edcd59b69428753567931666c2",
         "type": "github"
       },
       "original": {
