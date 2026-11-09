@@ -19,6 +19,7 @@
 
     home.packages = with pkgs; [
       inputs.sem.packages.${pkgs.stdenv.hostPlatform.system}.default
+      herdr-app
 
       fd
       fzf
