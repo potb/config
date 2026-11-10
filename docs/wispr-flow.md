@@ -28,14 +28,14 @@ The build is pure: no `--impure`, no hand-supplied installer.
    routed instead of only focusing the window. It fails the build unless its
    anchor matches exactly once.
 4. The Windows `node_sqlite3.node` is replaced by one compiled from the
-   `sqlite3` npm tarball against the nixpkgs Electron 42 headers (see below).
+   `sqlite3` npm tarball against the nixpkgs Electron 43 headers (see below).
    The Windows-only crypt32, Jabra and roots binaries are dropped, and the
    Linux Jabra headset bridge is unpacked from the asar and patched by
    `autoPatchelfHook`.
 5. The helper is built from source with `rustPlatform` and staged at
    `resources/Release/wispr-flow-linux-helper`, where the patched bundle looks
    for it.
-6. The app runs on the stock nixpkgs `electron_42`, with no copy of the 250 MB
+6. The app runs on the stock nixpkgs `electron_43`, with no copy of the 250 MB
    Electron binary and no FHS sandbox (see below).
 
 `wispr-flow --doctor` is the project's diagnostic with two checks replaced for
@@ -159,7 +159,7 @@ nothing in this repository has to be edited:
 | Wispr Flow version, installer URL and sha256 | `scripts/setup/installer-pin.sh` |
 | Helper tag | `helper-version.txt` |
 | Helper source hash | the `helperSrc` fetch in `nix/wispr-flow.nix` |
-| Electron major | `ELECTRON_MAJOR` in `scripts/build-linux.sh`, mapped to `pkgs.electron_<major>` |
+| Electron major | Not read: `electronMajor` in `pkgs/wispr-flow/package.nix` is set by hand to the major the installer bundles (43 for 1.6.1337), because upstream's `ELECTRON_MAJOR` (42) lagged behind the installer. The build checks it against the bundled `package.json`. |
 | `sqlite3` and `node-addon-api` tarballs | `scripts/native-modules/package-lock.json` |
 | Patches and their order | `step3_patch_bundle` in `scripts/build-linux.sh` |
 

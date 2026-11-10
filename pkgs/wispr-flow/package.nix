@@ -54,8 +54,7 @@
         hash = upstreamField "hash";
       };
 
-  buildLinux = builtins.readFile (src + "/scripts/build-linux.sh");
-  electronMajor = builtins.head (builtins.match ".*\nELECTRON_MAJOR=\"\\$\\{ELECTRON_MAJOR:-([0-9]+)}\".*" buildLinux);
+  electronMajor = "43";
   nixpkgsElectron = pkgs."electron_${electronMajor}" or (throw "wispr-flow: Wispr Flow now needs Electron ${electronMajor}, which this nixpkgs does not have");
   electron = nixpkgsElectron.overrideAttrs (old: {
     meta =
