@@ -34,6 +34,7 @@
       lnav
       nmap
       rsync
+      _7zz
       stripe-cli
     ];
 
