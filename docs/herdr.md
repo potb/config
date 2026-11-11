@@ -55,3 +55,34 @@ nix.
 `herdr config check` validates a config file. Point it at the generated one with
 `HERDR_CONFIG_PATH`, for example the store path of `herdr-config.toml` built
 from `home-manager.users.potb.xdg.configFile."herdr/config.toml".source`.
+
+## Desktop app (herdr-app)
+
+herdr-app, the Herdr desktop window, comes from `numtide/llm-agents.nix` and is
+installed by `modules/base/packages.nix` through the `herdr-app` overlay in
+`overlays/custom-packages.nix`. On Linux the overlay passes the upstream package
+through unchanged, since it already installs a `.desktop` file and an icon.
+
+On macOS upstream installs only `bin/herdr-app`, which Spotlight and the Dock
+never see. `pkgs/herdr-app` adds `Applications/Herdr.app`, laid out like the
+bundle upstream's `scripts/package` builds: the same `Info.plist` keys
+(`dev.herdr.app`), `Herdr.icns` from the upstream source, LICENSE and
+THIRD-PARTY-NOTICES. Home Manager's `copyApps` copies it to
+`~/Applications/Home Manager Apps`, where Spotlight indexes it.
+
+- The real binary (upstream's `.herdr-app-wrapped`) lives in
+  `Contents/MacOS/herdr-app`, not upstream's `wrapProgram` script. macOS finds
+  the bundle, and with it the name and icon, from the executable's own path.
+  If upstream stops using `wrapProgram`, the `cp` fails the build.
+- `Contents/MacOS/Herdr` (`pkgs/herdr-app/launcher.sh`) is the bundle
+  executable. LaunchServices starts apps with launchd's minimal PATH, so it puts
+  the Nix profiles first for the terminals and agents the app spawns. herdr-core
+  goes last, as in upstream's wrapper, so a core the user installed wins.
+  Without any core on PATH the app would `curl | sh` one.
+- The launcher runs the binary next to itself, so the copy in `~/Applications`
+  runs its own binary rather than the store one.
+- `bin/herdr-app` execs the same launcher, so the CLI (`herdr-app ls`,
+  `herdr-app status`) uses the bundled binary too.
+
+The bundle is ad hoc signed only through the binary's own linker signature,
+which is enough to run it locally.

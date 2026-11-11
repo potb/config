@@ -17,6 +17,9 @@
     programs.jq.enable = true;
 
     home.packages = with pkgs; [
+      sem
+      herdr-app
+
       fd
       fzf
       duf

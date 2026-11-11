@@ -8,10 +8,18 @@
   darwin = {};
 
   home = {
+    config,
     lib,
     pkgs,
     ...
   }: let
+    homeDir = config.home.homeDirectory;
+    withHomeDir = name: src:
+      pkgs.runCommand name {} ''
+        cp -r ${src} $out
+        chmod -R u+w $out
+        find $out -type f -exec sed -i "s|@HOME@|${homeDir}|g" {} +
+      '';
     system = pkgs.stdenv.hostPlatform.system;
     llmAgents = inputs.llm-agents.packages.${system};
     isLinux = pkgs.stdenv.hostPlatform.isLinux;
@@ -19,11 +27,13 @@
     jq = "${pkgs.jq}/bin/jq";
 
     settings = {
-      model = "sonnet";
+      model = "claude-opus-5-5";
       modelSettings = {
         claude-opus-5-5.effortLevel = "medium";
         claude-sonnet-5-5.effortLevel = "medium";
       };
+      enableWorkflows = true;
+      ultracode = true;
       tui = "fullscreen";
       theme = "light";
       agentPushNotifEnabled = true;
@@ -81,7 +91,11 @@
 
     home.file.".claude/CLAUDE.md".source = ./claude/CLAUDE.md;
     home.file.".claude/skills" = {
-      source = ./claude/skills;
+      source = withHomeDir "claude-skills" ./claude/skills;
+      recursive = true;
+    };
+    home.file.".claude/workflows" = {
+      source = withHomeDir "claude-workflows" ./claude/workflows;
       recursive = true;
     };
 
