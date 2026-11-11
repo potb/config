@@ -2,13 +2,13 @@ export const meta = {
   name: 'block-fix',
   description: 'Building block: one fixer applies confirmed findings with a test each, then reruns the gates',
   whenToUse: 'fix({cwd, findings, gates}) with confirmed findings from review',
-  phases: [{ title: 'Fix', detail: 'single opus fixer owns the tree' }],
+  phases: [{ title: 'Fix', detail: 'single fable fixer owns the tree' }],
 }
 
 const A = args || {}
 if (!A.cwd) throw new Error('fix: cwd is required')
 if (!A.findings || !A.findings.length) return { fixed: [], skipped: [], gatesGreen: null, head: '' }
-const M = Object.assign({ fixer: 'opus' }, A.models)
+const M = Object.assign({ fixer: 'fable' }, A.models)
 const CTX = [
   `Repository: ${A.cwd}. You are the only agent touching this tree.`,
   A.profile && `Read the project profile at ${A.profile} first.`,

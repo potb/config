@@ -26,9 +26,19 @@
     isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
     jq = "${pkgs.jq}/bin/jq";
 
+    fableReminder = pkgs.writeShellScript "claude-fable-reminder" ''
+      [ "$(${pkgs.coreutils}/bin/date +%Y%m%d)" -ge 20270309 ] && exit 0
+      cat <<'EOF'
+      Fable quota reminder (standing owner instruction until 2027-03-09):
+      Fable 5.2 is the default model, preferred over Opus. As of 2026-11-11 the owner held 3 free Fable resets (all expire 2027-03-09) and 1 free weekly reset (expires 2026-12-10).
+      Remind the owner briefly at the start of this session, and again whenever a long Fable run ends or the weekly limit nears, to check claude.ai Settings > Usage (Fable weekly bar) and to spend a Fable reset before the Fable quota runs out rather than letting it sit full. Never press the reset button yourself.
+      EOF
+    '';
+
     settings = {
-      model = "claude-opus-5-5";
+      model = "claude-fable-5-2";
       modelSettings = {
+        claude-fable-5-2.effortLevel = "medium";
         claude-opus-5-5.effortLevel = "medium";
         claude-sonnet-5-5.effortLevel = "medium";
       };
@@ -37,6 +47,17 @@
       tui = "fullscreen";
       theme = "light";
       agentPushNotifEnabled = true;
+      hooks.SessionStart = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "${fableReminder}";
+              timeout = 5;
+            }
+          ];
+        }
+      ];
       hooks.PreToolUse = [
         {
           matcher = "Edit|MultiEdit|Write|Bash";

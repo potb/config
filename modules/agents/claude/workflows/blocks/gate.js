@@ -2,12 +2,12 @@ export const meta = {
   name: 'block-gate',
   description: 'Building block: merge built branches, run every gate, fix until green within a round budget',
   whenToUse: 'gate({cwd, gates, branches}) after build, or alone to get a tree green',
-  phases: [{ title: 'Gate', detail: 'one opus integrator owns the tree, flakes rerun and never counted' }],
+  phases: [{ title: 'Gate', detail: 'one fable integrator owns the tree, flakes rerun and never counted' }],
 }
 
 const A = args || {}
 if (!A.cwd) throw new Error('gate: cwd is required')
-const M = Object.assign({ integrator: 'opus' }, A.models)
+const M = Object.assign({ integrator: 'fable' }, A.models)
 const ROUNDS = A.maxRounds || 3
 const CTX = [
   `Repository: ${A.cwd}. You are the only agent touching this tree.`,

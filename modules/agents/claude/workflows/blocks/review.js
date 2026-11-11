@@ -3,14 +3,14 @@ export const meta = {
   description: 'Building block: multi-lens read-only review, each finding checked by a skeptic that defaults to not real',
   whenToUse: 'review({cwd, base}) on a branch; returns confirmed findings only',
   phases: [
-    { title: 'Review', detail: 'one reviewer per lens (opus for correctness, sonnet otherwise)' },
+    { title: 'Review', detail: 'one reviewer per lens (fable for correctness, sonnet otherwise)' },
     { title: 'Verify', detail: 'one sonnet skeptic per finding, chained behind its lens' },
   ],
 }
 
 const A = args || {}
 if (!A.cwd) throw new Error('review: cwd is required')
-const M = Object.assign({ skeptic: 'sonnet', lens: 'sonnet', correctness: 'opus' }, A.models)
+const M = Object.assign({ skeptic: 'sonnet', lens: 'sonnet', correctness: 'fable' }, A.models)
 const LENSES = A.lenses || [
   { name: 'correctness', focus: 'logic bugs, edge cases, races, error handling, data loss' },
   { name: 'rules-tests-docs', focus: 'repo rules, test quality and coverage, docs drift against code' },

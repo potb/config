@@ -50,13 +50,13 @@ Nesting is one level. A script you launch can call blocks. A block cannot call a
 
 | Block | Does | Default models |
 |---|---|---|
-| `research` | splits a question into lenses, gathers evidence, synthesizes | scope haiku, gather sonnet, synth opus |
+| `research` | splits a question into lenses, gathers evidence, synthesizes | scope haiku, gather sonnet, synth fable |
 | `refute` | tries to refute each claim from primary sources | skeptic sonnet |
-| `design` | units with file ownership, difficulty and dependencies | designer and judge opus |
-| `build` | one test-first agent per unit, worktree per unit | hard opus, easy sonnet |
-| `gate` | merges unit branches, runs gates, fixes reproducible failures | integrator opus |
-| `review` | lens reviewers, then one skeptic per finding | correctness opus, other lenses sonnet, skeptic sonnet |
-| `fix` | one fixer, a test per finding, gates rerun | fixer opus |
+| `design` | units with file ownership, difficulty and dependencies | designer and judge fable |
+| `build` | one test-first agent per unit, worktree per unit | hard fable, easy sonnet |
+| `gate` | merges unit branches, runs gates, fixes reproducible failures | integrator fable |
+| `review` | lens reviewers, then one skeptic per finding | correctness fable, other lenses sonnet, skeptic sonnet |
+| `fix` | one fixer, a test per finding, gates rerun | fixer fable |
 | `land` | push, draft PR, watch CI, fix reproducible failures; never merges | sonnet |
 
 Every block takes `cwd`, `profile` (path to a project profile with gates, rules, PR template and language), `context` (extra prompt text such as standing authorisations) and `models` (per-role overrides). Recipes take `models` keyed by block.
@@ -78,7 +78,7 @@ Every block takes `cwd`, `profile` (path to a project profile with gates, rules,
 
 These come from the owner's past corrections.
 
-- Set `model` on every `agent()` call. Never let a fleet inherit opus. Haiku for fetch, collect, close-out and mechanical work; sonnet for research, scoped implementation, refuters and verifiers; opus only for design, judging, hard implementation, integration and final synthesis.
+- Set `model` on every `agent()` call. Never let a fleet inherit fable. Haiku for fetch, collect, close-out and mechanical work; sonnet for research, scoped implementation, refuters and verifiers; fable only for design, judging, hard implementation, integration and final synthesis. Until the owner's Fable resets are used up or expire (2027-03-09), Fable replaces Opus in every role Opus used to hold; Opus is the fallback when Fable refuses or its weekly quota is out.
 - Use a schema on every agent whose output feeds code. Use enums for verdicts and severities.
 - Put a skeptic after every finder: refute by default, unverifiable never counts as confirmed, keep a finding only on majority or reproduction.
 - Bound every loop: 2 or 3 rounds, then park with one exact question for the owner. Later rounds look only at the new diff and drop minor findings.

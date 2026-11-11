@@ -2,12 +2,12 @@ export const meta = {
   name: 'block-build',
   description: 'Building block: build each unit test-first, one agent per unit, respecting dependencies',
   whenToUse: 'build({units, cwd, base, gates}) with units from design',
-  phases: [{ title: 'Build', detail: 'opus for hard units, sonnet otherwise; worktree per unit by default' }],
+  phases: [{ title: 'Build', detail: 'fable for hard units, sonnet otherwise; worktree per unit by default' }],
 }
 
 const A = args || {}
 if (!A.units || !A.units.length) throw new Error('build: units are required')
-const M = Object.assign({ hard: 'opus', easy: 'sonnet' }, A.models)
+const M = Object.assign({ hard: 'fable', easy: 'sonnet' }, A.models)
 const WORKTREE = A.worktree !== false
 const CTX = [
   A.cwd && `Repository: ${A.cwd}.`,

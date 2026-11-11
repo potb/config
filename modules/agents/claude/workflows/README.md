@@ -47,13 +47,13 @@ and `blocksDir` to point at another copy of the blocks.
 
 | Block | Args | Steps and default models | Returns |
 |---|---|---|---|
-| `research` | string, or `{ question, lenses?, maxLenses? }` | scope (haiku, skipped when lenses given), gather per lens (sonnet), synthesize (opus) | `{ question, lenses, findings, synthesis: { answer, keyClaims, options, risks, openQuestions } }` |
+| `research` | string, or `{ question, lenses?, maxLenses? }` | scope (haiku, skipped when lenses given), gather per lens (sonnet), synthesize (fable) | `{ question, lenses, findings, synthesis: { answer, keyClaims, options, risks, openQuestions } }` |
 | `refute` | array of claims, or `{ claims, votes? }` | per claim, `votes` skeptics (sonnet), refuted or unverifiable unless a majority confirms | `{ verdicts, confirmed, refuted, unverifiable }` |
-| `design` | string, or `{ goal, facts?, angles? }` | one designer (opus), or one per angle plus a judge (opus) | `{ goal, design: { summary, units, decisions, risks, ownerQuestions } }` |
-| `build` | `{ units, base?, gates?, worktree? }` | one agent per unit following `dependsOn`; opus when `hard`, sonnet otherwise; worktree per unit unless `worktree: false` | `{ results, branches, blocked }` |
-| `gate` | `{ gates?, branches?, e2e?, maxRounds? }` | one integrator (opus) merges branches, runs gates, fixes reproducible failures, up to 3 rounds | `{ green, failures, flaky, fixes, head, rounds, history }` |
-| `review` | `{ base?, lenses?, focus?, minSeverity?, maxPerLens?, verify? }` | per lens reviewer (correctness opus, rules-tests-docs and security sonnet), then one skeptic per finding (sonnet). Lens model resolves as `lens.model`, then `models[lensName]`, then `models.lens` | `{ confirmed, rejected, lenses }` |
-| `fix` | `{ findings, gates? }` | one fixer (opus), a test per fix, gates rerun | `{ fixed, skipped, gatesGreen, head }` |
+| `design` | string, or `{ goal, facts?, angles? }` | one designer (fable), or one per angle plus a judge (fable) | `{ goal, design: { summary, units, decisions, risks, ownerQuestions } }` |
+| `build` | `{ units, base?, gates?, worktree? }` | one agent per unit following `dependsOn`; fable when `hard`, sonnet otherwise; worktree per unit unless `worktree: false` | `{ results, branches, blocked }` |
+| `gate` | `{ gates?, branches?, e2e?, maxRounds? }` | one integrator (fable) merges branches, runs gates, fixes reproducible failures, up to 3 rounds | `{ green, failures, flaky, fixes, head, rounds, history }` |
+| `review` | `{ base?, lenses?, focus?, minSeverity?, maxPerLens?, verify? }` | per lens reviewer (correctness fable, rules-tests-docs and security sonnet), then one skeptic per finding (sonnet). Lens model resolves as `lens.model`, then `models[lensName]`, then `models.lens` | `{ confirmed, rejected, lenses }` |
+| `fix` | `{ findings, gates? }` | one fixer (fable), a test per fix, gates rerun | `{ fixed, skipped, gatesGreen, head }` |
 | `land` | `{ base, title?, ready?, screenshots?, maxCiFixes? }` | push and draft PR (sonnet), watch CI and fix reproducible failures (sonnet); never merges | `{ pr, ci }` |
 
 A unit for `build` is `{ id, title, brief, owns: [paths], hard: boolean, dependsOn: [ids] }`, the same shape `design`

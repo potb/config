@@ -3,14 +3,14 @@ export const meta = {
   description: 'Building block: turn a goal and facts into a plan of units with file ownership and difficulty',
   whenToUse: 'design("goal") or design({goal, facts, angles}) before build',
   phases: [
-    { title: 'Design', detail: 'one opus designer, or one per angle' },
-    { title: 'Judge', detail: 'opus picks the best design and grafts the rest (only with several angles)' },
+    { title: 'Design', detail: 'one fable designer, or one per angle' },
+    { title: 'Judge', detail: 'fable picks the best design and grafts the rest (only with several angles)' },
   ],
 }
 
 const A = typeof args === 'string' ? { goal: args } : (args || {})
 if (!A.goal) throw new Error('design: goal is required')
-const M = Object.assign({ designer: 'opus', judge: 'opus' }, A.models)
+const M = Object.assign({ designer: 'fable', judge: 'fable' }, A.models)
 const CTX = [
   A.cwd && `Working directory: ${A.cwd}.`,
   A.profile && `Read the project profile at ${A.profile} first and respect every repo principle in it.`,

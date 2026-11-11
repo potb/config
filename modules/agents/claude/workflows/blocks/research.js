@@ -5,13 +5,13 @@ export const meta = {
   phases: [
     { title: 'Scope', detail: 'haiku splits the question into lenses (skipped when lenses are given)' },
     { title: 'Gather', detail: 'one sonnet researcher per lens, evidence required' },
-    { title: 'Synthesize', detail: 'opus merges findings into one answer' },
+    { title: 'Synthesize', detail: 'fable merges findings into one answer' },
   ],
 }
 
 const A = typeof args === 'string' ? { question: args } : (args || {})
 if (!A.question) throw new Error('research: question is required')
-const M = Object.assign({ scope: 'haiku', gather: 'sonnet', synth: 'opus' }, A.models)
+const M = Object.assign({ scope: 'haiku', gather: 'sonnet', synth: 'fable' }, A.models)
 const CTX = [
   A.cwd && `Working directory: ${A.cwd}.`,
   A.profile && `Read the project profile at ${A.profile} first and follow its rules and language.`,
