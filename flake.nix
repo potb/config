@@ -265,6 +265,58 @@
           }
       );
 
+    stubFirmware = {
+      lib,
+      pkgs,
+      ...
+    }: {
+      hardware.asahi.peripheralFirmwareDirectory =
+        lib.mkForce
+        (pkgs.runCommand "stub-vendor-firmware" {} "mkdir -p $out; touch $out/firmware.cpio");
+    };
+
+    offhostModules = {
+      kerberos = [stubFirmware];
+    };
+
+    devTraitClosureRefs = ["-cmake-[0-9.]+$" "-stdenv-"];
+
+    auditOverrides = {
+      nyx = {
+        forbiddenClosureRefs = devTraitClosureRefs;
+        maxClosureMB = 12288;
+      };
+      kerberos = {
+        forbiddenClosureRefs = devTraitClosureRefs;
+      };
+      charon = {
+        forbiddenClosureRefs = devTraitClosureRefs;
+      };
+    };
+
+    hostAudits = system: let
+      audit = import ./nix/audit.nix {pkgs = nixpkgs.legacyPackages.${system};};
+
+      hostsOnSystem =
+        lib.filterAttrs (_: h: h.pkgs.stdenv.hostPlatform.system == system)
+        (self.nixosConfigurations // self.darwinConfigurations);
+
+      toplevelOf = name: h: let
+        extra = offhostModules.${name} or [];
+        evaluated =
+          if extra == []
+          then h
+          else h.extendModules {modules = extra;};
+        override = auditOverrides.${name} or {};
+        unknownKeys = builtins.attrNames (builtins.removeAttrs override (builtins.attrNames audit.defaults));
+      in
+        lib.throwIf (unknownKeys != [])
+        "auditOverrides.${name} sets keys nix/audit.nix does not know: ${lib.concatStringsSep ", " unknownKeys}"
+        (evaluated.config.system.build.toplevel // lib.optionalAttrs (override != {}) {audit = override;});
+    in
+      lib.mapAttrs' (name: h: lib.nameValuePair "audit-${name}" (audit.auditOne name (toplevelOf name h)))
+      hostsOnSystem;
+
     sharedOverlays = loadOverlays ./overlays;
     nixosAllOverlays = sharedOverlays;
     darwinAllOverlays = sharedOverlays;
@@ -388,166 +440,180 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    checks = forAllSystems (system: {
-      package-channels = let
-        pkgs = nixpkgs.legacyPackages.${system};
+    packages.aarch64-darwin.cve-nyx =
+      (import ./nix/cve.nix {pkgs = nixpkgs.legacyPackages.aarch64-darwin;}).forHost "nyx" self.darwinConfigurations.nyx;
 
-        hosts =
-          lib.mapAttrs (_: h: {
-            inherit (h) config;
-            platform = "nixos";
-          })
-          self.nixosConfigurations
-          // lib.mapAttrs (_: h: {
-            inherit (h) config;
-            platform = "darwin";
-          })
-          self.darwinConfigurations;
+    apps = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      cve-update-db = {
+        type = "app";
+        program = lib.getExe (pkgs.writeShellApplication {
+          name = "cve-update-db";
+          runtimeInputs = [pkgs.curl pkgs.jq pkgs.git];
+          text = ''
+            root=$(git rev-parse --show-toplevel)
+            curl -fsSL https://grype.anchore.io/databases/v6/latest.json \
+              | jq '{schemaVersion, built, path, checksum}' > "$root/nix/grype-db.json.new"
+            mv "$root/nix/grype-db.json.new" "$root/nix/grype-db.json"
+            jq -r '"grype db pinned to \(.path), built \(.built)"' "$root/nix/grype-db.json"
+          '';
+        });
+      };
+    });
 
-        nameOf = p: p.pname or (p.name or "<unnamed>");
+    checks = forAllSystems (system:
+      hostAudits system
+      // {
+        package-channels = let
+          pkgs = nixpkgs.legacyPackages.${system};
 
-        brewNames = host:
-          lib.optionals (host.platform == "darwin") (
-            map (c: c.name) host.config.homebrew.casks
-            ++ map (b: b.name) host.config.homebrew.brews
-          );
+          hosts =
+            lib.mapAttrs (_: h: {
+              inherit (h) config;
+              platform = "nixos";
+            })
+            self.nixosConfigurations
+            // lib.mapAttrs (_: h: {
+              inherit (h) config;
+              platform = "darwin";
+            })
+            self.darwinConfigurations;
 
-        nixNames = host:
-          map nameOf (
-            host.config.home-manager.users.potb.home.packages
-            ++ host.config.environment.systemPackages
-            ++ host.config.fonts.packages
-          );
+          nameOf = p: p.pname or (p.name or "<unnamed>");
 
-        aliases = {
-          ghostty = ["ghostty" "ghostty-bin"];
-          "1password-cli" = ["_1password-cli" "1password-cli"];
-          google-chrome = ["google-chrome"];
-          slack = ["slack"];
-          spotify = ["spotify"];
-          discord = ["discord"];
-          "qwerty-fr" = ["qwerty-fr" "qwertyFr"];
-          tailscale = ["tailscale" "tailscale-app"];
-          "font-fira-code-nerd-font" = ["nerd-fonts-fira-code"];
-          "font-inter" = ["inter"];
-          "font-symbols-only-nerd-font" = ["nerd-fonts-symbols-only"];
-        };
+          brewNames = host:
+            lib.optionals (host.platform == "darwin") (
+              map (c: c.name) host.config.homebrew.casks
+              ++ map (b: b.name) host.config.homebrew.brews
+            );
 
-        duplicatesOn = hostName: host: let
-          brews = brewNames host;
-          nixed = nixNames host;
+          nixNames = host:
+            map nameOf (
+              host.config.home-manager.users.potb.home.packages
+              ++ host.config.environment.systemPackages
+              ++ host.config.fonts.packages
+            );
 
-          both =
-            lib.filterAttrs (
-              logical: names:
-                (builtins.any (n: builtins.elem n brews) (names ++ [logical]))
-                && (builtins.any (n: builtins.elem n nixed) names)
-            )
-            aliases;
+          aliases = {
+            ghostty = ["ghostty" "ghostty-bin"];
+            "1password-cli" = ["_1password-cli" "1password-cli"];
+            google-chrome = ["google-chrome"];
+            slack = ["slack"];
+            spotify = ["spotify"];
+            discord = ["discord"];
+            "qwerty-fr" = ["qwerty-fr" "qwertyFr"];
+            tailscale = ["tailscale" "tailscale-app"];
+            "font-fira-code-nerd-font" = ["nerd-fonts-fira-code"];
+            "font-inter" = ["inter"];
+            "font-symbols-only-nerd-font" = ["nerd-fonts-symbols-only"];
+          };
+
+          duplicatesOn = hostName: host: let
+            brews = brewNames host;
+            nixed = nixNames host;
+
+            both =
+              lib.filterAttrs (
+                logical: names:
+                  (builtins.any (n: builtins.elem n brews) (names ++ [logical]))
+                  && (builtins.any (n: builtins.elem n nixed) names)
+              )
+              aliases;
+          in
+            map (logical: "${hostName}: ${logical} arrives from both Homebrew and nixpkgs") (
+              builtins.attrNames both
+            );
+
+          problems = builtins.concatLists (lib.mapAttrsToList duplicatesOn hosts);
         in
-          map (logical: "${hostName}: ${logical} arrives from both Homebrew and nixpkgs") (
-            builtins.attrNames both
-          );
+          if problems != []
+          then
+            throw ''
+              a package arrives through two channels at once:
+                ${lib.concatStringsSep "\n  " problems}
+            ''
+          else pkgs.runCommand "package-channels-check" {} "touch $out";
 
-        problems = builtins.concatLists (lib.mapAttrsToList duplicatesOn hosts);
-      in
-        if problems != []
-        then
-          throw ''
-            a package arrives through two channels at once:
-              ${lib.concatStringsSep "\n  " problems}
-          ''
-        else pkgs.runCommand "package-channels-check" {} "touch $out";
+        trait-table = let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+          pkgs.runCommand "trait-table-check" {
+            nativeBuildInputs = [pkgs.python3];
+            readme = ./README.md;
+            flake = ./flake.nix;
+          } ''
+            python3 ${./scripts/check-trait-table.py} "$flake" "$readme"
+            touch $out
+          '';
 
-      trait-table = let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-        pkgs.runCommand "trait-table-check" {
-          nativeBuildInputs = [pkgs.python3];
-          readme = ./README.md;
-          flake = ./flake.nix;
-        } ''
-          python3 ${./scripts/check-trait-table.py} "$flake" "$readme"
-          touch $out
-        '';
+        kerberos-offhost = let
+          pkgs = nixpkgs.legacyPackages.${system};
 
-      kerberos-offhost = let
-        pkgs = nixpkgs.legacyPackages.${system};
-
-        stubFirmware = {
-          lib,
-          pkgs,
-          ...
-        }: {
-          hardware.asahi.peripheralFirmwareDirectory =
-            lib.mkForce
-            (pkgs.runCommand "stub-vendor-firmware" {} "mkdir -p $out; touch $out/firmware.cpio");
-        };
-
-        kerberos =
-          (self.nixosConfigurations.kerberos.extendModules {
-            modules = [stubFirmware];
-          })
+          kerberos =
+            (self.nixosConfigurations.kerberos.extendModules {
+              modules = [stubFirmware];
+            })
           .config;
 
-        unavailable = packages:
-          map (p: p.name or "<unnamed>") (
-            builtins.filter (p: !(p.meta.available or true)) packages
-          );
+          unavailable = packages:
+            map (p: p.name or "<unnamed>") (
+              builtins.filter (p: !(p.meta.available or true)) packages
+            );
 
-        acknowledgedUpstreamWarnings = [];
+          acknowledgedUpstreamWarnings = [];
 
-        containsLiteral = needle: haystack:
-          builtins.length (builtins.split (lib.escapeRegex needle) haystack) > 1;
+          containsLiteral = needle: haystack:
+            builtins.length (builtins.split (lib.escapeRegex needle) haystack) > 1;
 
-        acknowledged = warning:
-          builtins.any (a: containsLiteral a.match warning) acknowledgedUpstreamWarnings;
+          acknowledged = warning:
+            builtins.any (a: containsLiteral a.match warning) acknowledgedUpstreamWarnings;
 
-        staleAcknowledgements =
-          builtins.filter (
-            a: !(builtins.any (containsLiteral a.match) kerberos.warnings)
-          )
-          acknowledgedUpstreamWarnings;
+          staleAcknowledgements =
+            builtins.filter (
+              a: !(builtins.any (containsLiteral a.match) kerberos.warnings)
+            )
+            acknowledgedUpstreamWarnings;
 
-        problems =
-          map (a: "assertion: ${a.message}") (
-            builtins.filter (a: !a.assertion) kerberos.assertions
-          )
-          ++ map (w: "warning: ${w}") (
-            builtins.filter (w: !(acknowledged w)) kerberos.warnings
-          )
-          ++ map (
-            a: "stale acknowledgement, upstream fixed ${a.match}, drop it from flake.nix: ${a.reason}"
-          )
-          staleAcknowledgements
-          ++ map (n: "no aarch64-linux build: ${n}") (
-            unavailable kerberos.home-manager.users.potb.home.packages
-            ++ unavailable kerberos.environment.systemPackages
-            ++ unavailable kerberos.fonts.packages
-          );
-      in
-        if problems != []
-        then
-          throw ''
-            nixosConfigurations.kerberos:
-              ${lib.concatStringsSep "\n  " problems}
+          problems =
+            map (a: "assertion: ${a.message}") (
+              builtins.filter (a: !a.assertion) kerberos.assertions
+            )
+            ++ map (w: "warning: ${w}") (
+              builtins.filter (w: !(acknowledged w)) kerberos.warnings
+            )
+            ++ map (
+              a: "stale acknowledgement, upstream fixed ${a.match}, drop it from flake.nix: ${a.reason}"
+            )
+            staleAcknowledgements
+            ++ map (n: "no aarch64-linux build: ${n}") (
+              unavailable kerberos.home-manager.users.potb.home.packages
+              ++ unavailable kerberos.environment.systemPackages
+              ++ unavailable kerberos.fonts.packages
+            );
+        in
+          if problems != []
+          then
+            throw ''
+              nixosConfigurations.kerberos:
+                ${lib.concatStringsSep "\n  " problems}
+            ''
+          else
+            pkgs.runCommand "kerberos-offhost-check" {
+              evaluated = builtins.unsafeDiscardStringContext kerberos.system.build.toplevel.drvPath;
+            } "echo \"$evaluated\" > $out";
+
+        deadnix =
+          nixpkgs.legacyPackages.${system}.runCommand "deadnix-check"
+          {
+            nativeBuildInputs = [nixpkgs.legacyPackages.${system}.deadnix];
+          }
           ''
-        else
-          pkgs.runCommand "kerberos-offhost-check" {
-            evaluated = builtins.unsafeDiscardStringContext kerberos.system.build.toplevel.drvPath;
-          } "echo \"$evaluated\" > $out";
-
-      deadnix =
-        nixpkgs.legacyPackages.${system}.runCommand "deadnix-check"
-        {
-          nativeBuildInputs = [nixpkgs.legacyPackages.${system}.deadnix];
-        }
-        ''
-          cd ${self}
-          deadnix --fail --no-lambda-pattern-names --no-lambda-arg
-          touch $out
-        '';
-    });
+            cd ${self}
+            deadnix --fail --no-lambda-pattern-names --no-lambda-arg
+            touch $out
+          '';
+      });
 
     nixosConfigurations = {
       charon = mkHost {

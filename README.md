@@ -37,6 +37,8 @@ nix fmt
 nix flake check
 ```
 
+Each host also gets an output audit, `audit-<host>`, see [docs/audit.md](docs/audit.md).
+
 ## Structure
 
 ```
