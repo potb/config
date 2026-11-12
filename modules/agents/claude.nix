@@ -35,6 +35,18 @@
       EOF
     '';
 
+    caffeinateSession = pkgs.writeShellScript "claude-caffeinate-session" ''
+      pid=$PPID
+      while [ "''${pid:-1}" -gt 1 ]; do
+        [ "$(${pkgs.coreutils}/bin/basename "$(/bin/ps -o comm= -p "$pid")")" = claude ] && break
+        pid=$(/bin/ps -o ppid= -p "$pid" | ${pkgs.coreutils}/bin/tr -d ' ')
+      done
+      [ "''${pid:-1}" -gt 1 ] || exit 0
+      /usr/bin/pgrep -qf "^/usr/bin/caffeinate -i -s -w $pid$" && exit 0
+      ${pkgs.coreutils}/bin/nohup /usr/bin/caffeinate -i -s -w "$pid" >/dev/null 2>&1 &
+      exit 0
+    '';
+
     settings = {
       model = "claude-fable-5-2";
       modelSettings = {
@@ -47,17 +59,27 @@
       tui = "fullscreen";
       theme = "light";
       agentPushNotifEnabled = true;
-      hooks.SessionStart = [
-        {
+      hooks.SessionStart =
+        [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = "${fableReminder}";
+                timeout = 5;
+              }
+            ];
+          }
+        ]
+        ++ lib.optional isDarwin {
           hooks = [
             {
               type = "command";
-              command = "${fableReminder}";
+              command = "${caffeinateSession}";
               timeout = 5;
             }
           ];
-        }
-      ];
+        };
       hooks.PreToolUse = [
         {
           matcher = "Edit|MultiEdit|Write|Bash";
