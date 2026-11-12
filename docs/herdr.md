@@ -59,7 +59,7 @@ from `home-manager.users.potb.xdg.configFile."herdr/config.toml".source`.
 ## Desktop app (herdr-app)
 
 herdr-app, the Herdr desktop window, comes from `numtide/llm-agents.nix` and is
-installed by `modules/base/packages.nix` through the `herdr-app` overlay in
+installed by `modules/base/herdr.nix` through the `herdr-app` overlay in
 `overlays/custom-packages.nix`. On Linux the overlay passes the upstream package
 through unchanged, since it already installs a `.desktop` file and an icon.
 
@@ -86,3 +86,24 @@ THIRD-PARTY-NOTICES. Home Manager's `copyApps` copies it to
 
 The bundle is ad hoc signed only through the binary's own linker signature,
 which is enough to run it locally.
+
+## Claude sessions inside herdr-core
+
+herdr-core starts a long-lived holder process that owns every terminal, and the
+holder keeps the environment of whatever shell started it. If that shell
+belonged to a Claude Code session, every terminal inherits `CLAUDECODE=1`,
+`CLAUDE_CODE_CHILD_SESSION=1`, that session's ID and its `CLAUDE_PID`. Claude
+Code treats a session with `CLAUDE_CODE_CHILD_SESSION` set as a child and does
+not persist it: no transcript in `~/.claude/projects` and no entry in
+`~/.claude/history.jsonl`. This happened from Nov 10 to Nov 12, 2026, after the
+holder was started from a Claude session on Nov 9.
+
+`modules/base/herdr.nix` adds a zsh guard for this. In a herdr-core terminal
+(`HC_RUNTIME` set), when `CLAUDE_PID` names a process that no longer exists,
+the shell unsets the inherited Claude variables before anything runs. Shells
+that Claude spawns for its own tools keep their variables, since their
+`CLAUDE_PID` is alive.
+
+The guard only helps shells started after the fix. The cleanest reset is to
+restart herdr-core from a plain shell (`herdr-core server restart`), which ends
+every running terminal.

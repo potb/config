@@ -18,7 +18,6 @@
 
     home.packages = with pkgs; [
       sem
-      herdr-app
 
       fd
       fzf
