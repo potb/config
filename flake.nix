@@ -99,11 +99,6 @@
       flake = false;
     };
 
-    wispr-flow-linux = {
-      url = "github:wispr-flow-linux/wispr-flow-linux";
-      flake = false;
-    };
-
     nixos-apple-silicon = {
       url = "github:nix-community/nixos-apple-silicon/1bf1838b982768c3ece6d719f03e13b9f7408e6d";
       inputs.nixpkgs.follows = "nixpkgs";

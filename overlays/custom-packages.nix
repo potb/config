@@ -9,9 +9,6 @@
   computer-use-linux = final.callPackage ../pkgs/computer-use-linux/package.nix {
     src = inputs.computer-use-linux;
   };
-  wispr-flow = final.callPackage ../pkgs/wispr-flow/package.nix {
-    src = inputs.wispr-flow-linux;
-  };
   herdr-app = final.callPackage ../pkgs/herdr-app/package.nix {
     inherit (inputs.llm-agents.packages.${final.stdenv.hostPlatform.system}) herdr-app herdr-core;
   };

@@ -893,8 +893,7 @@
         "qwerty-fr": "qwerty-fr",
         "sem": "sem",
         "stylix": "stylix",
-        "tsm-app": "tsm-app",
-        "wispr-flow-linux": "wispr-flow-linux"
+        "tsm-app": "tsm-app"
       }
     },
     "rust-overlay": {
@@ -1133,22 +1132,6 @@
         "owner": "exceptionptr",
         "ref": "v1.1.15",
         "repo": "tsm-app-linux",
-        "type": "github"
-      }
-    },
-    "wispr-flow-linux": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1794216302,
-        "narHash": "sha256-pA0wqavO87Ja5HYNWVOR9iVzXWN0pIkF5xlSWE8+9QE=",
-        "owner": "wispr-flow-linux",
-        "repo": "wispr-flow-linux",
-        "rev": "eb0db636c6a146edcd59b69428753567931666c2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "wispr-flow-linux",
-        "repo": "wispr-flow-linux",
         "type": "github"
       }
     }
