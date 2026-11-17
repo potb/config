@@ -1,0 +1,9 @@
+{
+  "pw_dump": [
+    {"id": 101, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Stream/Input/Audio", "application.name": "Lavf61.7.100", "application.process.binary": "ffmpeg", "application.process.id": 7100}}},
+    {"id": 102, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Stream/Input/Audio", "application.name": "screenpipe", "application.process.binary": "screenpipe", "application.process.id": 7200}}}
+  ],
+  "clients": [
+    {"address": "0x5600a1", "class": "kitty", "title": "Zoom notes", "pid": 2100, "at": [0, 0], "size": [1280, 1440]}
+  ]
+}

@@ -99,6 +99,16 @@
       flake = false;
     };
 
+    screenpipe-cli = {
+      url = "file+https://registry.npmjs.org/@screenpipe/cli-linux-x64/latest";
+      flake = false;
+    };
+
+    screenpipe-cli-darwin = {
+      url = "file+https://registry.npmjs.org/@screenpipe/cli-darwin-arm64/0.4.58";
+      flake = false;
+    };
+
     nixos-apple-silicon = {
       url = "github:nix-community/nixos-apple-silicon/1bf1838b982768c3ece6d719f03e13b9f7408e6d";
       inputs.nixpkgs.follows = "nixpkgs";

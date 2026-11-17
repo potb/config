@@ -1,0 +1,8 @@
+{
+  "pw_dump": [
+    {"id": 88, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Stream/Input/Audio", "application.name": "Google Chrome input", "application.process.binary": "chrome", "application.process.id": 4100}}}
+  ],
+  "clients": [
+    {"address": "0x5600b7", "class": "google-chrome", "title": "Inbox - Gmail - Google Chrome", "pid": 4100, "at": [1280, 40], "size": [1280, 1400]}
+  ]
+}

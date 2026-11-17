@@ -25,6 +25,9 @@ darwin-rebuild switch --flake .#nyx    # see Setup for the first run
 sudo nixos-rebuild switch --flake .#kerberos
 ```
 
+Meeting notes (detection, recording, transcription) are described in
+[docs/meeting-notes.md](docs/meeting-notes.md).
+
 ### Format
 
 ```bash

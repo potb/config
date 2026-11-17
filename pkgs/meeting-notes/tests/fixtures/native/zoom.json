@@ -1,0 +1,9 @@
+{
+  "pw_dump": [
+    {"id": 95, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Stream/Input/Audio", "application.name": "ZOOM VoiceEngine", "application.process.binary": "zoom", "application.process.id": 5200}}}
+  ],
+  "clients": [
+    {"address": "0x5600a1", "class": "kitty", "title": "nvim", "pid": 2100, "at": [0, 0], "size": [1280, 1440]},
+    {"address": "0x5600d4", "class": "zoom", "title": "Zoom Meeting", "pid": 5200, "at": [100, 50], "size": [1600, 900]}
+  ]
+}

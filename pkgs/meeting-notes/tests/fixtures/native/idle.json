@@ -1,0 +1,13 @@
+{
+  "pw_dump": [
+    {"id": 0, "type": "PipeWire:Interface:Core", "info": {"props": {"core.name": "pipewire-0"}}},
+    {"id": 31, "type": "PipeWire:Interface:Client", "info": {"props": {"application.name": "WirePlumber", "application.process.id": 1800}}},
+    {"id": 42, "type": "PipeWire:Interface:Node", "info": {"state": "suspended", "props": {"media.class": "Audio/Source", "node.name": "alsa_input.usb-mic"}}},
+    {"id": 43, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Audio/Sink", "node.name": "alsa_output.pci-speakers"}}},
+    {"id": 70, "type": "PipeWire:Interface:Node", "info": {"state": "running", "props": {"media.class": "Stream/Output/Audio", "application.name": "Firefox", "application.process.binary": "firefox", "application.process.id": "3300"}}}
+  ],
+  "clients": [
+    {"address": "0x5600a1", "class": "kitty", "title": "nvim", "pid": 2100, "at": [0, 0], "size": [1280, 1440]},
+    {"address": "0x5600a2", "class": "firefox", "title": "Hacker News - Mozilla Firefox", "pid": 3300, "at": [1280, 0], "size": [1280, 1440]}
+  ]
+}
