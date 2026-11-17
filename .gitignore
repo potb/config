@@ -28,6 +28,7 @@ docs/*
 !docs/upstream-warnings.md
 !docs/herdr.md
 !docs/gaming.md
+!docs/meeting-notes.md
 *.log
 
 __pycache__/

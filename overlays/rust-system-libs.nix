@@ -21,15 +21,6 @@
       buildInputs = (old.buildInputs or []) ++ buildInputs;
     }));
 in {
-  fnm = withSystemLibs "fnm" prev.fnm {
-    nativeBuildInputs = [final.pkg-config];
-    buildInputs = [final.zstd];
-  };
-
-  tectonic-unwrapped = withSystemLibs "tectonic-unwrapped" prev.tectonic-unwrapped {
-    buildInputs = [final.aws-lc];
-  };
-
   sem = withSystemLibs "sem" inputs.sem.packages.${final.stdenv.hostPlatform.system}.default {
     buildInputs = [final.zstd final.libgit2 final.sqlite final.zlib];
   };
