@@ -75,6 +75,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     qwerty-fr = {
       url = "github:qwerty-fr/qwerty-fr/v0.7.3";
       flake = false;
@@ -380,6 +385,7 @@
               home-manager.useUserPackages = true;
               home-manager.sharedModules = [
                 inputs.nixvim.homeModules.nixvim
+                inputs.sops-nix.homeManagerModules.sops
               ];
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.backupFileExtension = "backup";
