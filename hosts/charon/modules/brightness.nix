@@ -107,8 +107,11 @@ in {
       "network-online.target"
     ];
     wants = ["network-online.target"];
+    path = [pkgs.coreutils];
+    environment.XDG_CACHE_HOME = "/var/cache/monitor-brightness";
     serviceConfig = {
       Type = "oneshot";
+      CacheDirectory = "monitor-brightness";
       ExecStart = brightnessScript;
     };
   };
