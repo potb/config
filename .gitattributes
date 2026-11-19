@@ -4,7 +4,3 @@ modules/agents/screenpipe-export/test_export.py filter=git-crypt diff=git-crypt
 docs/meeting-notes.md filter=git-crypt diff=git-crypt
 docs/screenpipe-export.md filter=git-crypt diff=git-crypt
 docs/screenpipe-url.md filter=git-crypt diff=git-crypt
-pkgs/meeting-notes/glossary.md filter=git-crypt diff=git-crypt
-pkgs/meeting-notes/pipe.md filter=git-crypt diff=git-crypt
-modules/dev/herdr/tools/CONTRACT.md filter=git-crypt diff=git-crypt
-modules/dev/herdr/tools/scan-ship.py filter=git-crypt diff=git-crypt

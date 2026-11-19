@@ -16,6 +16,7 @@ POSTED = "posted"
 DM_ONLY = "dm_only"
 TERMINAL = {DONE, SKIPPED, SKIPPED_SHORT, POSTED, DM_ONLY, FAILED}
 RESUME_TRANSCRIPT = {NOTES_SAVED, NOTES_POSTED}
+THREADS = "slack_threads"
 
 
 def iso(moment):
@@ -135,3 +136,21 @@ def set_processed(st, mid, **info):
 
 def processed(st, mid):
     return st["processed"].get(mid)
+
+
+def thread(st, mid):
+    return st.get(THREADS, {}).get(mid)
+
+
+def save_thread(path, st, mid, record):
+    st.setdefault(THREADS, {})[mid] = {**record, "slack_files": list(record.get("slack_files", []))}
+    save(path, st)
+
+
+def clear_thread(st, mid):
+    threads = st.get(THREADS)
+    if not threads:
+        return
+    threads.pop(mid, None)
+    if not threads:
+        st.pop(THREADS)

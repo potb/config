@@ -12,7 +12,10 @@ from pathlib import Path
 from . import asr as asr_module
 from . import chunks, state
 from . import cleanup as cleanup_module
+from . import diarize as diarize_module
+from . import glossary as glossary_module
 from . import notify as notify_module
+from . import opencode
 from . import pending as pending_module
 
 LOG = logging.getLogger(__name__)
@@ -25,24 +28,26 @@ CATCHUP_SECONDS = 900
 CLEANUP_SECONDS = 3600
 SILENCE_SECONDS = 90
 FETCH_TIMEOUT = 3 * 3600
-CLAUDE_TIMEOUT = 3600
+NOTES_TIMEOUT = 3600
 DEFAULT_TIMEOUT = 60
 KILL_GRACE = 10
 TIMEOUT_CODE = 124
 MAX_ATTEMPTS = 3
-CLAUDE_BATCH = 3
+NOTES_BATCH = 3
 SIDES = ("me", "others")
 NOTIFY_TITLE = "meeting-notes"
 
-ALLOWED_TOOLS = (
-    "Bash(meeting-notes pending)",
-    "Bash(meeting-notes finish:*)",
-    "Read",
-    "Write",
-    "Edit",
-    "Glob",
-    "Grep",
-)
+SLACK_SENTENCE = {
+    False: (
+        "Slack is disabled: do not send, post or share anything, anywhere. Save the notes and "
+        "the transcript locally through meeting-notes finish only."
+    ),
+    True: (
+        "meeting-notes finish does all the posting: you must never post, send or share "
+        "anything itself, anywhere, and never call Slack or any other service. Save the notes "
+        "and the transcript through meeting-notes finish only."
+    ),
+}
 
 PROMPT = """You process the meetings recorded for OWNER. In every transcript the microphone \
 side, 'me', is OWNER; 'others' is the system audio, the other participants.
@@ -50,30 +55,23 @@ side, 'me', is OWNER; 'others' is the system audio, the other participants.
 Follow pipe.md in the current directory step by step, and use glossary.md in the current \
 directory for names, products and terms. The watcher has already fetched each pending \
 meeting into work/<id>/: never fetch or transcribe yourself. To name the participants, \
-read the captures in work/<id>/screens/*.png with Read, together with meta.json and \
-screen.txt.
+use meta.json and screen.txt, which holds the OCR text of the captures in \
+work/<id>/screens/*.png. Never open the captures themselves: the OCR text is the only \
+screen input. In transcript.txt an 'others:<Name>' label comes from a voice print the owner \
+confirmed and is reliable; 'others:S1', 'others:S2'... are distinct unknown voices, so give \
+each S label one name from meta.json, screen.txt and the content, keep it the same through \
+the meeting, and add '(?)' only when truly unsure. A short interjection can carry the wrong \
+label.
 
-Slack is disabled: do not send, post or share anything, anywhere. Save the notes and the \
-transcript locally through meeting-notes finish only. Never read, print or source .env or \
-any other credentials file."""
+The shell runs only `meeting-notes pending` and `meeting-notes finish ...`, each as a \
+command of its own: any other command, and any chained command (`;`, `&&`, `|`), is \
+refused. Use the read, glob and grep tools for files.
+
+SLACK_RULE Never read, print or source .env or any other credentials file."""
 
 
 def prompt(cfg):
-    return PROMPT.replace("OWNER", cfg.owner)
-
-
-def claude_argv(cfg):
-    return [
-        cfg.claude,
-        "-p",
-        prompt(cfg),
-        "--permission-mode",
-        "acceptEdits",
-        "--allowedTools",
-        *ALLOWED_TOOLS,
-        "--add-dir",
-        str(cfg.meetings_dir),
-    ]
+    return PROMPT.replace("SLACK_RULE", SLACK_SENTENCE[bool(cfg.slack)]).replace("OWNER", cfg.owner)
 
 
 def poll_seconds(cfg):
@@ -206,6 +204,8 @@ class Watcher:
         cleanup=cleanup_module,
         threaded=True,
         self_cmd=None,
+        ident=opencode.ident,
+        glossary=glossary_module,
     ):
         self.cfg = cfg
         self.backend = backend
@@ -217,6 +217,8 @@ class Watcher:
         self.cleanup = cleanup
         self.threaded = threaded
         self.self_cmd = list(self_cmd) if self_cmd is not None else default_self_cmd()
+        self.ident = ident
+        self.glossary = glossary
         self.current = None
         self.live = None
         self.audio_since = None
@@ -225,6 +227,7 @@ class Watcher:
         self.settle = []
         self.last_catchup = None
         self.last_cleanup = None
+        self.retention_logged = False
         self.started = False
         self.stopping = threading.Event()
         self.wake = threading.Event()
@@ -313,6 +316,10 @@ class Watcher:
         screenpipe_id = getattr(event, "screenpipe_id", None)
         if screenpipe_id is not None:
             extra["screenpipe_id"] = screenpipe_id
+        sources = getattr(self.backend, "audio_sources", None)
+        sources = sources() if sources else None
+        if sources:
+            extra["audio_sources"] = sources
         with state.locked(self.cfg.state_path) as st:
             mid = state.start_meeting(st, self.backend.name, event.app, event.title, at, source, **extra)
         LOG.info("meeting %s started (%s, %s)", mid, event.app, source)
@@ -422,6 +429,8 @@ class Watcher:
             for item in items:
                 mid = item["id"]
                 if not item.get("resume") and not self._fetched(mid):
+                    if self._defer(item, now):
+                        continue
                     result = self.fetch(mid, now)
                     if result.returncode or not self._fetched(mid):
                         self._attempt(mid, f"fetch exited {result.returncode}")
@@ -429,34 +438,97 @@ class Watcher:
                 ready.append(mid)
             if not ready:
                 return False
-            result = self.run_claude(now)
+            result = self.run_notes(now)
             with state.locked(self.cfg.state_path) as st:
                 unfinished = [
                     mid
-                    for mid in ready[:CLAUDE_BATCH]
+                    for mid in ready[:NOTES_BATCH]
                     if (state.processed(st, mid) or {}).get("status") not in state.TERMINAL
                 ]
             for mid in unfinished:
-                self._attempt(mid, f"claude exited {result.returncode} without finishing")
+                self._attempt(mid, f"notes run exited {result.returncode} without finishing")
+            for mid in ready[:NOTES_BATCH]:
+                if mid not in unfinished:
+                    self._glossary(mid, now)
             return True
 
+    def _glossary(self, mid, now):
+        scratch = self.cfg.runs_dir / f"{stamp(now)}-glossary-{mid}.json"
+        try:
+            self.glossary.propose(self.cfg, mid, self.run, scratch, notify=self.notify)
+        except Exception:
+            LOG.exception("glossary proposal failed for %s", mid)
+
+    def _defer(self, item, now):
+        if not diarize_module.available(self.cfg):
+            return False
+        active = state.active_meeting(state.load(self.cfg.state_path))
+        if active is None or active["id"] == item["id"]:
+            return False
+        ended = _moment(item.get("end"), now)
+        waited = (now - ended).total_seconds() / 60
+        limit = self.cfg.diarization_max_delay
+        if waited >= limit:
+            LOG.info(
+                "meeting %s is active but %s waited %.0f min, the %s min cap: diarizing now at low priority",
+                active["id"], item["id"], waited, limit,
+            )
+            return False
+        LOG.info(
+            "deferring fetch and diarization of %s while meeting %s is active (waited %.0f of %s min)",
+            item["id"], active["id"], waited, limit,
+        )
+        return True
+
     def fetch(self, mid, now):
-        log = self.cfg.runs_dir / f"{stamp(now)}-fetch-{mid}.log"
+        log =self.cfg.runs_dir / f"{stamp(now)}-fetch-{mid}.log"
         self.cfg.runs_dir.mkdir(parents=True, exist_ok=True)
         result = self.run([*self.self_cmd, "fetch", mid], cwd=None, timeout=FETCH_TIMEOUT, log=log)
         if result.returncode:
             LOG.warning("fetch %s exited %s, see %s", mid, result.returncode, log)
         return result
 
-    def run_claude(self, now):
-        log = self.cfg.runs_dir / f"{stamp(now)}.log"
-        self.cfg.runs_dir.mkdir(parents=True, exist_ok=True)
+    def run_notes(self, now):
+        name = opencode.run_name(stamp(now), self.ident())
+        runs = self.cfg.runs_dir
+        log = runs / f"{name}.log"
+        raw = runs / f"{name}.jsonl"
+        scratch = runs / f"{name}-opencode.json"
+        runs.mkdir(parents=True, exist_ok=True)
         self.cfg.data_dir.mkdir(parents=True, exist_ok=True)
-        LOG.info("running claude, log %s", log)
-        result = self.run(claude_argv(self.cfg), cwd=self.cfg.data_dir, timeout=CLAUDE_TIMEOUT, log=log)
+        title = opencode.title(name)
+        LOG.info("running opencode, log %s", log)
+        raw.unlink(missing_ok=True)
+        try:
+            result = self.run(
+                opencode.run_argv(self.cfg, title, prompt(self.cfg)),
+                cwd=self.cfg.data_dir,
+                timeout=NOTES_TIMEOUT,
+                log=raw,
+            )
+        finally:
+            events, other = opencode.read_output(raw)
+            ids = opencode.session_ids(events)
+            try:
+                ids = opencode.owned_sessions(self.run, self.cfg, ids, title, runs, scratch)
+            except Exception:
+                LOG.exception("could not list the opencode sessions of %s", title)
+            log.write_text(opencode.render(events, other, header=[f"session {sid}" for sid in ids]))
+            raw.unlink(missing_ok=True)
+            LOG.info("opencode %s", opencode.summary(opencode.totals(events)))
+            self._delete_sessions(ids, runs, scratch)
         if result.returncode:
-            LOG.warning("claude exited %s, see %s", result.returncode, log)
+            LOG.warning("opencode exited %s, see %s", result.returncode, log)
         return result
+
+    def _delete_sessions(self, ids, cwd, scratch):
+        try:
+            failed = opencode.delete_sessions(self.run, self.cfg, list(reversed(ids)), cwd, scratch)
+        except Exception:
+            LOG.exception("could not delete the opencode sessions %s", ", ".join(ids))
+            return
+        for sid in failed:
+            LOG.warning("could not delete opencode session %s", sid)
 
     def _audio(self, now):
         if self.current is None:
@@ -478,6 +550,11 @@ class Watcher:
         if self.last_cleanup is not None and (now - self.last_cleanup).total_seconds() < CLEANUP_SECONDS:
             return
         self.last_cleanup = now
+        if self.cfg.retention_days is None:
+            if not self.retention_logged:
+                self.retention_logged = True
+                LOG.info("retention disabled, nothing is ever cleaned up")
+            return
         removed = self.cleanup.run(self.cfg, now)
         LOG.info("cleanup %s", removed)
 

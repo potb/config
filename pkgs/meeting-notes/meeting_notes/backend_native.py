@@ -13,8 +13,18 @@ def _utcnow():
 class NativeBackend:
     name = "native"
 
-    def __init__(self, cfg, run=detect.run, clock=_utcnow, recorder=None, detector=None, environ=None):
+    def __init__(
+        self,
+        cfg,
+        run=detect.run,
+        clock=_utcnow,
+        recorder=None,
+        detector=None,
+        environ=None,
+        ppid=detect.read_ppid,
+    ):
         self.cfg = cfg
+        self.ppid = ppid
         self.run = run
         self.clock = clock
         self.environ = environ
@@ -61,7 +71,9 @@ class NativeBackend:
         if snap is None:
             return []
         streams, clients = snap
-        candidate = detect.match_call(streams, clients, self.recorder.pids())
+        candidate = detect.match_call(
+            streams, clients, self.recorder.pids(), self.cfg.ignore_apps, self.ppid
+        )
         events = self._handle(self.detector.feed(now, candidate), now)
         if self.detector.active is not None and not events:
             self._refresh_window(clients)
@@ -76,6 +88,9 @@ class NativeBackend:
     def manual_stop(self):
         now = self.clock()
         return self._handle(self.detector.force_stop(now), now)
+
+    def audio_sources(self):
+        return self.recorder.sources
 
     def active(self):
         if self.detector.active is None:

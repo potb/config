@@ -2,7 +2,7 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import asr, chunks, state
+from . import asr, chunks, diarize, state
 
 
 def _parse(text):
@@ -27,8 +27,14 @@ def _expired(cfg, st, now):
             yield mid, meeting, state.previous_end(st, mid)
 
 
+def disabled(cfg):
+    return cfg.retention_days is None
+
+
 def run(cfg, now, run_cmd=None):
-    removed = {"audio": 0, "screens": 0, "wav": 0, "cache": 0}
+    removed = {"audio": 0, "screens": 0, "wav": 0, "embeddings": 0, "cache": 0}
+    if disabled(cfg):
+        return removed
     with state.locked(cfg.state_path) as st:
         expired = list(_expired(cfg, st, now))
     for mid, meeting, floor in expired:
@@ -45,5 +51,9 @@ def run(cfg, now, run_cmd=None):
         for wav in cfg.meeting_dir(mid).glob("*.wav"):
             wav.unlink()
             removed["wav"] += 1
+        embeddings = cfg.meeting_dir(mid) / diarize.SPEAKERS_NPZ
+        if embeddings.is_file():
+            embeddings.unlink()
+            removed["embeddings"] += 1
     removed["cache"] = asr.prune_cache(cfg, cfg.retention_days, now)
     return removed

@@ -14,11 +14,13 @@ from pathlib import Path
 from . import chunks
 
 LOG = logging.getLogger(__name__)
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 SILENCE_MAX_DB = -50.0
 LOUD_MEAN_DB = -35.0
 MIN_WORDS = 6
 SLOW_SECONDS = 10.0
+VAD_THRESHOLD = "0.6"
+PROMPT_MAX_CHARS = 550
 TASKPOLICY = "/usr/sbin/taskpolicy"
 
 HALLUCINATIONS = frozenset(
@@ -33,10 +35,16 @@ HALLUCINATIONS = frozenset(
         "...",
     }
 )
-HALLUCINATION_MARKERS = ("amara.org",)
+HALLUCINATION_MARKERS = ("amara.org", "bit.ly")
+HALLUCINATION_PHRASES = ("follow me", "sous-titrage", "réalisé par")
+PHRASE_MAX_WORDS = 15
 
+_WARNED = set()
 LiveResult = namedtuple("LiveResult", "done slow")
+Span = namedtuple("Span", "chunk offset following end words", defaults=(None, ()))
 _VOLUME_RE = re.compile(r"(mean|max)_volume:\s*(-?\d+(?:\.\d+)?|-inf)\s*dB")
+_VAD_RE = re.compile(r"Detected\s+(\d+)\s+speech segments")
+_EDGE_RE = re.compile(r"^[\W_]+|[\W_]+$")
 
 
 class AsrError(RuntimeError):
@@ -58,9 +66,9 @@ def glossary_terms(path):
     terms = []
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line or line.startswith("#"):
+        if not line.startswith(("- ", "* ", "+ ")):
             continue
-        term = line.lstrip("-*+ ").strip()
+        term = line[2:].split(" — ")[0].strip()
         if term and term not in terms:
             terms.append(term)
     return terms
@@ -70,10 +78,21 @@ def asr_prompt(cfg):
     terms = glossary_terms(cfg.glossary)
     if not terms:
         return ""
-    joined = ", ".join(terms)
+    company = cfg.company
     if cfg.language == "fr":
-        return f"Réunion de travail. Termes et noms propres fréquents : {joined}."
-    return f"Work meeting. Frequent terms and proper names: {joined}."
+        place = f" chez {company}," if company else ""
+        head, tail = f"Réunion de travail{place} avec {cfg.owner}. Termes : ", "."
+    else:
+        place = f" at {company}," if company else ""
+        head, tail = f"Work meeting{place} with {cfg.owner}. Terms: ", "."
+    kept = []
+    for term in terms:
+        if term in (company, cfg.owner):
+            continue
+        if len(head) + len(", ".join([*kept, term])) + len(tail) > PROMPT_MAX_CHARS:
+            break
+        kept.append(term)
+    return f"{head}{', '.join(kept)}{tail}"
 
 
 def low_priority(cfg, argv, platform=sys.platform, exists=os.path.exists):
@@ -88,7 +107,7 @@ def prefilter_argv(cfg, src, wav):
     return [
         cfg.ffmpeg, "-y", "-loglevel", "error", "-i", str(src),
         "-ar", "16000", "-ac", "1",
-        "-af", "highpass=f=80,loudnorm=I=-16:TP=-1.5:LRA=11", str(wav),
+        "-af", "highpass=f=80", str(wav),
     ]
 
 
@@ -101,10 +120,28 @@ def prefilter(cfg, src, wav, run=default_run, prefix=()):
 def whisper_argv(cfg, wav, prefix, prompt, language):
     return [
         cfg.whisper, "-m", str(cfg.model), "-f", str(wav),
-        "--vad", "--vad-model", str(cfg.vad_model),
-        "-bs", "8", "-bo", "5", "-l", language,
-        "--prompt", prompt, "-oj", "-of", str(prefix), "-np",
+        "--vad", "--vad-model", str(cfg.vad_model), "-vt", VAD_THRESHOLD,
+        "--suppress-nst", "-bs", "8", "-bo", "5", "-l", language,
+        "--prompt", prompt, "-oj", "-ojf", "-of", str(prefix), "-np",
     ]
+
+
+def vad_argv(cfg, wav):
+    return [str(cfg.vad_bin), "-vm", str(cfg.vad_model), "-vt", VAD_THRESHOLD, "-np", "-f", str(wav)]
+
+
+def vad_available(cfg, which=shutil.which):
+    return bool(cfg.vad_bin) and which(str(cfg.vad_bin)) is not None
+
+
+def speech_segments(cfg, wav, run, prefix=()):
+    result = run([*prefix, *vad_argv(cfg, wav)])
+    if result.returncode != 0:
+        raise AsrError(f"whisper-vad-speech-segments failed: {result.stderr}")
+    found = _VAD_RE.search(result.stdout or "")
+    if not found:
+        raise AsrError("whisper-vad-speech-segments printed no segment count")
+    return int(found.group(1))
 
 
 def volume_levels(cfg, path, run, prefix=()):
@@ -133,8 +170,11 @@ def cached(cfg, path):
 def _read_cache(cfg, path):
     try:
         data = json.loads(cache_path(cfg, path).read_text(encoding="utf-8"))
-        return [[float(offset), text] for offset, text in data["segments"]]
-    except (OSError, ValueError, KeyError, TypeError):
+        return [
+            [float(begin), float(end), str(text), [[float(a), float(b), str(w)] for a, b, w in words]]
+            for begin, end, text, words in data["segments"]
+        ]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
 
 
@@ -151,11 +191,47 @@ def _write_cache(cfg, path, segments):
         raise
 
 
+def _normalize(text):
+    return " ".join(_EDGE_RE.sub("", text.strip().lower()).split())
+
+
 def _is_hallucination(text):
-    norm = text.strip().lower().rstrip(" .!?…")
-    if norm in HALLUCINATIONS or text.strip().lower() in HALLUCINATIONS:
+    lowered = text.strip().lower()
+    norm = _normalize(text)
+    if norm in HALLUCINATIONS or lowered in HALLUCINATIONS:
         return True
-    return any(marker in norm for marker in HALLUCINATION_MARKERS)
+    if any(marker in lowered for marker in HALLUCINATION_MARKERS):
+        return True
+    return len(norm.split()) <= PHRASE_MAX_WORDS and any(phrase in norm for phrase in HALLUCINATION_PHRASES)
+
+
+def _words(tokens, start, stop):
+    timed = [token.get("offsets", {}) for token in tokens]
+    low = min((float(t.get("from", 0)) for t in timed), default=0.0) / 1000.0
+    high = max((float(t.get("to", 0)) for t in timed), default=0.0) / 1000.0
+    scale = (stop - start) / (high - low) if high > low else 1.0
+
+    def place(value):
+        return round(min(stop, max(start, start + (value - low) * scale)), 3)
+
+    words = []
+    for token in tokens:
+        piece = token.get("text") or ""
+        if piece.startswith("[_"):
+            continue
+        offsets = token.get("offsets", {})
+        begin = place(float(offsets.get("from", 0)) / 1000.0)
+        end = place(float(offsets.get("to", 0)) / 1000.0)
+        stripped = piece.strip()
+        if not stripped:
+            continue
+        glued = not piece.startswith(" ") or not any(ch.isalnum() for ch in stripped)
+        if words and glued:
+            words[-1][1] = max(words[-1][1], end)
+            words[-1][2] += stripped if piece.startswith(" ") else piece
+        else:
+            words.append([begin, end, stripped])
+    return words
 
 
 def _parse_whisper(prefix):
@@ -168,13 +244,20 @@ def _parse_whisper(prefix):
         text = (item.get("text") or "").strip()
         if not text or _is_hallucination(text):
             continue
-        offset = float(item.get("offsets", {}).get("from", 0)) / 1000.0
-        segments.append([offset, text])
+        offsets = item.get("offsets", {})
+        begin = float(offsets.get("from", 0)) / 1000.0
+        end = float(offsets.get("to", 0)) / 1000.0
+        segments.append([begin, end, text, _words(item.get("tokens", []), begin, end)])
     return segments
 
 
 def _word_count(segments):
-    return sum(len(text.split()) for _, text in segments)
+    return sum(len(segment[2].split()) for segment in segments)
+
+
+def _retry_wins(first, retry):
+    before, after = _word_count(first), _word_count(retry)
+    return after > before and after >= 2 * before
 
 
 def _decode(cfg, wav, workdir, prompt, tag, run, prefix):
@@ -193,16 +276,24 @@ def transcribe_chunk(cfg, path, side, prompt, run=default_run, low=False, timer=
     started = timer()
     prefix = low_priority(cfg, []) if low else []
     mean, peak = volume_levels(cfg, path, run, prefix)
-    if peak < SILENCE_MAX_DB:
-        _write_cache(cfg, path, [])
-        return [], timer() - started
+    use_vad = vad_available(cfg)
+    if not use_vad:
+        if cfg.vad_bin not in _WARNED:
+            _WARNED.add(cfg.vad_bin)
+            LOG.warning("%s not found, falling back to the -50 dB volume threshold", cfg.vad_bin)
+        if peak < SILENCE_MAX_DB:
+            _write_cache(cfg, path, [])
+            return [], timer() - started
     with tempfile.TemporaryDirectory(prefix="asr-") as workdir:
         wav = Path(workdir) / "chunk.wav"
         prefilter(cfg, path, wav, run, prefix)
+        if use_vad and speech_segments(cfg, wav, run, prefix) == 0:
+            _write_cache(cfg, path, [])
+            return [], timer() - started
         segments = _decode(cfg, wav, workdir, prompt, "first", run, prefix)
-        if _word_count(segments) < MIN_WORDS and mean > LOUD_MEAN_DB:
+        if _word_count(segments) < MIN_WORDS and (use_vad or mean > LOUD_MEAN_DB):
             retry = _decode(cfg, wav, workdir, "", "retry", run, prefix)
-            if _word_count(retry) > _word_count(segments):
+            if _retry_wins(segments, retry):
                 segments = retry
     _write_cache(cfg, path, segments)
     return segments, timer() - started
@@ -238,13 +329,13 @@ def available(cfg, which=shutil.which):
     return all(p is not None and Path(p).is_file() for p in (cfg.model, cfg.vad_model))
 
 
-def transcribe(cfg, start, end, prompt, run=default_run, available=available, floor=None, skipped=None):
+def transcribe(cfg, start, end, prompt, run=default_run, available=available, floor=None, skipped=None, spans=None):
     if not available(cfg):
         return None
     paths = chunks.meeting_chunks(cfg.audio_dir, start, end, floor=floor)
     if not paths:
         return None
-    lines = []
+    rows = []
     for path in paths:
         parsed = chunks.parse(path.name)
         if not parsed:
@@ -257,9 +348,14 @@ def transcribe(cfg, start, end, prompt, run=default_run, available=available, fl
             if skipped is not None:
                 skipped.append(path.name)
             continue
-        for offset, text in segments:
-            lines.append((t0 + timedelta(seconds=offset), side, text))
-    return sorted(lines, key=lambda line: (line[0], line[1]))
+        for index, (begin, end, text, words) in enumerate(segments):
+            following = segments[index + 1][0] if index + 1 < len(segments) else None
+            span = Span(path.name, begin, following, end, tuple(tuple(word) for word in words))
+            rows.append((t0 + timedelta(seconds=begin), side, text, span))
+    rows.sort(key=lambda row: (row[0], row[1]))
+    if spans is not None:
+        spans.extend(row[3] for row in rows)
+    return [row[:3] for row in rows]
 
 
 def prune_cache(cfg, days, now=None):

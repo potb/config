@@ -142,6 +142,13 @@ Linear API key that `tools/scan-ship.py` reads, is encrypted with sops in
 sops-nix decrypt it at login into the user runtime directory and link it to the
 path the script already reads (`~/.config/herdr-app/data/linear/key`).
 
+Mods and tools do not name the owner's work either. The repository the ship
+board watches comes from `~/.config/herdr-app/data/ship-repo.json`
+(`{"repo": "<owner>/<name>", "dir": "<local clone>"}`), the `ship-repo` key of
+`secrets/private.yaml`, decrypted by the same host module. Without it
+`scan-ship.py` prints `{"ok": false, ...}`. See the Private data section of
+[meeting-notes.md](meeting-notes.md) to edit it.
+
 To add a secret, run `sops secrets/herdr.yaml`, add a key, and add a matching
 `sops.secrets.<key>.path` in that host module. Session tokens that a tool gets
 by signing in, such as Rakazo's in `~/.local/share/rakazo/session.json`, are

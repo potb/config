@@ -155,6 +155,7 @@
 
     home.packages = with pkgs; [
       git-lfs
+      git-crypt
       git-filter-repo
       mergiraf
     ];

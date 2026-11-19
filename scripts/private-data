@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+sealed=secrets/private.yaml
+entries=(
+  "glossary=pkgs/meeting-notes/glossary.md"
+  "company=private/company"
+  "pipe=private/pipe.md"
+  "export-skip=private/export-skip"
+  "ship-repo=private/ship-repo.json"
+  "git-crypt-key=private/git-crypt-key.b64"
+)
+
+case "${1:-seal}" in
+  seal)
+    args=()
+    fields=()
+    for entry in "${entries[@]}"; do
+      key=${entry%%=*}
+      path=${entry#*=}
+      [ -f "$path" ] || { echo "missing $path, run: $0 open" >&2; exit 1; }
+      var=v${#args[@]}
+      args+=(--rawfile "$var" "$path")
+      fields+=("\"$key\": \$$var")
+    done
+    filter="{$(IFS=,; echo "${fields[*]}")}"
+    nix shell nixpkgs#sops nixpkgs#jq -c sh -c '
+      sealed=$1
+      filter=$2
+      shift 2
+      jq -n "$@" "$filter" |
+        sops encrypt --filename-override "$sealed" --input-type json --output-type yaml /dev/stdin > "$sealed.tmp"
+      mv "$sealed.tmp" "$sealed"
+    ' _ "$sealed" "$filter" "${args[@]}"
+    ;;
+  open)
+    mkdir -p private
+    for entry in "${entries[@]}"; do
+      key=${entry%%=*}
+      path=${entry#*=}
+      nix shell nixpkgs#sops -c sops decrypt --extract "[\"$key\"]" "$sealed" > "$path"
+    done
+    ;;
+  unlock)
+    key=$(mktemp)
+    trap 'rm -f "$key"' EXIT
+    nix shell nixpkgs#sops -c sops decrypt --extract '["git-crypt-key"]' "$sealed" | base64 -d > "$key"
+    nix shell nixpkgs#git-crypt -c git-crypt unlock "$key"
+    ;;
+  *)
+    echo "usage: private-data [seal|open|unlock]" >&2
+    exit 2
+    ;;
+esac

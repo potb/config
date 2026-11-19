@@ -33,10 +33,41 @@ def _parser():
     sub.add_parser("pending", help="print the fetched meetings waiting for notes as JSON")
     fetch = sub.add_parser("fetch", help="transcribe one meeting into work/<id>")
     fetch.add_argument("id")
+    diarize = sub.add_parser("diarize", help="split the others track of one meeting into speakers")
+    diarize.add_argument("id")
+    diarize.add_argument("--out", help="folder for speakers.json, work/<id> by default")
+    voices = sub.add_parser("voices", help="list, add, import or remove voice prints")
+    actions = voices.add_subparsers(dest="action", metavar="action", required=True)
+    actions.add_parser("list", help="list the voice prints")
+    add = actions.add_parser("add", help="build or update a print from a speaker of a diarized meeting")
+    add.add_argument("--id", required=True)
+    add.add_argument("--speaker", required=True, help="cluster id from speakers.json, such as S2")
+    add.add_argument("--name", required=True)
+    remove = actions.add_parser("remove", help="delete a voice print")
+    remove.add_argument("--name", required=True)
+    imported = actions.add_parser("import", help="create a print from a vector in an npz or json file")
+    imported.add_argument("--name", required=True)
+    imported.add_argument("--file", required=True)
+    imported.add_argument("--key", required=True, help="array name in the npz, or key in the json")
+    imported.add_argument("--seconds", type=float, default=0.0)
+    imported.add_argument("--id", action="append", default=[], help="source meeting id, repeatable")
     sub.add_parser("finish", help="save notes or transcript, see meeting-notes finish --help", add_help=False)
     sub.add_parser("cleanup", help="delete expired audio, screenshots and cache")
     sub.add_parser("screenpipe", help="run the screenpipe recorder with the local API key")
     sub.add_parser("check", help="check tools, models and settings")
+    sub.add_parser("slack-check", help="check the Slack token, channel and direct message")
+    sub.add_parser("run-notes", help="run the notes agent once on the pending meetings")
+    glossary = sub.add_parser("glossary", help="open the glossary session of a processed meeting")
+    glossary.add_argument("id")
+    glossary.add_argument("--force", action="store_true", help="open a new session even if one was opened")
+    bench = sub.add_parser("bench", help="run the notes on saved fixtures and grade them blind")
+    bench.add_argument("fixtures", nargs="*", help="fixture ids, all fixtures by default")
+    bench.add_argument("--model", action="append", default=[], help="notes model, repeatable")
+    bench.add_argument("--pipe", action="append", default=[], help="pipe.md variant or 'installed', repeatable")
+    bench.add_argument("--out", help="output folder, /tmp/meeting-notes-bench/<stamp> by default")
+    bench.add_argument("--env", help="service environment JSON, <data>/service-env.json by default")
+    bench.add_argument("--judge-model", default="claude-agent/opus")
+    bench.add_argument("--add-fixture", metavar="ID", help="save work/<ID> of a fetched meeting as a fixture")
     return parser
 
 
@@ -92,7 +123,7 @@ def cmd_status(cfg, args, which):
     else:
         print("no active meeting")
     last = data["last_run"]
-    print(f"last pending check: {last['pending'] or 'never'}, last claude log: {last['log'] or 'none'}")
+    print(f"last pending check: {last['pending'] or 'never'}, last notes log: {last['log'] or 'none'}")
     for item in data["processed"]:
         print(f"  {item['id']}: {item.get('status')} at {item.get('at')}")
     return 0
@@ -138,9 +169,107 @@ def cmd_fetch(cfg, args, which):
     return 0
 
 
+def cmd_diarize(cfg, args, which):
+    from . import diarize
+
+    try:
+        return diarize.main(cfg, args.id, args.out)
+    except Exception as error:
+        print(f"diarize {args.id} failed: {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
+
+
+def _voices_list(cfg, args):
+    from . import voices
+
+    records = voices.load(cfg.voices_dir)
+    if not records:
+        print(f"no voice prints in {cfg.voices_dir}")
+    for item in records:
+        meetings = ", ".join(item.get("meetings") or []) or "-"
+        print(f"{item['name']}: {item.get('seconds', 0):.0f} s, meetings {meetings}, confirmed {item.get('confirmed_at')}")
+    return 0
+
+
+def _voices_add(cfg, args):
+    import numpy as np
+
+    from . import diarize, voices
+
+    folder = cfg.meeting_dir(args.id)
+    try:
+        data = json.loads((folder / diarize.SPEAKERS_JSON).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise voices.VoiceError(f"meeting {args.id} has no readable {diarize.SPEAKERS_JSON}") from None
+    if data.get("status") != "ok":
+        raise voices.VoiceError(f"meeting {args.id} was not diarized: {data.get('reason') or data.get('status')}")
+    ids = [item["id"] for item in data.get("clusters", [])]
+    if args.speaker not in ids:
+        raise voices.VoiceError(f"meeting {args.id} has no speaker {args.speaker}, found {', '.join(ids) or 'none'}")
+    position = ids.index(args.speaker)
+    try:
+        with np.load(folder / diarize.SPEAKERS_NPZ, allow_pickle=False) as arrays:
+            embeddings, labels = arrays["embeddings"], arrays["labels"]
+    except (OSError, KeyError, ValueError):
+        raise voices.VoiceError(f"meeting {args.id} has no window embeddings left (cleaned up?)") from None
+    chosen = embeddings[labels == position]
+    if not len(chosen):
+        raise voices.VoiceError(f"speaker {args.speaker} has no windows")
+    chosen = chosen / np.linalg.norm(chosen, axis=1, keepdims=True)
+    seconds = float(data["clusters"][position]["seconds"])
+    existing = voices.find(cfg.voices_dir, args.name)
+    entry = voices.merge(existing, args.name, chosen.mean(0), seconds, args.id)
+    path = voices.write(cfg.voices_dir, entry)
+    verb = "updated" if existing else "created"
+    print(f"{verb} {entry['name']} ({entry['seconds']:.0f} s from {len(entry['meetings'])} meetings): {path}")
+    return 0
+
+
+def _voices_remove(cfg, args):
+    from . import voices
+
+    path = voices.path_for(cfg.voices_dir, args.name)
+    if not path.is_file():
+        raise voices.VoiceError(f"no voice print named {args.name}")
+    path.unlink()
+    print(f"removed {args.name}")
+    return 0
+
+
+def _voices_import(cfg, args):
+    from . import voices
+
+    vector = voices.load_vector(args.file, args.key)
+    if voices.find(cfg.voices_dir, args.name) is not None:
+        raise voices.VoiceError(f"{args.name} already has a print: remove it first")
+    entry = voices.record(args.name, vector, args.seconds, args.id)
+    path = voices.write(cfg.voices_dir, entry)
+    print(f"imported {entry['name']}: {path}")
+    return 0
+
+
+def cmd_voices(cfg, args, which):
+    from . import voices
+
+    handler = {
+        "list": _voices_list,
+        "add": _voices_add,
+        "remove": _voices_remove,
+        "import": _voices_import,
+    }[args.action]
+    try:
+        return handler(cfg, args)
+    except (voices.VoiceError, OSError, ValueError) as error:
+        print(f"voices {args.action}: {error}", file=sys.stderr)
+        return 1
+
+
 def cmd_cleanup(cfg, args, which):
     from . import cleanup
 
+    if cleanup.disabled(cfg):
+        print("retention disabled, nothing cleaned up")
+        return 0
     removed = cleanup.run(cfg, datetime.now(timezone.utc))
     print(json.dumps(removed, sort_keys=True))
     return 0
@@ -157,8 +286,23 @@ def cmd_screenpipe(cfg, args, which):
     return 0
 
 
-def check_lines(cfg, which=shutil.which):
-    tools = [cfg.ffmpeg, cfg.whisper, cfg.claude]
+def _source_lines(cfg, run):
+    from . import recorder
+
+    try:
+        sources = recorder.resolve_sources(cfg, run)
+    except recorder.SourceError as error:
+        return [f"mic source: refused, {error}"], False
+    others = sources["others"]
+    lines = [
+        f"mic source: {sources['me']}" + (" (pinned)" if cfg.mic_source else " (default source now)"),
+        f"others source: {others or 'missing'}" + (" (pinned)" if cfg.monitor_source else ""),
+    ]
+    return lines, others is not None
+
+
+def check_lines(cfg, which=shutil.which, run=None):
+    tools = [cfg.ffmpeg, cfg.whisper, cfg.vad_bin, cfg.opencode]
     if cfg.backend == "native":
         tools.extend(NATIVE_TOOLS)
     else:
@@ -173,9 +317,24 @@ def check_lines(cfg, which=shutil.which):
         present = path is not None and Path(path).is_file()
         ok = ok and present
         lines.append(f"{label}: {path if present else 'missing'}")
+    if cfg.diarization:
+        for label, path in (("speaker model", cfg.speaker_model), ("diarization vad model", cfg.speech_vad_model)):
+            present = path is not None and Path(path).is_file()
+            ok = ok and present
+            lines.append(f"{label}: {path if present else 'missing'}")
+        lines.append(f"diarization: on, {cfg.diarization_threads} threads, voices in {cfg.voices_dir}")
+    else:
+        lines.append("diarization: off")
+    if cfg.backend == "native":
+        from . import detect
+
+        source_lines, sources_ok = _source_lines(cfg, run or detect.run)
+        ok = ok and sources_ok
+        lines.extend(source_lines)
     lines.append(f"backend: {cfg.backend}")
     lines.append(f"live: {'on' if cfg.live else 'off'}")
-    lines.append(f"slack: {'on' if cfg.slack else 'off'}")
+    lines.append(f"slack: {'on' if cfg.slack else 'off'}, post to {cfg.slack_post_to}")
+    lines.append(f"retention: {'disabled' if cfg.retention_days is None else f'{cfg.retention_days} days'}")
     lines.append(f"owner: {cfg.owner}")
     lines.append(f"data: {cfg.data_dir}")
     lines.append(f"meetings: {cfg.meetings_dir}")
@@ -194,6 +353,53 @@ def cmd_check(cfg, args, which):
     return 0 if ok else 1
 
 
+def cmd_slack_check(cfg, args, which):
+    from . import slack
+
+    try:
+        lines = slack.check(cfg, which=which)
+    except slack.SlackError as error:
+        print(f"slack-check failed: {error}", file=sys.stderr)
+        return 1
+    for line in lines:
+        print(line)
+    print("ok")
+    return 0
+
+
+def cmd_run_notes(cfg, args, which):
+    import logging
+
+    from . import watch
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    watcher = watch.Watcher(cfg, None, watch.utcnow, watch.default_run)
+    return watcher.run_notes(watch.utcnow()).returncode
+
+
+def cmd_glossary(cfg, args, which):
+    from . import glossary, watch
+
+    if cfg.glossary_repo is None:
+        print("glossary: MEETING_NOTES_GLOSSARY_REPO is not set", file=sys.stderr)
+        return 1
+    cfg.runs_dir.mkdir(parents=True, exist_ok=True)
+    scratch = cfg.runs_dir / f"glossary-{args.id}-{os.getpid()}.json"
+    try:
+        sid = glossary.propose(cfg, args.id, watch.default_run, scratch, force=args.force)
+    except glossary.GlossaryError as error:
+        print(f"glossary: {error}", file=sys.stderr)
+        return 1
+    print(f"session {sid}" if sid else f"{args.id}: no glossary session (no new candidate, not processed, or one exists)")
+    return 0
+
+
+def cmd_bench(cfg, args, which):
+    from . import bench
+
+    return bench.main(cfg, args)
+
+
 COMMANDS = {
     "watch": cmd_watch,
     "start": cmd_start,
@@ -201,9 +407,15 @@ COMMANDS = {
     "status": cmd_status,
     "pending": cmd_pending,
     "fetch": cmd_fetch,
+    "diarize": cmd_diarize,
+    "voices": cmd_voices,
     "cleanup": cmd_cleanup,
     "screenpipe": cmd_screenpipe,
     "check": cmd_check,
+    "slack-check": cmd_slack_check,
+    "run-notes": cmd_run_notes,
+    "bench": cmd_bench,
+    "glossary": cmd_glossary,
 }
 
 

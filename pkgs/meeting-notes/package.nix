@@ -16,17 +16,25 @@ in
         (root + "/meeting_notes")
         (root + "/tests")
         (root + "/pipe.md")
-        (root + "/glossary.md")
+        (root + "/judge.md")
+        (root + "/opencode-guard.ts")
       ];
     };
 
     build-system = [python3Packages.setuptools];
 
+    dependencies = with python3Packages; [
+      kaldi-native-fbank
+      numpy
+      onnxruntime
+      scipy
+    ];
+
     nativeCheckInputs = [python3Packages.unittestCheckHook];
     unittestFlags = ["-s" "tests" "-t" "."];
 
     postInstall = ''
-      install -Dm644 pipe.md glossary.md -t $out/share/meeting-notes
+      install -Dm644 pipe.md judge.md opencode-guard.ts -t $out/share/meeting-notes
     '';
 
     meta = {

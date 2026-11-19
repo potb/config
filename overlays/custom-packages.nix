@@ -18,6 +18,7 @@
   meeting-notes = final.callPackage ../pkgs/meeting-notes/package.nix {};
   meeting-notes-models = final.callPackage ../pkgs/meeting-notes/models.nix {};
   rakazo = final.callPackage ../pkgs/rakazo/package.nix {};
+  screenpipe-url = final.callPackage ../pkgs/screenpipe-url/package.nix {};
   herdr-app = final.callPackage ../pkgs/herdr-app/package.nix {
     inherit (inputs.llm-agents.packages.${final.stdenv.hostPlatform.system}) herdr-app herdr-core;
   };

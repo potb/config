@@ -31,6 +31,13 @@ docs/*
 !docs/meeting-notes.md
 !docs/chrome.md
 !docs/claude.md
+!docs/screenpipe.md
+!docs/screenpipe-export.md
+!docs/screenpipe-url.md
 *.log
 
 __pycache__/
+
+/pkgs/meeting-notes/glossary.md
+
+/private/
