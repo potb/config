@@ -29,6 +29,7 @@ docs/*
 !docs/herdr.md
 !docs/gaming.md
 !docs/meeting-notes.md
+!docs/chrome.md
 *.log
 
 __pycache__/

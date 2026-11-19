@@ -73,6 +73,10 @@ Configured servers include Linear, Sentry and desktop (Linux desktop control). B
 
 Before any Workflow tool call, and before writing any workflow script, load the `workflow-blocks` skill and follow it. Prefer the recipes and blocks in `~/.claude/workflows/` over new scripts, and set an explicit model on every agent.
 
+## Herdr app config
+
+Before editing anything under `~/.config/herdr-app`, read `~/.config/herdr-app/CLAUDE.md`. Mods and tools there are links into the config repo `~/projects/potb/config`: a change persists only once committed there, following that repo's `AGENTS.md`.
+
 ## Boundaries
 
 Anything persisted outside chat is written in normal prose: code, comments, commit messages, docs, issue/PR/MR text, memory files, and messages to third parties. The ASCII punctuation rule above applies to that persisted text too. "stop caveman" or "normal mode" reverts, and the mode stays off until re-enabled or the session ends.

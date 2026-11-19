@@ -1,0 +1,7 @@
+keys:
+  - &charon age1hffk96lguzulkcv26jrguu63ayg0nfrgm34cdxfrsyvg5zqc6vgqj6j0vv
+creation_rules:
+  - path_regex: ^secrets/[^/]+\.yaml$
+    key_groups:
+      - age:
+          - *charon

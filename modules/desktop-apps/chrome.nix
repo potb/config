@@ -6,6 +6,12 @@
       libva-vdpau-driver
       libvdpau-va-gl
     ];
+
+    systemd.tmpfiles.rules = [
+      "e /tmp/com.google.Chrome.* - - - 1d"
+      "e /tmp/.org.chromium.Chromium.* - - - 1d"
+      "e /tmp/scoped_dir* - - - 1d"
+    ];
   };
 
   darwin = {};

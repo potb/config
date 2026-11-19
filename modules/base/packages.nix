@@ -18,7 +18,6 @@
 
     home.packages = with pkgs; [
       sem
-      herdr-app
 
       fd
       fzf
@@ -34,6 +33,7 @@
       lnav
       nmap
       rsync
+      _7zz
       stripe-cli
     ];
 
