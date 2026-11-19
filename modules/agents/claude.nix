@@ -28,6 +28,14 @@
 
     settings = {
       model = "claude-opus-5-5";
+      permissions.defaultMode = "auto";
+      outputStyle = "Concise";
+      autoCompactWindow = 400000;
+      skipWorkflowUsageWarning = true;
+      remoteControlAtStartup = true;
+      inputNeededNotifEnabled = true;
+      promptSuggestionEnabled = true;
+      worktree.baseRef = "fresh";
       modelSettings = {
         claude-opus-5-5.effortLevel = "medium";
         claude-sonnet-5-5.effortLevel = "medium";
@@ -104,20 +112,11 @@
       run mkdir -p "$HOME/.claude"
       if [ -f "$dest" ] && [ ! -L "$dest" ]; then
         tmp="$(mktemp)"
-        ${jq} -s '.[0] * .[1]' "$dest" ${settingsFile} > "$tmp" && run install -m 0644 "$tmp" "$dest"
+        ${jq} -s '.[1].hooks as $hooks | .[0] * .[1] | .hooks = $hooks | .modelSettings |= ((. // {}) | with_entries(.value |= del(.autoCompactWindow)))' "$dest" ${settingsFile} > "$tmp" && run install -m 0644 "$tmp" "$dest"
         rm -f "$tmp"
       else
         run rm -f "$dest"
         run install -m 0644 ${settingsFile} "$dest"
-      fi
-    '';
-
-    home.activation.claudeDropJcodeHooks = lib.hm.dag.entryAfter ["claudeSettings"] ''
-      dest="$HOME/.claude/settings.json"
-      if [ -f "$dest" ]; then
-        tmp="$(mktemp)"
-        ${jq} 'if .hooks.SessionStart then .hooks.SessionStart |= map(select(all(.hooks[]?; (.command // "") | contains("jcode") | not))) else . end | if .hooks.SessionStart == [] then del(.hooks.SessionStart) else . end' "$dest" > "$tmp" && run install -m 0644 "$tmp" "$dest"
-        rm -f "$tmp"
       fi
     '';
 
