@@ -1,5 +1,7 @@
 import json
+import subprocess
 from datetime import timedelta
+from unittest import mock
 
 from meeting_notes import fetch
 
@@ -13,10 +15,12 @@ class FakeAsr:
     def asr_prompt(self, cfg):
         return "prompt"
 
-    def transcribe(self, cfg, start, end, prompt, floor=None, skipped=None):
+    def transcribe(self, cfg, start, end, prompt, floor=None, skipped=None, spans=None):
         self.floor = floor
         if skipped is not None:
             skipped.extend(getattr(self, "bad", []))
+        if spans is not None and self.lines:
+            spans.extend(getattr(self, "spans", [None] * len(self.lines)))
         return self.lines
 
 
@@ -41,13 +45,21 @@ class FetchTest(PipelineCase):
         self.mid = self.add(self.start, NOW - timedelta(minutes=30), title="Review")
         self.out = self.cfg.meeting_dir(self.mid)
 
-    def run_fetch(self, lines, screens=None, cfg=None):
+    def run_fetch(self, lines, screens=None, cfg=None, ocr=None):
         return fetch.fetch(
             cfg or self.cfg,
             self.mid,
             asr=FakeAsr(lines),
             screenpipe=FakeScreenpipe(screens or []),
+            ocr=ocr or (lambda cfg, path: None),
         )
+
+    def shots(self, *names):
+        directory = self.cfg.screens_dir(self.mid)
+        directory.mkdir(parents=True)
+        for name in names:
+            (directory / name).write_bytes(b"x")
+        return directory
 
     def meta(self):
         return json.loads((self.out / "meta.json").read_text())
@@ -87,13 +99,50 @@ class FetchTest(PipelineCase):
         self.run_fetch([(self.start, "me", "x")])
         self.assertEqual(self.meta()["transcript_source"], "local")
 
-    def test_native_screen_lists_captures(self):
-        shots = self.cfg.screens_dir(self.mid)
-        shots.mkdir(parents=True)
-        (shots / "b.png").write_bytes(b"x")
-        (shots / "a.png").write_bytes(b"x")
+    def test_native_screen_lists_captures_when_ocr_fails(self):
+        self.shots("b.png", "a.png")
         self.run_fetch([])
-        self.assertEqual((self.out / "screen.txt").read_text().splitlines(), ["a.png", "b.png"])
+        self.assertEqual((self.out / "screen.txt").read_text().splitlines(), ["## a.png", "## b.png"])
+
+    def test_native_screen_holds_ocr_text_without_repeats(self):
+        self.shots("b.png", "a.png")
+        texts = {"a.png": "Hugo Danaguezian\n\n  Peio Thibault \n", "b.png": "Peio Thibault\nInventaire\n"}
+        self.run_fetch([], ocr=lambda cfg, path: texts[path.name])
+        self.assertEqual(
+            (self.out / "screen.txt").read_text().splitlines(),
+            ["## a.png", "Hugo Danaguezian", "Peio Thibault", "## b.png", "Inventaire"],
+        )
+
+    def test_native_screen_keeps_heading_for_failed_capture(self):
+        self.shots("a.png", "b.png")
+        self.run_fetch([], ocr=lambda cfg, path: "Slide\n" if path.name == "b.png" else None)
+        self.assertEqual((self.out / "screen.txt").read_text().splitlines(), ["## a.png", "## b.png", "Slide"])
+
+    def test_ocr_image_runs_tesseract_with_languages(self):
+        self.shots("a.png")
+        calls = []
+
+        def run(argv, **kwargs):
+            calls.append((argv, kwargs))
+            return subprocess.CompletedProcess(argv, 0, stdout="Bonjour\n")
+
+        path = self.cfg.screens_dir(self.mid) / "a.png"
+        with mock.patch.object(fetch.subprocess, "run", run):
+            self.assertEqual(fetch.ocr_image(self.cfg, path), "Bonjour\n")
+        argv, kwargs = calls[0]
+        self.assertEqual(argv[-5:], [self.cfg.tesseract, str(path), "stdout", "-l", "eng+fra"])
+        self.assertEqual(kwargs["timeout"], fetch.OCR_TIMEOUT)
+
+    def test_ocr_image_returns_none_on_failure(self):
+        path = self.root / "a.png"
+        failures = [
+            mock.Mock(side_effect=OSError("missing")),
+            mock.Mock(side_effect=subprocess.TimeoutExpired("tesseract", 1)),
+            mock.Mock(return_value=subprocess.CompletedProcess([], 1, stdout="partial")),
+        ]
+        for run in failures:
+            with mock.patch.object(fetch.subprocess, "run", run):
+                self.assertIsNone(fetch.ocr_image(self.cfg, path))
 
     def test_screenpipe_backend_uses_search_screen(self):
         mid = self.add(

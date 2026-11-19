@@ -46,10 +46,6 @@ def _check_paths(cfg, args):
             _allowed(cfg, path)
 
 
-def _read(path):
-    return Path(path).read_text(encoding="utf-8") if path else ""
-
-
 def _sensitive(args, info):
     return bool(args.sensitive or info.get("sensitive"))
 
@@ -63,41 +59,90 @@ def _copy_transcript(cfg, args, info):
         shutil.copy2(source, target)
 
 
-def _post_notes(cfg, args, title):
+def _info_thread(info):
+    return {
+        "slack_ts": info.get("slack_ts"),
+        "slack_channel": info.get("slack_channel"),
+        "slack_files": list(info.get("slack_files", [])),
+    }
+
+
+def _reusable(cfg, record, sensitive):
     from . import slack
 
-    text = f"*{title}*\n{_read(args.notes)}"
-    reply = slack.dm(cfg, text)
-    return reply.get("ts"), reply.get("channel")
+    if not record or not record.get("slack_ts") or not record.get("slack_channel"):
+        return False
+    return not sensitive or slack.is_dm(cfg, record["slack_channel"])
 
 
-def _post_transcript(cfg, args, info, title):
+def _open_thread(cfg, st, mid, info, title, meeting, sensitive):
     from . import slack
 
-    if info.get("slack_ts"):
-        slack.dm(cfg, _read(args.transcript), thread_ts=info["slack_ts"])
-        return state.POSTED
-    slack.dm(cfg, f"*{title}*\n{_read(args.transcript)}")
-    return state.DM_ONLY
+    pending = state.thread(st, mid)
+    if _reusable(cfg, pending, sensitive):
+        return dict(pending), False
+    stored = _info_thread(info)
+    if _reusable(cfg, stored, sensitive):
+        state.save_thread(cfg.state_path, st, mid, stored)
+        return stored, True
+    ts, channel = slack.post_header(cfg, title, meeting, sensitive)
+    record = {"slack_ts": ts, "slack_channel": channel, "slack_files": []}
+    state.save_thread(cfg.state_path, st, mid, record)
+    return record, False
 
 
-def _stage_notes(cfg, args, st, mid, info, title):
+def _upload(cfg, st, mid, record, kind, path, title):
+    from . import slack
+
+    if not path or kind in record["slack_files"]:
+        return
+    slack.upload(
+        cfg, record["slack_channel"], record["slack_ts"], path, slack.file_title(title, kind.capitalize())
+    )
+    record["slack_files"].append(kind)
+    state.save_thread(cfg.state_path, st, mid, record)
+
+
+def _post_notes(cfg, args, st, mid, title, meeting, sensitive):
+    record, _ = _open_thread(cfg, st, mid, {}, title, meeting, sensitive)
+    _upload(cfg, st, mid, record, "notes", args.notes, title)
+    return record
+
+
+def _post_transcript(cfg, args, st, mid, info, title, meeting, sensitive):
+    record, adopted = _open_thread(cfg, st, mid, info, title, meeting, sensitive)
+    _upload(cfg, st, mid, record, "transcript", args.transcript, title)
+    return state.POSTED if adopted else state.DM_ONLY
+
+
+def _slack_allowed(cfg, sensitive):
+    from . import slack
+
+    return slack.allowed(cfg, bool(sensitive))
+
+
+def _stage_notes(cfg, args, st, mid, info, title, meeting):
     if info.get("status") in state.TERMINAL | state.RESUME_TRANSCRIPT:
         return f"{mid}: notes already {info['status']}"
     extra = {"dir": str(Path(args.notes).parent) if args.notes else None}
     if args.sensitive:
         extra["sensitive"] = args.sensitive
-    if cfg.slack and not args.sensitive:
-        ts, channel = _post_notes(cfg, args, title)
-        extra.update(slack_ts=ts, slack_channel=channel)
+    if _slack_allowed(cfg, args.sensitive):
+        record = _post_notes(cfg, args, st, mid, title, meeting, args.sensitive)
+        extra.update(
+            slack_ts=record["slack_ts"],
+            slack_channel=record["slack_channel"],
+            slack_files=record["slack_files"],
+        )
         status = state.NOTES_POSTED
     else:
         status = state.NOTES_SAVED
     state.set_processed(st, mid, status=status, **extra)
+    state.clear_thread(st, mid)
     return f"{mid}: {status}"
 
 
-def _stage_transcript(cfg, args, st, mid, info, title):
+def _stage_transcript(cfg, args, st, mid, info, title, meeting):
     status = info.get("status")
     if status in state.TERMINAL:
         return f"{mid}: transcript already {status}"
@@ -105,26 +150,31 @@ def _stage_transcript(cfg, args, st, mid, info, title):
         raise SystemExit(f"{mid}: transcript stage needs notes_saved, found {status}")
     if not args.dry_run:
         _copy_transcript(cfg, args, info)
-    post = cfg.slack and not _sensitive(args, info)
-    final = _post_transcript(cfg, args, info, title) if post else state.DONE
+    sensitive = _sensitive(args, info)
+    post = args.transcript and _slack_allowed(cfg, sensitive)
+    final = (
+        _post_transcript(cfg, args, st, mid, info, title, meeting, sensitive) if post else state.DONE
+    )
     kept = {k: v for k, v in info.items() if k not in ("status", "at")}
     if args.sensitive and not kept.get("sensitive"):
         kept["sensitive"] = args.sensitive
     state.set_processed(st, mid, status=final, **kept)
+    state.clear_thread(st, mid)
     return f"{mid}: {final}"
 
 
-def _whole(cfg, args, st, mid, info, title):
+def _whole(cfg, args, st, mid, info, title, meeting):
     if info.get("status") in state.TERMINAL:
         return f"{mid}: already {info['status']}"
     extra = {"dir": str(Path(args.notes).parent) if args.notes else None}
     if args.sensitive:
         extra["sensitive"] = args.sensitive
     status = state.DONE
-    if cfg.slack and not args.sensitive:
-        _post_notes(cfg, args, title)
+    if _slack_allowed(cfg, args.sensitive):
+        _post_notes(cfg, args, st, mid, title, meeting, args.sensitive)
         status = state.POSTED
     state.set_processed(st, mid, status=status, **extra)
+    state.clear_thread(st, mid)
     return f"{mid}: {status}"
 
 
@@ -149,13 +199,15 @@ def main(argv=None, cfg=None):
                 else:
                     reason = {} if args.skip is True else {"skip_reason": args.skip}
                     state.set_processed(st, args.id, status=state.SKIPPED, **reason)
+                    if not args.dry_run:
+                        state.clear_thread(st, args.id)
                     message = f"{args.id}: {state.SKIPPED}"
             elif args.stage == "notes":
-                message = _stage_notes(cfg, args, st, args.id, info, title)
+                message = _stage_notes(cfg, args, st, args.id, info, title, meeting)
             elif args.stage == "transcript":
-                message = _stage_transcript(cfg, args, st, args.id, info, title)
+                message = _stage_transcript(cfg, args, st, args.id, info, title, meeting)
             else:
-                message = _whole(cfg, args, st, args.id, info, title)
+                message = _whole(cfg, args, st, args.id, info, title, meeting)
             if args.dry_run:
                 st["processed"].pop(args.id, None)
                 if snapshot:

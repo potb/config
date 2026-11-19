@@ -9,8 +9,8 @@
         After = ["graphical-session.target" "pipewire-pulse.service"];
       };
       Service = {
-        ExecStart = "${pkgs.screenpipe}/bin/screenpipe record --port 3030 --disable-telemetry";
-        Environment = ["SCREENPIPE_WAYLAND_CAPTURE=grim"];
+        ExecStart = "${pkgs.screenpipe}/bin/screenpipe record --port 3030 --disable-telemetry --disable-audio --language french --language english";
+        Environment = ["SCREENPIPE_WAYLAND_CAPTURE=grim" "OW_LANG=eng+fra"];
         Restart = "always";
         RestartSec = 10;
       };

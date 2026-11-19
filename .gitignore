@@ -31,6 +31,8 @@ docs/*
 !docs/meeting-notes.md
 !docs/chrome.md
 !docs/claude.md
+!docs/screenpipe.md
+!docs/screenpipe-export.md
 *.log
 
 __pycache__/

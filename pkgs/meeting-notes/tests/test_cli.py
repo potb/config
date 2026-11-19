@@ -8,8 +8,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from meeting_notes import cli, state, watch
+from meeting_notes import cli, slack, state, watch
 from meeting_notes.config import Config
+
+from .helpers import TOKEN, FakeCurl
 
 UTC = timezone.utc
 
@@ -222,6 +224,16 @@ class CheckTest(CliCase):
         self.assertIn("backend: native", out)
         self.assertIn("live: off", out)
 
+    def test_diarization_models_checked_when_enabled(self):
+        which = lambda name: f"/bin/{name}"
+        _, out, _ = self.call("check", which=which)
+        self.assertIn("diarization: off", out)
+        env = env_for(self.root, MEETING_NOTES_DIARIZATION="1", MEETING_NOTES_SPEAKER_MODEL="/nope.onnx")
+        code, out, _ = self.call("check", environ=env, which=which)
+        self.assertEqual(code, 1)
+        self.assertIn("speaker model: missing", out)
+        self.assertIn("diarization: on, 4 threads", out)
+
     def test_missing_tool(self):
         code, out, _ = self.call("check", which=lambda name: None if name == "whisper-cli" else f"/bin/{name}")
         self.assertEqual(code, 1)
@@ -234,6 +246,78 @@ class CheckTest(CliCase):
         code, out, err = self.call("check", environ=env, which=lambda name: f"/bin/{name}")
         self.assertNotIn("supersecretkey", out + err)
         self.assertIn("backend: screenpipe", out)
+
+
+class SlackCheckTest(CliCase):
+    def setUp(self):
+        super().setUp()
+        self.cfg.data_dir.mkdir(parents=True)
+        (self.cfg.data_dir / ".env").write_text(f"SLACK_BOT_TOKEN={TOKEN}\n")
+        self.env = env_for(
+            self.root,
+            MEETING_NOTES_SLACK_USER="U1",
+            MEETING_NOTES_SLACK_CHANNEL="C1",
+        )
+
+    def run_check(self, fake, **extra):
+        runner = mock.patch.object(slack, "_run", fake)
+        finder = mock.patch.object(slack, "_curl", lambda which: "/bin/curl")
+        with runner, finder:
+            return self.call("slack-check", environ={**self.env, **extra}, which=lambda name: f"/bin/{name}")
+
+    def test_dm_mode_prints_ids_only(self):
+        fake = FakeCurl()
+        code, out, err = self.run_check(fake)
+        self.assertEqual(code, 0)
+        self.assertEqual(fake.methods(), ["auth.test", "conversations.open"])
+        self.assertIn("team: Acme (T1)", out)
+        self.assertIn("bot: notesbot (UBOT)", out)
+        self.assertIn("dm: D100 with U1", out)
+        self.assertTrue(out.rstrip().endswith("ok"))
+        self.assertNotIn(TOKEN, out + err)
+        fake.assert_no_token(self)
+
+    def test_channel_mode_joins_channel(self):
+        fake = FakeCurl()
+        code, out, _ = self.run_check(fake, MEETING_NOTES_SLACK_POST_TO="channel")
+        self.assertEqual(code, 0)
+        self.assertEqual(fake.methods(), ["auth.test", "conversations.join", "conversations.open"])
+        self.assertIn("channel: meetings (C1)", out)
+
+    def test_failure_exits_non_zero_with_slack_error(self):
+        fake = FakeCurl({"auth.test": {"ok": False, "error": "invalid_auth"}})
+        code, out, err = self.run_check(fake)
+        self.assertEqual(code, 1)
+        self.assertIn("auth.test failed: invalid_auth", err)
+        self.assertNotIn(TOKEN, out + err)
+        self.assertEqual(fake.methods(), ["auth.test"])
+
+    def test_join_failure_exits_non_zero(self):
+        fake = FakeCurl({"conversations.join": {"ok": False, "error": "channel_not_found"}})
+        code, _, err = self.run_check(fake, MEETING_NOTES_SLACK_POST_TO="channel")
+        self.assertEqual(code, 1)
+        self.assertIn("channel_not_found", err)
+
+    def test_missing_token_exits_non_zero(self):
+        (self.cfg.data_dir / ".env").write_text("")
+        code, _, err = self.run_check(FakeCurl())
+        self.assertEqual(code, 1)
+        self.assertIn("SLACK_BOT_TOKEN missing", err)
+
+    def test_missing_channel_in_channel_mode(self):
+        env = {k: v for k, v in self.env.items() if k != "MEETING_NOTES_SLACK_CHANNEL"}
+        self.env = env
+        code, _, err = self.run_check(FakeCurl(), MEETING_NOTES_SLACK_POST_TO="channel")
+        self.assertEqual(code, 1)
+        self.assertIn("MEETING_NOTES_SLACK_CHANNEL", err)
+
+    def test_check_reports_slack_destination(self):
+        code, out, _ = self.call(
+            "check",
+            environ={**self.env, "MEETING_NOTES_SLACK_POST_TO": "channel", "MEETING_NOTES_SLACK": "1"},
+            which=lambda name: f"/bin/{name}",
+        )
+        self.assertIn("slack: on, post to channel", out)
 
 
 class ExitCodeTest(CliCase):

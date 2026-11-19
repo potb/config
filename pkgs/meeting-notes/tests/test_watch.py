@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import os
@@ -512,6 +513,14 @@ class ClaudeTest(WatchCase):
                 "Edit",
                 "Glob",
                 "Grep",
+                "--disallowedTools",
+                "Read(**/*.png)",
+                "Read(**/*.jpg)",
+                "Read(**/.env)",
+                "Read(**/voices/**)",
+                "Read(**/*.npz)",
+                "Write(**/voices/**)",
+                "Edit(**/voices/**)",
                 "--add-dir",
                 str(self.cfg.meetings_dir),
             ],
@@ -521,6 +530,30 @@ class ClaudeTest(WatchCase):
         self.assertEqual(call["log"], self.cfg.runs_dir / "20261117-090000.log")
         self.assertTrue(self.cfg.runs_dir.is_dir())
 
+    def test_model_flag_when_set(self):
+        cfg = dataclasses.replace(self.cfg, claude_model="sonnet")
+        argv = watch.claude_argv(cfg)
+        self.assertEqual(argv[3:5], ["--model", "sonnet"])
+        self.assertNotIn("--model", watch.claude_argv(self.cfg))
+
+    def test_captures_and_env_are_denied(self):
+        argv = watch.claude_argv(self.cfg)
+        denied = argv[argv.index("--disallowedTools") + 1 : argv.index("--add-dir")]
+        self.assertEqual(
+            denied,
+            [
+                "Read(**/*.png)",
+                "Read(**/*.jpg)",
+                "Read(**/.env)",
+                "Read(**/voices/**)",
+                "Read(**/*.npz)",
+                "Write(**/voices/**)",
+                "Edit(**/voices/**)",
+            ],
+        )
+        self.assertIn("Never open the captures themselves", watch.prompt(self.cfg))
+        self.assertNotIn("Open a capture with Read", watch.prompt(self.cfg))
+
     def test_prompt(self):
         text = watch.prompt(self.cfg)
         self.assertIn("Ada", text)
@@ -528,6 +561,22 @@ class ClaudeTest(WatchCase):
         for needle in ("pipe.md", "glossary.md", "work/<id>/screens/*.png", ".env", "Slack"):
             self.assertIn(needle, text)
         self.assertIn("'me'", text)
+
+    def test_prompt_slack_disabled(self):
+        text = watch.prompt(self.cfg)
+        self.assertIn("Slack is disabled: do not send, post or share anything, anywhere.", text)
+        self.assertNotIn("does all the posting", text)
+        self.assertIn("Never read, print or source .env", text)
+
+    def test_prompt_slack_enabled(self):
+        text = watch.prompt(dataclasses.replace(self.cfg, slack=True))
+        self.assertNotIn("Slack is disabled", text)
+        self.assertIn("meeting-notes finish does all the posting", text)
+        self.assertIn("never post, send or share anything itself", text)
+        self.assertIn("Never read, print or source .env", text)
+        self.assertIn("Ada", text)
+        for needle in ("pipe.md", "glossary.md", "work/<id>/screens/*.png", ".env", "Slack"):
+            self.assertIn(needle, text)
 
 
 class RunnerTest(unittest.TestCase):
@@ -557,6 +606,79 @@ class BackendsTest(unittest.TestCase):
             backend = backends.make(make_cfg(tmp, MEETING_NOTES_BACKEND="screenpipe"))
             self.assertIsInstance(backend, ScreenpipeBackend)
             self.assertNotIn(make_cfg(tmp).key_path.read_text().strip(), repr(backend.client))
+
+
+class DiarizationDeferralTest(WatchCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        models = Path(tmp.name)
+        for name in ("speaker.onnx", "vad.onnx"):
+            (models / name).write_bytes(b"m")
+        self.extra = {
+            "MEETING_NOTES_DIARIZATION": "1",
+            "MEETING_NOTES_DIARIZATION_MAX_DELAY": "30",
+            "MEETING_NOTES_SPEAKER_MODEL": str(models / "speaker.onnx"),
+            "MEETING_NOTES_DIARIZATION_VAD_MODEL": str(models / "vad.onnx"),
+        }
+        super().setUp()
+        self.cfg = make_cfg(self.root, **self.extra)
+        self.pending = FakePending(self.cfg)
+        self.watcher = self.build()
+
+    def first_meeting_then_second(self):
+        self.start(0)
+        self.tick(0)
+        first = next(iter(self.meetings()))
+        self.end(600)
+        self.tick(600)
+        self.start(630)
+        self.tick(630)
+        second = [mid for mid in self.meetings() if mid != first][0]
+        return first, second
+
+    def test_waits_while_another_meeting_is_active(self):
+        first, second = self.first_meeting_then_second()
+        logging.disable(logging.NOTSET)
+        self.addCleanup(logging.disable, logging.CRITICAL)
+        with self.assertLogs("meeting_notes.watch", level="INFO") as logs:
+            self.tick(660)
+        self.assertEqual(self.fetch_runs(), [])
+        self.assertEqual(self.claude_runs(), [])
+        self.assertTrue(any(f"deferring fetch and diarization of {first}" in line for line in logs.output))
+        self.assertTrue(any(f"meeting {second} is active" in line for line in logs.output))
+        self.end(1200)
+        self.tick(1200)
+        self.tick(1260)
+        fetched = [r["argv"][2] for r in self.fetch_runs()]
+        self.assertEqual(fetched, [first, second])
+
+    def test_runs_anyway_after_the_cap(self):
+        first, _ = self.first_meeting_then_second()
+        self.tick(660)
+        self.tick(660 + watch.CATCHUP_SECONDS)
+        self.assertEqual(self.fetch_runs(), [])
+        logging.disable(logging.NOTSET)
+        self.addCleanup(logging.disable, logging.CRITICAL)
+        with self.assertLogs("meeting_notes.watch", level="INFO") as logs:
+            self.tick(660 + 2 * watch.CATCHUP_SECONDS)
+        self.assertEqual([r["argv"][2] for r in self.fetch_runs()], [first])
+        self.assertTrue(any("30 min cap" in line for line in logs.output))
+        self.assertEqual(len(self.claude_runs()), 1)
+
+    def test_no_deferral_without_diarization(self):
+        self.cfg = make_cfg(self.root)
+        self.pending = FakePending(self.cfg)
+        self.watcher = self.build()
+        first, _ = self.first_meeting_then_second()
+        self.tick(660)
+        self.assertEqual([r["argv"][2] for r in self.fetch_runs()], [first])
+
+    def test_no_deferral_when_models_are_missing(self):
+        Path(self.extra["MEETING_NOTES_SPEAKER_MODEL"]).unlink()
+        first, _ = self.first_meeting_then_second()
+        self.tick(660)
+        self.assertEqual([r["argv"][2] for r in self.fetch_runs()], [first])
 
 
 if __name__ == "__main__":

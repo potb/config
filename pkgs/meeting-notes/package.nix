@@ -22,6 +22,13 @@ in
 
     build-system = [python3Packages.setuptools];
 
+    dependencies = with python3Packages; [
+      kaldi-native-fbank
+      numpy
+      onnxruntime
+      scipy
+    ];
+
     nativeCheckInputs = [python3Packages.unittestCheckHook];
     unittestFlags = ["-s" "tests" "-t" "."];
 

@@ -36,6 +36,7 @@ HALLUCINATIONS = frozenset(
 HALLUCINATION_MARKERS = ("amara.org",)
 
 LiveResult = namedtuple("LiveResult", "done slow")
+Span = namedtuple("Span", "chunk offset following")
 _VOLUME_RE = re.compile(r"(mean|max)_volume:\s*(-?\d+(?:\.\d+)?|-inf)\s*dB")
 
 
@@ -238,13 +239,13 @@ def available(cfg, which=shutil.which):
     return all(p is not None and Path(p).is_file() for p in (cfg.model, cfg.vad_model))
 
 
-def transcribe(cfg, start, end, prompt, run=default_run, available=available, floor=None, skipped=None):
+def transcribe(cfg, start, end, prompt, run=default_run, available=available, floor=None, skipped=None, spans=None):
     if not available(cfg):
         return None
     paths = chunks.meeting_chunks(cfg.audio_dir, start, end, floor=floor)
     if not paths:
         return None
-    lines = []
+    rows = []
     for path in paths:
         parsed = chunks.parse(path.name)
         if not parsed:
@@ -257,9 +258,13 @@ def transcribe(cfg, start, end, prompt, run=default_run, available=available, fl
             if skipped is not None:
                 skipped.append(path.name)
             continue
-        for offset, text in segments:
-            lines.append((t0 + timedelta(seconds=offset), side, text))
-    return sorted(lines, key=lambda line: (line[0], line[1]))
+        for index, (offset, text) in enumerate(segments):
+            following = segments[index + 1][0] if index + 1 < len(segments) else None
+            rows.append((t0 + timedelta(seconds=offset), side, text, Span(path.name, offset, following)))
+    rows.sort(key=lambda row: (row[0], row[1]))
+    if spans is not None:
+        spans.extend(row[3] for row in rows)
+    return [row[:3] for row in rows]
 
 
 def prune_cache(cfg, days, now=None):

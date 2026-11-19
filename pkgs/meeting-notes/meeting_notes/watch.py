@@ -12,6 +12,7 @@ from pathlib import Path
 from . import asr as asr_module
 from . import chunks, state
 from . import cleanup as cleanup_module
+from . import diarize as diarize_module
 from . import notify as notify_module
 from . import pending as pending_module
 
@@ -44,33 +45,62 @@ ALLOWED_TOOLS = (
     "Grep",
 )
 
+DENIED_TOOLS = (
+    "Read(**/*.png)",
+    "Read(**/*.jpg)",
+    "Read(**/.env)",
+    "Read(**/voices/**)",
+    "Read(**/*.npz)",
+    "Write(**/voices/**)",
+    "Edit(**/voices/**)",
+)
+
+SLACK_SENTENCE = {
+    False: (
+        "Slack is disabled: do not send, post or share anything, anywhere. Save the notes and "
+        "the transcript locally through meeting-notes finish only."
+    ),
+    True: (
+        "meeting-notes finish does all the posting: Claude must never post, send or share "
+        "anything itself, anywhere, and never call Slack or any other service. Save the notes "
+        "and the transcript through meeting-notes finish only."
+    ),
+}
+
 PROMPT = """You process the meetings recorded for OWNER. In every transcript the microphone \
 side, 'me', is OWNER; 'others' is the system audio, the other participants.
 
 Follow pipe.md in the current directory step by step, and use glossary.md in the current \
 directory for names, products and terms. The watcher has already fetched each pending \
 meeting into work/<id>/: never fetch or transcribe yourself. To name the participants, \
-read the captures in work/<id>/screens/*.png with Read, together with meta.json and \
-screen.txt.
+use meta.json and screen.txt, which holds the OCR text of the captures in \
+work/<id>/screens/*.png. Never open the captures themselves: the OCR text is the only \
+screen input. In transcript.txt an 'others:<Name>' label comes from a voice print the owner \
+confirmed and is reliable; 'others:S1', 'others:S2'... are distinct unknown voices, so give \
+each S label one name from meta.json, screen.txt and the content, keep it the same through \
+the meeting, and add '(?)' only when truly unsure. A short interjection can carry the wrong \
+label.
 
-Slack is disabled: do not send, post or share anything, anywhere. Save the notes and the \
-transcript locally through meeting-notes finish only. Never read, print or source .env or \
-any other credentials file."""
+SLACK_RULE Never read, print or source .env or any other credentials file."""
 
 
 def prompt(cfg):
-    return PROMPT.replace("OWNER", cfg.owner)
+    return PROMPT.replace("SLACK_RULE", SLACK_SENTENCE[bool(cfg.slack)]).replace("OWNER", cfg.owner)
 
 
 def claude_argv(cfg):
+    model = ["--model", cfg.claude_model] if cfg.claude_model else []
     return [
         cfg.claude,
         "-p",
         prompt(cfg),
+        *model,
         "--permission-mode",
         "acceptEdits",
         "--allowedTools",
         *ALLOWED_TOOLS,
+        "--disallowedTools",
+        *DENIED_TOOLS,
         "--add-dir",
         str(cfg.meetings_dir),
     ]
@@ -422,6 +452,8 @@ class Watcher:
             for item in items:
                 mid = item["id"]
                 if not item.get("resume") and not self._fetched(mid):
+                    if self._defer(item, now):
+                        continue
                     result = self.fetch(mid, now)
                     if result.returncode or not self._fetched(mid):
                         self._attempt(mid, f"fetch exited {result.returncode}")
@@ -440,8 +472,29 @@ class Watcher:
                 self._attempt(mid, f"claude exited {result.returncode} without finishing")
             return True
 
+    def _defer(self, item, now):
+        if not diarize_module.available(self.cfg):
+            return False
+        active = state.active_meeting(state.load(self.cfg.state_path))
+        if active is None or active["id"] == item["id"]:
+            return False
+        ended = _moment(item.get("end"), now)
+        waited = (now - ended).total_seconds() / 60
+        limit = self.cfg.diarization_max_delay
+        if waited >= limit:
+            LOG.info(
+                "meeting %s is active but %s waited %.0f min, the %s min cap: diarizing now at low priority",
+                active["id"], item["id"], waited, limit,
+            )
+            return False
+        LOG.info(
+            "deferring fetch and diarization of %s while meeting %s is active (waited %.0f of %s min)",
+            item["id"], active["id"], waited, limit,
+        )
+        return True
+
     def fetch(self, mid, now):
-        log = self.cfg.runs_dir / f"{stamp(now)}-fetch-{mid}.log"
+        log =self.cfg.runs_dir / f"{stamp(now)}-fetch-{mid}.log"
         self.cfg.runs_dir.mkdir(parents=True, exist_ok=True)
         result = self.run([*self.self_cmd, "fetch", mid], cwd=None, timeout=FETCH_TIMEOUT, log=log)
         if result.returncode:

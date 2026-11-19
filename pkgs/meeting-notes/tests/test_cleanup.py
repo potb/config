@@ -39,6 +39,18 @@ class CleanupTest(PipelineCase):
         self.assertFalse(wav.exists())
         self.assertTrue(keep.exists())
 
+    def test_removes_window_embeddings_keeps_speakers_json(self):
+        mid = self.old(8, status=state.DONE)
+        self.artefacts(mid)
+        embeddings = self.cfg.meeting_dir(mid) / "speakers.npz"
+        speakers = self.cfg.meeting_dir(mid) / "speakers.json"
+        embeddings.write_bytes(b"x")
+        speakers.write_text("{}")
+        removed = cleanup.run(self.cfg, NOW, None)
+        self.assertFalse(embeddings.exists())
+        self.assertTrue(speakers.exists())
+        self.assertEqual(removed["embeddings"], 1)
+
     def test_keeps_chunk_of_previous_meeting(self):
         end = NOW - timedelta(days=8)
         self.add(end - timedelta(minutes=40), end - timedelta(minutes=10, seconds=20))

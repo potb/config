@@ -14,6 +14,10 @@ T0 = datetime(2026, 11, 17, 9, 0, 0, tzinfo=UTC)
 ENV = {"HYPRLAND_INSTANCE_SIGNATURE": "sig"}
 
 
+def NO_PARENT(pid):
+    return None
+
+
 def fixture(name):
     return json.loads((FIXTURES / f"{name}.json").read_text())
 
@@ -74,6 +78,7 @@ class NativeBackendTest(unittest.TestCase):
             clock=lambda: self.now,
             recorder=self.recorder,
             environ=ENV,
+            ppid=NO_PARENT,
         )
 
     def tearDown(self):
@@ -121,6 +126,39 @@ class NativeBackendTest(unittest.TestCase):
         for second in range(10, 320, 5):
             self.step(second, "zoom")
         self.assertEqual(len(self.world.grims), 1)
+
+    def test_ignore_apps_config_reaches_detection(self):
+        cfg = Config.from_env({"HOME": self.tmp.name, "MEETING_NOTES_IGNORE_APPS": "chrome"})
+        backend = NativeBackend(
+            cfg,
+            run=self.world,
+            clock=lambda: self.now,
+            recorder=self.recorder,
+            environ=ENV,
+            ppid=NO_PARENT,
+        )
+        self.world.scene = "chrome_no_meet"
+        for second in (0, 5, 10):
+            self.now = at(second)
+            self.assertEqual(backend.poll(self.now), [])
+        self.assertIsNone(backend.active())
+        self.assertEqual(self.recorder.starts, 0)
+
+    def test_generic_meeting_ends_after_four_hours_and_stays_off_until_stream_stops(self):
+        self.step(0, "chrome_no_meet")
+        events = self.step(5, "chrome_no_meet")
+        self.assertEqual([e.kind for e in events], ["start"])
+        self.assertEqual(self.recorder.starts, 1)
+        ended = self.step(5 + 4 * 3600, "chrome_no_meet")
+        self.assertEqual([e.kind for e in ended], ["end"])
+        self.assertEqual(self.recorder.stops, 1)
+        for second in (10, 15, 20):
+            self.assertEqual(self.step(5 + 4 * 3600 + second, "chrome_no_meet"), [])
+        self.assertEqual(self.recorder.starts, 1)
+        self.step(5 + 4 * 3600 + 30, "idle")
+        self.step(5 + 4 * 3600 + 35, "chrome_no_meet")
+        events = self.step(5 + 4 * 3600 + 40, "chrome_no_meet")
+        self.assertEqual([e.kind for e in events], ["start"])
 
     def test_recorder_streams_are_ignored(self):
         for second in range(0, 60, 5):

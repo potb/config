@@ -25,10 +25,22 @@ The watcher has already fetched the meeting and written `work/<id>/meta.json`,
 minutes). If `work/<id>/fetched.ok` does not exist, leave that meeting for the next run
 and report "not fetched yet". Never run any command in the background.
 - `transcript.txt` lines: `[HH:MM:SS] <who> | text`. `who` is `me` (the owner's
-  microphone) or `others` (system audio, the other participants).
-- `screen.txt`: text visible in the call window (participant tiles, names, chat).
-- `screens/*.png`: captures of the call window. Open them with Read to get participant
-  names from the Meet tiles when `screen.txt` or `meta.json` does not give them.
+  microphone) or the system audio, the other participants, in one of three forms:
+  - `others:<Name>` (e.g. `others:Bastien`): the voice matched a voice print the owner
+    confirmed. Reliable: use that name.
+  - `others:S1`, `others:S2`, …: distinct voices with no print, numbered by talk time
+    within this meeting only. Name each S label yourself (step 2).
+  - plain `others`: speaker separation did not run or failed for this meeting, or the
+    line fell outside any speaker turn. Name speakers from context as before.
+
+  Wherever this file says `others`, it means any of these three forms. Speaker labels
+  only exist on the system audio: echo of the owner on that side carries a label too.
+- `screen.txt`: text visible in the call window (participant tiles, names, chat). With
+  the native backend it is the OCR of each capture under a `## <capture>.png` heading,
+  keeping only lines not already seen in an earlier capture; a heading with no text
+  means the OCR failed for that capture.
+- `screens/*.png`: captures of the call window, already read into `screen.txt`. Never
+  open them: reading images is blocked, and the OCR text is the only screen input.
 - **Not a real meeting: skip.** If, after removing echo (step 2), there are < 80 words,
   or only one side ever speaks (no two-way conversation), run
   `meeting-notes finish --id <id> --skip "<reason>"` and move on. Nothing is saved.
@@ -40,8 +52,7 @@ and report "not fetched yet". Never run any command in the background.
   and transcript (write `[aparté personnel]`).
 
 ## 2. Read the raw transcript
-Read `glossary.md`, `transcript.txt`, `screen.txt`, `meta.json`, and the screenshots when
-you need names.
+Read `glossary.md`, `transcript.txt`, `screen.txt` and `meta.json`.
 - **How it was made.** Each 30 s audio chunk of the mic (`me`) and of system audio
   (`others`) was transcribed separately and interleaved by time. So:
   - a word can be split across a chunk boundary (`remont` … `ent bien`): rejoin it;
@@ -64,10 +75,18 @@ you need names.
   cannot tell, keep the most likely speaker and add `(?)` after the name.
 - Speech-to-text errors, especially glossary terms (e.g. "pio", "peyo" → Peïo;
   "audit angine" → audit engine; "super base"/"supabas" → Supabase; "strip" → Stripe).
-- Speakers: `me` is the owner (Peïo by default). For `others`, use `meta.json`
-  title/attendees, names visible in `screen.txt` and the Meet tiles in the screenshots.
-  One other participant with a clear name: use it. Several: context; when unsure write
-  "Participant 1/2…" rather than guessing.
+- Speakers: `me` is the owner (Peïo by default). `others:<Name>` labels come from
+  confirmed voice prints: keep them. For each `others:S<n>`, pick one name from
+  `meta.json` title/attendees, names visible in `screen.txt` (the OCR of the Meet
+  tiles) and the content (who is addressed by name, who answers, who describes their own
+  work), excluding names already taken by a print. One name per S label, the same for
+  the whole meeting; add `(?)` after the name only when truly unsure. Two S labels are
+  two different voices: never give them the same name unless the content proves it.
+  A short interjection ("ouais", "ok", a few words) can carry the wrong label: trust the
+  conversation over the label there. Plain `others`: use the same sources; one other
+  participant with a clear name: use it; several: context; when unsure write
+  "Participant 1/2…" rather than guessing. Never write `S1`, `others` or `others:…` in
+  `transcript.md` or the notes: always a name or "Participant N".
 
 ## 3. Title, folder, sensitivity: decide before saving anything
 - **Title**, used for the folder and both files: a real calendar/meeting title from
@@ -80,8 +99,9 @@ you need names.
   CREADROIT/Maître Capmas legal advice), cap table / equity / shareholder agreements,
   fundraising terms (valuation, investors, term sheets, pré-seed round details), salaries
   or compensation, health. A passing mention is not enough. When in doubt, sensitive.
-  Sensitive meetings get the same notes and transcript. They stay local: nothing is sent
-  to anyone, and you pass `--sensitive "<reason>"` to `finish`, which records it.
+  Sensitive meetings get the same notes and transcript. You never send anything yourself:
+  you pass `--sensitive "<reason>"` to `finish`, which records it and keeps the meeting
+  out of any shared Slack channel.
 
 ## 4. Corrected transcript: write and save
 Write the corrected transcript **first**, and write the notes from it, never from the raw
@@ -127,7 +147,7 @@ Numbers, prices, objections, quotes worth keeping (quotes verbatim in original l
 _<app> · <start>–<end> · <minutes> min · meeting <id>_
 ```
 Tight, no filler, nothing that wasn't said. **Only what was said out loud**:
-`screen.txt` and the screenshots are there to name people and spell terms, not as a
+`screen.txt` is there to name people and spell terms, not as a
 source of content. A fact that appears only on screen (a chat message, a document, code,
 a ticket) is not meeting content: leave it out, unless the speakers were clearly looking
 at it together, in which case put it under Contexte notable starting with "(à l'écran)".
@@ -167,7 +187,7 @@ il faudrait que je…" → that speaker; "il faut qu'on / on doit" said and agre
 Then save the notes right away:
 `meeting-notes finish --id <id> --title "<Title>" --stage notes --notes <folder>/notes.md`
 If sensitive, add `--sensitive "<short reason>"`: the meeting is recorded as sensitive and
-the files stay local. If this command fails, stop working on this meeting and report the
+`finish` keeps it out of any shared channel. If this command fails, stop working on this meeting and report the
 error: do not go on to step 6.
 
 ## 6. Save the corrected transcript

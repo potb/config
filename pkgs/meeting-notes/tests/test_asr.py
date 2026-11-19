@@ -336,6 +336,30 @@ class TranscribeTests(AsrCase):
             ],
         )
 
+    def test_spans_follow_the_sorted_lines(self):
+        others = self.make_chunk("output", T0 + timedelta(seconds=30), device="Spk")
+        mic = self.make_chunk("input", T0)
+        run = FakeRun(
+            self.cfg,
+            outputs=[
+                whisper_json([(4.0, words(8))]),
+                whisper_json([(1.5, words(9)), (12.0, words(7))]),
+            ],
+        )
+        spans = []
+        lines = asr.transcribe(
+            self.cfg, T0, T0 + timedelta(minutes=2), "p", run, available=lambda cfg: True, spans=spans
+        )
+        self.assertEqual([line[1] for line in lines], ["me", "others", "others"])
+        self.assertEqual(
+            spans,
+            [
+                asr.Span(mic.name, 4.0, None),
+                asr.Span(others.name, 1.5, 12.0),
+                asr.Span(others.name, 12.0, None),
+            ],
+        )
+
     def test_unreadable_chunk_is_skipped(self):
         bad = self.make_chunk("input", T0)
         self.make_chunk("input", T0 + timedelta(seconds=30))
