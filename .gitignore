@@ -30,6 +30,7 @@ docs/*
 !docs/gaming.md
 !docs/meeting-notes.md
 !docs/chrome.md
+!docs/claude.md
 *.log
 
 __pycache__/
