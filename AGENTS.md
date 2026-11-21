@@ -19,11 +19,12 @@ layout; `docs/` holds one page per topic.
 
 ## Writing code here
 
-- Code carries no explanatory comments. A hook rejects them. Put the
-  explanation in the matching page under `docs/` and make the code read on its
-  own.
+- Code carries no explanatory comments. A hook reports any you add, after the
+  edit: remove them. Put the explanation in the matching page under `docs/`
+  and make the code read on its own.
 - Edit files with the editor tools, not `sed -i` or scripts that rewrite
-  files. A hook rejects those too.
+  files. Such edits go through, but the hook then asks you to check what they
+  wrote.
 - Before saying a change works, build the affected host, for example
   `nix build .#nixosConfigurations.charon.config.system.build.toplevel`.
   Activating it (`nh os switch`) needs the owner's sudo password.

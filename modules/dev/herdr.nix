@@ -8,6 +8,7 @@
   home = {config, ...}: let
     checkout = "${config.home.homeDirectory}/projects/potb/config/modules/dev/herdr";
     appHome = "${config.home.homeDirectory}/.config/herdr-app";
+    skill = "${config.programs.herdr.package}/share/skills/herdr/herdr";
     mods = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./herdr/mods));
     link = path: config.lib.file.mkOutOfStoreSymlink "${checkout}/${path}";
 
@@ -41,6 +42,8 @@
       // {
         ".config/herdr-app/tools".source = link "tools";
         ".config/herdr-app/CLAUDE.md".source = ./herdr/herdr-app-agents.md;
+        ".claude/skills/herdr".source = skill;
+        ".config/opencode/skills/herdr".source = skill;
       };
 
     programs.zsh.initContent = ''

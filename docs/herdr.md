@@ -57,6 +57,15 @@ nix.
 `HERDR_CONFIG_PATH`, for example the store path of `herdr-config.toml` built
 from `home-manager.users.potb.xdg.configFile."herdr/config.toml".source`.
 
+## Skill
+
+The herdr package ships its agent skill at
+`share/skills/herdr/herdr/SKILL.md`. `modules/dev/herdr.nix` links that
+directory into both `~/.claude/skills/herdr` and
+`~/.config/opencode/skills/herdr`, so Claude Code and OpenCode can load it
+without an integration install step. The same package owns the skill text, so
+it moves with the herdr version.
+
 ## Desktop app (herdr-app)
 
 herdr-app, the Herdr desktop window, comes from `numtide/llm-agents.nix` and is

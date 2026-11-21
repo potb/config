@@ -45,7 +45,7 @@
       tui = "fullscreen";
       theme = "light";
       agentPushNotifEnabled = true;
-      hooks.PreToolUse = [
+      hooks.PostToolUse = [
         {
           matcher = "Edit|MultiEdit|Write|Bash";
           hooks = [
